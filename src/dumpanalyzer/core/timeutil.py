@@ -64,13 +64,16 @@ def parse_to_utc(dt_val: Union[str, datetime, int, float, None]) -> Optional[dat
         except ValueError:
             pass
 
-        # 4. Các định dạng thông dụng: YYYY-MM-DD HH:MM:SS
+        # 4. Các định dạng thông dụng: YYYY-MM-DD HH:MM:SS và WinDbg session time
         for fmt in (
             "%Y-%m-%d %H:%M:%S",
             "%Y-%m-%d %H:%M:%S.%f",
             "%d/%m/%Y %H:%M:%S",
             "%m/%d/%Y %I:%M:%S %p",
             "%Y/%m/%d %H:%M:%S",
+            "%a %b %d %H:%M:%S.%f %Y",
+            "%a %b %d %H:%M:%S %Y",
+            "%b %d %H:%M:%S %Y",
         ):
             try:
                 dt = datetime.strptime(raw, fmt)

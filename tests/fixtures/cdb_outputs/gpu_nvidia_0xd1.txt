@@ -1,0 +1,25 @@
+DRIVER_IRQL_NOT_LESS_OR_EQUAL (d1)
+An attempt was made to access a pageable address at high IRQL.
+Arguments:
+Arg1: 0000000000000028
+Arg2: 0000000000000002
+Arg3: 0000000000000000
+Arg4: fffff801456789ab
+
+BUGCHECK_CODE: d1
+BUGCHECK_P1: 28
+BUGCHECK_P2: 2
+BUGCHECK_P3: 0
+BUGCHECK_P4: fffff801456789ab
+
+PROCESS_NAME: dwm.exe
+IMAGE_NAME: nvlddmkm.sys
+MODULE_NAME: nvlddmkm
+FAILURE_BUCKET_ID: AV_nvlddmkm!unknown_function
+
+STACK_TEXT:
+fffff801`11111111 fffff800`00000000 nt!KeBugCheckEx
+fffff801`11111119 fffff801`456789ab nt!KiPageFault+0x440
+fffff801`11111120 fffff801`45678000 nvlddmkm+0x12345
+fffff801`11111128 fffff801`45670000 nvlddmkm+0x45678
+fffff801`11111130 fffff800`11111111 dxgkrnl!DxgkSubmitCommandVirtual+0x200

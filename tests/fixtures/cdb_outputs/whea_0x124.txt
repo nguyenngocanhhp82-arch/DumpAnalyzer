@@ -1,0 +1,33 @@
+Microsoft (R) Windows Debugger Version 10.0.22621.1 AMD64
+Loading Dump File [C:\dumps\whea.dmp]
+Debug session time: Tue Oct 20 10:00:00.123 2026 (UTC + 7:00)
+System Uptime: 2 days 4:15:30.000
+
+WHEA_UNCORRECTABLE_ERROR (124)
+A fatal hardware error has occurred.
+Arguments:
+Arg1: 0000000000000000, Machine Check Exception
+Arg2: ffff800012345678, Address of the nt!_WHEA_ERROR_RECORD structure.
+Arg3: b200000000000000, High order 32-bits of the MCi_STATUS value.
+Arg4: 0000000000000175, Low order 32-bits of the MCi_STATUS value.
+
+BUGCHECK_CODE: 124
+BUGCHECK_P1: 0
+BUGCHECK_P2: ffff800012345678
+BUGCHECK_P3: b200000000000000
+BUGCHECK_P4: 175
+
+PROCESS_NAME: System
+IMAGE_NAME: AuthenticAMD.sys
+MODULE_NAME: AuthenticAMD
+FAILURE_BUCKET_ID: 0x124_AuthenticAMD_MEMORY__UNKNOWN_FATAL
+
+STACK_TEXT:
+ffff8000`11111111 fffff800`22222222 nt!KeBugCheckEx+0x0
+ffff8000`11111119 fffff800`33333333 nt!HalpMcaReportError+0x100
+ffff8000`11111120 fffff800`44444444 AuthenticAMD+0x1234
+ffff8000`11111128 fffff800`55555555 nt!HalHandleMcheck+0x50
+
+start             end                 module name
+fffff800`20000000 fffff800`21000000   nt
+fffff800`22000000 fffff800`22050000   AuthenticAMD

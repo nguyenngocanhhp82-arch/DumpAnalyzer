@@ -113,3 +113,51 @@ class Database:
         conn = self._get_connection()
         cursor = conn.execute("SELECT * FROM crash ORDER BY crash_time_utc DESC")
         return [dict(r) for r in cursor.fetchall()]
+
+    def get_unprocessed_crashes(self) -> List[Dict[str, Any]]:
+        """Lấy danh sách các crash chưa được phân tích sâu bằng cdb (analyzed_by != 'cdb')."""
+        conn = self._get_connection()
+        cursor = conn.execute(
+            "SELECT * FROM crash WHERE analyzed_by != 'cdb' AND dump_type != 'none' ORDER BY crash_time_utc DESC"
+        )
+        return [dict(r) for r in cursor.fetchall()]
+
+    def update_crash_cdb_results(
+        self,
+        crash_id: int,
+        image_name: str,
+        module_name: str,
+        process_name: str,
+        failure_bucket_id: str,
+        uptime_seconds: int,
+        cdb_raw_output: str,
+        analyzed_by: str = "cdb",
+    ) -> bool:
+        """Cập nhật thông tin chi tiết và output thô từ cdb vào bản ghi crash."""
+        conn = self._get_connection()
+        sql = """
+        UPDATE crash
+        SET image_name = ?,
+            module_name = ?,
+            process_name = ?,
+            failure_bucket_id = ?,
+            uptime_seconds = ?,
+            cdb_raw_output = ?,
+            analyzed_by = ?
+        WHERE id = ?
+        """
+        with conn:
+            cursor = conn.execute(
+                sql,
+                (
+                    image_name,
+                    module_name,
+                    process_name,
+                    failure_bucket_id,
+                    uptime_seconds,
+                    cdb_raw_output,
+                    analyzed_by,
+                    crash_id,
+                ),
+            )
+            return cursor.rowcount > 0

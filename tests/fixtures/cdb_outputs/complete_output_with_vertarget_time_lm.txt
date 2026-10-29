@@ -1,0 +1,23 @@
+Windows 10 Kernel Version 19045 MP (12 procs) Free x64
+Debug session time: Wed Oct 28 14:20:10.500 2026 (UTC + 7:00)
+System Uptime: 5 days 12:30:45.123
+
+BUGCHECK_CODE: 9f
+BUGCHECK_P1: 3
+BUGCHECK_P2: ffff900012345678
+BUGCHECK_P3: ffff900087654321
+BUGCHECK_P4: ffff900011111111
+
+PROCESS_NAME: System
+IMAGE_NAME: pci.sys
+MODULE_NAME: pci
+FAILURE_BUCKET_ID: 0x9F_3_POWER_TIMEOUT_pci!PciPowerDispatch
+
+STACK_TEXT:
+ffff9000`00000000 fffff800`00000000 nt!KeBugCheckEx
+ffff9000`00000008 fffff800`11111111 nt!PopIrpWatchdogBugcheck+0x100
+ffff9000`00000010 fffff806`22222222 pci+0x12345
+
+start             end                 module name
+fffff800`00000000 fffff800`01000000   nt
+fffff806`22000000 fffff806`22050000   pci

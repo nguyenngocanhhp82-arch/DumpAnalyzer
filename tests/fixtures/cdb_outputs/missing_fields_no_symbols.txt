@@ -1,0 +1,11 @@
+Microsoft (R) Windows Debugger Version 10.0.22621.1 AMD64
+*** ERROR: Symbol file could not be found.
+
+BUGCHECK_CODE: 3b
+BUGCHECK_P1: c0000005
+BUGCHECK_P2: fffff80000001234
+BUGCHECK_P3: fffff80000005678
+BUGCHECK_P4: 0
+
+IMAGE_NAME: unknown_image
+FAILURE_BUCKET_ID: NULL_CLASS

@@ -1,0 +1,6 @@
+Microsoft (R) Windows Debugger Version 10.0.22621.1 AMD64
+Loading symbols...
+BUGCHECK_CODE: 133
+BUGCHECK_P1: 1
+PROCESS_NAME: System
+[COMMAND TIMEOUT REACHED AFTER 300 SECONDS]

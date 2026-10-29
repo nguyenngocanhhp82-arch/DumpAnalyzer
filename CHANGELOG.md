@@ -4,6 +4,34 @@ Mọi thay đổi quan trọng của dự án DumpAnalyzer được ghi lại t�
 
 ---
 
+## [v0.2.0] - 2026-10-29
+
+### Hoàn thành Phase 2 (Tích hợp cdb.exe: Phân tích sâu)
+- **Module phân tích cú pháp cdb (`cdb_parser.py`):**
+  - Regex bóc tách toàn diện các trường từ output `!analyze -v`: `BUGCHECK_CODE`, `BUGCHECK_P1..P4`, `IMAGE_NAME`, `MODULE_NAME`, `PROCESS_NAME`, `FAILURE_BUCKET_ID`, `STACK_TEXT`.
+  - Phân định rõ Nạn nhân vs Thủ phạm: Bổ sung danh sách `DEFAULT_MS_CORE_MODULES` (bao gồm cả `nt`, `ntoskrnl.exe`, `hal.dll`, `win32k*.sys`, `ntfs.sys`...). Nếu `IMAGE_NAME` là module Microsoft, tự động quét tìm và chỉ định driver bên thứ ba đầu tiên trong call stack làm nghi vấn chính.
+  - Bóc tách thông tin hệ điều hành (`vertarget`), thời điểm sập (`.time`), thời gian chạy (`System Uptime`) và danh sách module nạp kèm địa chỉ (`lm t n`).
+- **Module điều phối cdb ngầm (`cdb_runner.py`):**
+  - Thực thi `cdb.exe` qua danh sách đối số an toàn trong `subprocess.run`, không ghép chuỗi shell.
+  - Kiểm soát `timeout` chặt chẽ (mặc định 300 giây).
+  - Tự động bổ sung lệnh chuyên biệt theo mã lỗi (`extra_cdb` từ YAML):
+    - `0x124`: `!errrec {p2}`
+    - `0x133`: `!dpcs`, `!timer`
+    - `0xD1`, `0xA`, `0xC4`: `!irp`, `!devstack`
+    - `0x1A`, `0x50`, `0xC2`: `!vm`, `!poolused 2`
+  - Cơ chế **Fallback an toàn về `header_only`**: Nếu thiếu `cdb.exe`, cdb bị timeout hoặc symbol lỗi, hệ thống tự động giữ nguyên thông tin header và đánh dấu rõ `analyzed_by = 'header_only'`, không làm sập chương trình.
+  - Phân tích song song nhiều dump qua `ThreadPoolExecutor` (mặc định 2 luồng).
+  - Hàm `warmup_symbols()`: Tải trước Symbol Microsoft để tránh nghẽn mạng khi phân tích hàng loạt.
+- **Cập nhật CSDL & Dòng lệnh (`db.py`, `cli.py`):**
+  - Lưu toàn bộ `cdb_raw_output` vào SQLite để phục vụ re-score sau này.
+  - Thêm subcommand `dumpanalyzer analyze [--all] [--path] [--concurrency]`.
+  - Thêm subcommand `dumpanalyzer warmup-symbols`.
+- **Bộ Fixtures & Unit Tests:**
+  - Tạo 10 file output `!analyze -v` mẫu trong `tests/fixtures/cdb_outputs/` mô phỏng đầy đủ các ca (WHEA CPU, GPU NVIDIA, card mạng Realtek, Antivirus Kaspersky trong ntoskrnl, SSD NVMe, lỗi phần cứng RAM thuần tuý, thiếu symbol, timeout).
+  - Thêm 15 bài test mới, nâng tổng bộ kiểm thử lên **43/43 PASSED (100%)**.
+
+---
+
 ## [v0.1.2] - 2026-10-29
 
 ### Hoàn thành Phase 1B (Kiểm tra & Cấu hình Khả năng ghi Dump)

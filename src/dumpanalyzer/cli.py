@@ -30,6 +30,12 @@ from dumpanalyzer.collectors.dump_config import (
     apply_automatic_dump,
     CRASH_DUMP_MODES,
 )
+from dumpanalyzer.analyzer.cdb_runner import (
+    analyze_dump_file,
+    analyze_dumps_parallel,
+    warmup_symbols,
+)
+
 
 
 def print_banner():
@@ -382,6 +388,214 @@ def build_parser() -> argparse.ArgumentParser:
     )
     parser_scan.set_defaults(func=cmd_scan)
 
+def cmd_analyze(args):
+    """Phân tích chuyên sâu file dump bằng cdb.exe (!analyze -v) và lưu output thô."""
+    print_banner()
+    settings = load_settings()
+    db = Database()
+
+    targets: List[Dict[str, Any]] = []
+
+    if args.all:
+        targets = db.get_unprocessed_crashes()
+        print(f"\n[*] Đang tìm các file dump chưa phân tích cdb trong CSDL: Tìm thấy {len(targets)} bản ghi.")
+    elif args.path:
+        search_path = Path(args.path)
+        if search_path.is_file():
+            # Kiểm tra trong DB hoặc tạo mới
+            sha256 = calculate_sha256(search_path)
+            cached = db.get_crash_by_sha256(sha256)
+            if cached:
+                targets = [cached]
+            else:
+                h_info = parse_dump_header(search_path)
+                c_id = db.insert_crash(Crash(
+                    dump_path=str(search_path),
+                    dump_sha256=sha256,
+                    dump_type=h_info.dump_type,
+                    crash_time_utc=h_info.crash_time_utc,
+                    bugcheck_code=h_info.bugcheck_code,
+                    bugcheck_name=h_info.bugcheck_name,
+                    p1=h_info.p1, p2=h_info.p2, p3=h_info.p3, p4=h_info.p4,
+                    analyzed_by="header_only",
+                ))
+                targets = [db.get_crash_by_sha256(sha256)]
+        else:
+            found = find_dumps([str(search_path)])
+            for f in found:
+                sha256 = calculate_sha256(f["path"])
+                cached = db.get_crash_by_sha256(sha256)
+                if cached:
+                    targets.append(cached)
+                else:
+                    h_info = parse_dump_header(f["path"])
+                    c_id = db.insert_crash(Crash(
+                        dump_path=str(f["path"]),
+                        dump_sha256=sha256,
+                        dump_type=h_info.dump_type,
+                        crash_time_utc=h_info.crash_time_utc,
+                        bugcheck_code=h_info.bugcheck_code,
+                        bugcheck_name=h_info.bugcheck_name,
+                        p1=h_info.p1, p2=h_info.p2, p3=h_info.p3, p4=h_info.p4,
+                        analyzed_by="header_only",
+                    ))
+                    targets.append(db.get_crash_by_sha256(sha256))
+    else:
+        print("\n[!] Hãy chỉ định '--all' để phân tích mọi dump chưa xử lý, hoặc '--path <đường_dẫn>'.")
+        db.close()
+        return 1
+
+    if not targets:
+        print("[OK] Không có file dump nào cần phân tích chuyên sâu.")
+        db.close()
+        return 0
+
+    concurrency = args.concurrency or settings.get("max_parallel_cdb", 2)
+    print(f"[*] Bắt đầu phân tích chuyên sâu {len(targets)} dump (Số luồng: {concurrency})...\n")
+
+    results = []
+    for item in targets:
+        dump_path = item["dump_path"]
+        res = analyze_dump_file(
+            dump_path=dump_path,
+            cdb_path=settings.get("cdb_path"),
+            symbol_path=settings.get("symbol_path"),
+            timeout_seconds=settings.get("cdb_timeout_seconds", 300),
+        )
+
+        cdb_res = res["cdb_result"]
+        analyzed_by = res["analyzed_by"]
+
+        # Cập nhật kết quả vào SQLite
+        db.update_crash_cdb_results(
+            crash_id=item["id"],
+            image_name=cdb_res.image_name,
+            module_name=cdb_res.module_name,
+            process_name=cdb_res.process_name,
+            failure_bucket_id=cdb_res.failure_bucket_id,
+            uptime_seconds=cdb_res.uptime_seconds,
+            cdb_raw_output=res["raw_output"],
+            analyzed_by=analyzed_by,
+        )
+
+        results.append({
+            "id": item["id"],
+            "code": cdb_res.bugcheck_code or item.get("bugcheck_code", "N/A"),
+            "name": cdb_res.bugcheck_name or item.get("bugcheck_name", "Không rõ"),
+            "suspect": cdb_res.suspect_driver or cdb_res.image_name or "Chưa rõ",
+            "process": cdb_res.process_name or "N/A",
+            "bucket": cdb_res.failure_bucket_id or "N/A",
+            "by": analyzed_by,
+        })
+
+    db.close()
+
+    # In bảng tổng kết
+    col_id = 4
+    col_code = 10
+    col_name = 30
+    col_susp = 22
+    col_proc = 14
+    col_by = 12
+
+    line_hdr = (
+        f"{'ID':<{col_id}} | "
+        f"{'Mã lỗi':<{col_code}} | "
+        f"{'Tên lỗi':<{col_name}} | "
+        f"{'Nghi vấn chính':<{col_susp}} | "
+        f"{'Tiến trình':<{col_proc}} | "
+        f"{'Phương thức':<{col_by}}"
+    )
+    sep = "-" * len(line_hdr) + "-" * 10
+    print(sep)
+    print(line_hdr)
+    print(sep)
+    for r in results:
+        print(
+            f"{r['id']:<{col_id}} | "
+            f"{r['code']:<{col_code}} | "
+            f"{r['name'][:col_name]:<{col_name}} | "
+            f"{r['suspect'][:col_susp]:<{col_susp}} | "
+            f"{r['process'][:col_proc]:<{col_proc}} | "
+            f"{r['by']:<{col_by}}"
+        )
+    print(sep)
+    print(f"Hoàn thành phân tích {len(results)} file dump.\n")
+    return 0
+
+
+def cmd_warmup_symbols(args):
+    """Kiểm tra và tải trước Symbol Microsoft."""
+    print_banner()
+    print("\n--- TẢI TRƯỚC SYMBOLS MICROSOFT (Symbol Warmup) ---")
+    settings = load_settings()
+    res = warmup_symbols(
+        cdb_path=settings.get("cdb_path"),
+        symbol_path=settings.get("symbol_path"),
+    )
+    if res["success"]:
+        print(f"[OK] {res['message']}\n")
+        return 0
+    else:
+        print(f"[X] {res['message']}\n")
+        return 1
+
+
+def build_parser() -> argparse.ArgumentParser:
+    """Xây dựng bộ phân tích tham số dòng lệnh."""
+    parser = argparse.ArgumentParser(
+        prog="dumpanalyzer",
+        description="DumpAnalyzer - Phân tích BSOD dump kết hợp Windows Event Log",
+        formatter_class=argparse.RawTextHelpFormatter,
+    )
+
+    parser.add_argument(
+        "-v", "--version",
+        action="version",
+        version=f"DumpAnalyzer v{__version__}",
+        help="Hiển thị phiên bản hiện tại của phần mềm",
+    )
+
+    subparsers = parser.add_subparsers(
+        dest="command",
+        title="Lệnh khả dụng",
+        description="Chọn lệnh cần thực thi",
+        help="Nhập 'dumpanalyzer <lệnh> --help' để xem chi tiết từng lệnh",
+    )
+
+    # Subcommand: check-env
+    parser_check = subparsers.add_parser(
+        "check-env",
+        help="Kiểm tra môi trường hệ thống (cdb.exe, quyền Admin, thư mục dump)",
+    )
+    parser_check.set_defaults(func=cmd_check_env)
+
+    # Subcommand: scan
+    parser_scan = subparsers.add_parser(
+        "scan",
+        help="Quét và đọc mã lỗi từ header file dump (không cần cdb.exe)",
+    )
+    parser_scan.add_argument(
+        "--path",
+        help="Đường dẫn thư mục hoặc file dump cần quét (ví dụ: 'C:\\Windows\\Minidump' hoặc file cụ thể)",
+    )
+    parser_scan.add_argument(
+        "--from",
+        dest="from_date",
+        help="Chỉ quét các file dump từ ngày này (định dạng: YYYY-MM-DD)",
+    )
+    parser_scan.add_argument(
+        "--to",
+        dest="to_date",
+        help="Chỉ quét các file dump đến ngày này (định dạng: YYYY-MM-DD)",
+    )
+    parser_scan.add_argument(
+        "--force",
+        action="store_true",
+        help="Bỏ qua cache SHA256, bắt buộc đọc lại và cập nhật cơ sở dữ liệu",
+    )
+    parser_scan.set_defaults(func=cmd_scan)
+
     # Subcommand: check-dump-config (Phase 1B)
     parser_dump_cfg = subparsers.add_parser(
         "check-dump-config",
@@ -393,6 +607,35 @@ def build_parser() -> argparse.ArgumentParser:
         help="Bật ghi dump tự động (CrashDumpEnabled = 7) có sao lưu và xác nhận an toàn",
     )
     parser_dump_cfg.set_defaults(func=cmd_check_dump_config)
+
+    # Subcommand: analyze (Phase 2)
+    parser_analyze = subparsers.add_parser(
+        "analyze",
+        help="Phân tích chuyên sâu bằng cdb.exe (!analyze -v) lấy stack trace và driver bên thứ ba",
+    )
+    parser_analyze.add_argument(
+        "--all",
+        action="store_true",
+        help="Phân tích toàn bộ các file dump chưa xử lý trong CSDL",
+    )
+    parser_analyze.add_argument(
+        "--path",
+        help="Đường dẫn thư mục hoặc file dump cần phân tích chuyên sâu",
+    )
+    parser_analyze.add_argument(
+        "--concurrency",
+        type=int,
+        default=2,
+        help="Số tiến trình phân tích song song tối đa (mặc định: 2)",
+    )
+    parser_analyze.set_defaults(func=cmd_analyze)
+
+    # Subcommand: warmup-symbols (Phase 2)
+    parser_warmup = subparsers.add_parser(
+        "warmup-symbols",
+        help="Tải trước Symbol Microsoft để tránh bị treo khi phân tích hàng loạt",
+    )
+    parser_warmup.set_defaults(func=cmd_warmup_symbols)
 
     return parser
 
@@ -412,3 +655,4 @@ def main(argv=None):
 
 if __name__ == "__main__":
     sys.exit(main())
+
