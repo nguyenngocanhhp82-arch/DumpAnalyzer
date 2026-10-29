@@ -161,3 +161,49 @@ class Database:
                 ),
             )
             return cursor.rowcount > 0
+
+    def insert_machine(self, machine: MachineInfo) -> int:
+        """Lưu hoặc cập nhật thông tin máy tính."""
+        conn = self._get_connection()
+        sql = """
+        INSERT INTO machine (hostname, model, bios, cpu, os_build)
+        VALUES (?, ?, ?, ?, ?)
+        """
+        with conn:
+            cursor = conn.execute(
+                sql, (machine.hostname, machine.model, machine.bios, machine.cpu, machine.os_build)
+            )
+            machine.id = cursor.lastrowid
+            return machine.id
+
+    def insert_evidence(self, ev: Evidence) -> int:
+        """Lưu một bằng chứng liên quan đến crash."""
+        conn = self._get_connection()
+        sql = """
+        INSERT INTO evidence (crash_id, kind, source, event_id, time_utc, summary, detail)
+        VALUES (?, ?, ?, ?, ?, ?, ?)
+        """
+        with conn:
+            cursor = conn.execute(
+                sql,
+                (ev.crash_id, ev.kind, ev.source, ev.event_id, ev.time_utc, ev.summary, ev.detail),
+            )
+            ev.id = cursor.lastrowid
+            return ev.id
+
+    def get_evidences_by_crash(self, crash_id: int) -> List[Dict[str, Any]]:
+        """Lấy danh sách tất cả các bằng chứng gắn với một vụ sập."""
+        conn = self._get_connection()
+        cursor = conn.execute(
+            "SELECT * FROM evidence WHERE crash_id = ? ORDER BY time_utc ASC",
+            (crash_id,),
+        )
+        return [dict(r) for r in cursor.fetchall()]
+
+    def get_crash_by_id(self, crash_id: int) -> Optional[Dict[str, Any]]:
+        """Lấy thông tin chi tiết vụ sập theo ID."""
+        conn = self._get_connection()
+        cursor = conn.execute("SELECT * FROM crash WHERE id = ?", (crash_id,))
+        row = cursor.fetchone()
+        return dict(row) if row else None
+

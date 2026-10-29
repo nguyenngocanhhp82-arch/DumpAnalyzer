@@ -1,0 +1,104 @@
+[
+  {
+    "event_id": 41,
+    "provider": "Microsoft-Windows-Kernel-Power",
+    "time_created_utc": "2026-10-20T10:00:00Z",
+    "level": 1,
+    "event_data": {
+      "BugcheckCode": "278",
+      "BugcheckParameter1": "0xffff800011111111",
+      "BugcheckParameter2": "0xffff800022222222",
+      "BugcheckParameter3": "0x0",
+      "BugcheckParameter4": "0x2",
+      "SleepInProgress": "0",
+      "PowerButtonTimestamp": "0"
+    },
+    "kp41_info": {
+      "is_bsod": true,
+      "bugcheck_code": "0x116",
+      "p1": "0xFFFF800011111111",
+      "p2": "0xFFFF800022222222",
+      "p3": "0x0",
+      "p4": "0x2"
+    },
+    "raw_message": "The system has rebooted without cleanly shutting down first."
+  },
+  {
+    "event_id": 1001,
+    "provider": "Microsoft-Windows-WER-SystemErrorReporting",
+    "time_created_utc": "2026-10-20T10:01:30Z",
+    "level": 4,
+    "event_data": {},
+    "wer1001_info": {
+      "bugcheck_code": "0x116",
+      "p1": "0xFFFF800011111111",
+      "p2": "0xFFFF800022222222",
+      "p3": "0x0",
+      "p4": "0x2",
+      "dump_file": "C:\\Windows\\Minidump\\102026-12345-01.dmp"
+    },
+    "raw_message": "The computer has rebooted from a bugcheck. The bugcheck was: 0x00000116 (0xffff800011111111, 0xffff800022222222, 0x0000000000000000, 0x0000000000000002). A dump was saved in: C:\\Windows\\Minidump\\102026-12345-01.dmp."
+  },
+  {
+    "event_id": 14,
+    "provider": "nvlddmkm",
+    "time_created_utc": "2026-10-20T09:55:00Z",
+    "level": 2,
+    "event_data": {
+      "Message": "The description for Event ID 14 from source nvlddmkm cannot be found."
+    },
+    "raw_message": "Lỗi crash driver NVIDIA nvlddmkm"
+  },
+  {
+    "event_id": 4101,
+    "provider": "Display",
+    "time_created_utc": "2026-10-20T09:58:30Z",
+    "level": 3,
+    "event_data": {
+      "Data": "Display driver nvlddmkm stopped responding and has successfully recovered."
+    },
+    "raw_message": "Display driver stopped responding"
+  },
+  {
+    "event_id": 41,
+    "provider": "Microsoft-Windows-Kernel-Power",
+    "time_created_utc": "2026-10-22T14:30:00Z",
+    "level": 1,
+    "event_data": {
+      "BugcheckCode": "0",
+      "BugcheckParameter1": "0x0",
+      "BugcheckParameter2": "0x0",
+      "BugcheckParameter3": "0x0",
+      "BugcheckParameter4": "0x0"
+    },
+    "kp41_info": {
+      "is_bsod": false,
+      "bugcheck_code": "0x0",
+      "p1": "0x0",
+      "p2": "0x0",
+      "p3": "0x0",
+      "p4": "0x0"
+    },
+    "raw_message": "The system has rebooted without cleanly shutting down first (BugcheckCode 0)."
+  },
+  {
+    "event_id": 18,
+    "provider": "Microsoft-Windows-WHEA-Logger",
+    "time_created_utc": "2026-10-20T09:52:00Z",
+    "level": 2,
+    "event_data": {
+      "ErrorType": "Machine Check Exception"
+    },
+    "raw_message": "A fatal hardware error has occurred. Component: AMD Processor Core."
+  },
+  {
+    "event_id": 153,
+    "provider": "Disk",
+    "time_created_utc": "2026-10-18T05:00:00Z",
+    "level": 3,
+    "event_data": {
+      "Device": "\\Device\\Harddisk0\\DR0"
+    },
+    "raw_message": "The IO operation at logical block address was retried."
+  }
+]

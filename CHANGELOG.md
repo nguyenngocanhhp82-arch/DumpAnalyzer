@@ -4,6 +4,35 @@ Mọi thay đổi quan trọng của dự án DumpAnalyzer được ghi lại t�
 
 ---
 
+## [v0.3.0] - 2026-10-29
+
+### Hoàn thành Phase 3 (Mở rộng Nguồn dữ liệu & Tương quan)
+- **Module phân tích sự kiện Windows Event Log (`eventlog.py`):**
+  - Trích xuất thông tin chi tiết từ XML (`parse_event_xml`): Provider, EventID, Level, TimeCreated (UTC), EventData theo cấu trúc key-value.
+  - Xử lý đặc thù cho Event 41 (Kernel-Power): bóc tách `BugcheckCode` thập phân chuyển sang Hex (ví dụ 278 -> `0x116`; 0 -> `0x0` biểu thị mất nguồn/treo cứng đột ngột không qua BSOD).
+  - Phân tích cú pháp mô tả Event 1001 (WER / BugCheck): bóc tách mã lỗi, 4 tham số và đường dẫn dump file đã ghi.
+  - Hỗ trợ truy vấn PowerShell `Get-WinEvent` với các bộ lọc Provider/Event ID trọng yếu (Kernel-Power, WHEA-Logger, Disk, nvlddmkm/Display, stornvme, volmgr...).
+- **Module thu thập thông tin phần cứng & hệ thống (`hardware.py`):**
+  - `collect_machine_info()`: Thu thập CPU, RAM, GPU, Model bo mạch chủ, BIOS version, OS build, Anti-virus đang hoạt động.
+  - `collect_smart_status()`: Đọc trạng thái ổ cứng vật lý và SMART.
+- **Module thu thập Driver bên thứ ba & Lịch sử cập nhật (`drivers_updates.py`):**
+  - `collect_third_party_drivers()`: Lấy danh sách driver không phải của Microsoft kèm ngày cài đặt/phiên bản.
+  - `collect_recent_windows_updates()`: Thu thập danh sách bản cập nhật Windows (KB) và driver được cài đặt trong 30 ngày gần nhất.
+- **Engine tương quan dữ liệu (`correlator.py`):**
+  - Cửa sổ thời gian 10 phút trước crash: gom các cảnh báo ổ đĩa (Disk/stornvme/storahci), driver sập (nvlddmkm), cảnh báo phần cứng WHEA để làm bằng chứng liên đới.
+  - Hợp nhất Event 41 và Event 1001 thành 1 phiên crash duy nhất nếu chúng xảy ra cùng thời điểm.
+  - Tự động sinh bản ghi Crash dạng `analyzed_by = 'log_only'` cho các sự cố tắt đột ngột hoặc BSOD không sinh được file dump.
+  - Tương quan cập nhật Windows/Driver trong vòng 7 ngày trước crash.
+  - Lưu và liên kết Evidence vào cơ sở dữ liệu SQLite (`evidence` table).
+- **Cập nhật CSDL & Dòng lệnh (`db.py`, `cli.py`):**
+  - Thêm các hàm `insert_machine()`, `insert_evidence()`, `get_evidences_by_crash()`.
+  - Bổ sung subcommand `dumpanalyzer events [--from] [--to]`.
+- **Bộ Fixtures & Unit Tests:**
+  - Bổ sung `tests/fixtures/sample_events.json`.
+  - Thêm 7 unit tests mới trong `tests/test_eventlog.py` và `tests/test_correlator.py`, nâng tổng số test lên **50/50 PASSED (100%)**.
+
+---
+
 ## [v0.2.0] - 2026-10-29
 
 ### Hoàn thành Phase 2 (Tích hợp cdb.exe: Phân tích sâu)

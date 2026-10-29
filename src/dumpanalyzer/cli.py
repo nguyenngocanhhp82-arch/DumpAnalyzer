@@ -35,6 +35,12 @@ from dumpanalyzer.analyzer.cdb_runner import (
     analyze_dumps_parallel,
     warmup_symbols,
 )
+from dumpanalyzer.collectors.eventlog import read_system_events
+from dumpanalyzer.collectors.hardware import collect_machine_info
+from dumpanalyzer.collectors.drivers_updates import collect_recent_windows_updates
+from dumpanalyzer.engine.correlator import Correlator
+from dumpanalyzer.core.models import Evidence
+
 
 
 
@@ -541,6 +547,81 @@ def cmd_warmup_symbols(args):
         return 1
 
 
+def cmd_events(args):
+    """Thu thập và hiển thị các sự kiện Event Log quan trọng, phát hiện crash log_only."""
+    print_banner()
+    print("\n--- THU THẬP & TƯƠNG QUAN SỰ KIỆN EVENT LOG (System Log) ---")
+
+    db = Database()
+    events = read_system_events(from_date=args.from_date, to_date=args.to_date)
+
+    if not events:
+        print("[!] Không tìm thấy sự kiện nghi vấn nào trong khoảng thời gian đã chọn (hoặc đang chạy trên Linux).")
+        db.close()
+        return 0
+
+    print(f"[OK] Thu thập thành công {len(events)} sự kiện đáng chú ý.\n")
+
+    # In bảng sự kiện
+    col_t = 20
+    col_prov = 32
+    col_id = 8
+    col_msg = 45
+
+    line_h = f"{'Thời điểm (Giờ địa phương)':<{col_t}} | {'Nguồn (Provider)':<{col_prov}} | {'ID':<{col_id}} | {'Tóm tắt'}"
+    sep = "-" * len(line_h) + "-" * 20
+    print(sep)
+    print(line_h)
+    print(sep)
+    for e in events:
+        t_str = utc_to_local_str(e.get("time_created_utc"))[:col_t]
+        p_str = e.get("provider", "")[:col_prov]
+        id_str = str(e.get("event_id", 0))[:col_id]
+        raw_m = e.get("raw_message", "")
+        # Lấy dòng đầu tiên của message
+        first_line = raw_m.strip().splitlines()[0] if raw_m else ""
+        print(f"{t_str:<{col_t}} | {p_str:<{col_prov}} | {id_str:<{col_id}} | {first_line[:col_msg]}")
+    print(sep)
+
+    # Phát hiện crash không có dump
+    existing_crashes_dicts = db.list_crashes()
+    existing_crashes = [
+        Crash(
+            id=d["id"],
+            crash_time_utc=d["crash_time_utc"],
+            dump_type=d["dump_type"],
+            bugcheck_code=d["bugcheck_code"],
+        )
+        for d in existing_crashes_dicts
+    ]
+
+    correlator = Correlator()
+    detected_log_only = correlator.detect_log_only_crashes(existing_crashes, events)
+
+    if detected_log_only:
+        print(f"\n[!] PHÁT HIỆN {len(detected_log_only)} VỤ SẬP HỆ THỐNG KHÔNG CÓ DUMP (Chế độ log_only):")
+        for crash_obj, matched_evs in detected_log_only:
+            # Lưu vào DB nếu chưa có
+            existing = db.get_crash_by_sha256(crash_obj.dump_sha256)
+            if not existing:
+                c_id = db.insert_crash(crash_obj)
+            else:
+                c_id = existing["id"]
+
+            t_local = utc_to_local_str(crash_obj.crash_time_utc)
+            code_str = crash_obj.bugcheck_code or "Không có BSOD (Tắt nguồn/treo cứng)"
+            print(f"    * Lúc {t_local}: Mã lỗi = {code_str} | Tên: {crash_obj.bugcheck_name}")
+
+            # Ghép và lưu evidence
+            evidences = correlator.correlate_events_to_crash(crash_obj, events)
+            for ev in evidences:
+                ev.crash_id = c_id
+                db.insert_evidence(ev)
+
+    db.close()
+    return 0
+
+
 def build_parser() -> argparse.ArgumentParser:
     """Xây dựng bộ phân tích tham số dòng lệnh."""
     parser = argparse.ArgumentParser(
@@ -636,6 +717,23 @@ def build_parser() -> argparse.ArgumentParser:
         help="Tải trước Symbol Microsoft để tránh bị treo khi phân tích hàng loạt",
     )
     parser_warmup.set_defaults(func=cmd_warmup_symbols)
+
+    # Subcommand: events (Phase 3)
+    parser_events = subparsers.add_parser(
+        "events",
+        help="Đọc các sự kiện System Event Log quan trọng và phát hiện sập không có dump (log_only)",
+    )
+    parser_events.add_argument(
+        "--from",
+        dest="from_date",
+        help="Lọc sự kiện từ ngày này (định dạng: YYYY-MM-DD)",
+    )
+    parser_events.add_argument(
+        "--to",
+        dest="to_date",
+        help="Lọc sự kiện đến ngày này (định dạng: YYYY-MM-DD)",
+    )
+    parser_events.set_defaults(func=cmd_events)
 
     return parser
 
