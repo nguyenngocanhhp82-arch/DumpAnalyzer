@@ -1,0 +1,61 @@
+# ==============================================================================
+# CẤU HÌNH HỆ THỐNG DUMPANALYZER (settings.yaml)
+# Nhân viên IT có thể chỉnh sửa các thông số dưới đây theo nhu cầu thực tế.
+# ==============================================================================
+
+# 1. Cấu hình cdb.exe (Windows Debugging Tools)
+# Nếu để trống (""), chương trình sẽ tự động dò tìm trong các thư mục cài đặt chuẩn.
+# Ví dụ: "C:\\Program Files (x86)\\Windows Kits\\10\\Debuggers\\x64\\cdb.exe"
+cdb_path: ""
+
+# Đường dẫn máy chủ Symbol của Microsoft và thư mục lưu tạm symbol cục bộ
+symbol_path: "srv*C:\\Symbols*https://msdl.microsoft.com/download/symbols"
+
+# Thời gian tối đa cho một tiến trình cdb phân tích một file dump (giây)
+cdb_timeout_seconds: 300
+
+# Số tiến trình cdb được phép chạy song song (khuyến nghị 2 - 4)
+max_parallel_cdb: 2
+
+# 2. Thư mục làm việc & tìm kiếm dump
+# Thư mục tạm để copy dump ra phân tích (tuyệt đối không phân tích trực tiếp trên file gốc)
+working_dir: "./workspace"
+
+# Danh sách đường dẫn mặc định để tìm file dump trên máy Windows
+dump_search_paths:
+  - "C:\\Windows\\Minidump"
+  - "C:\\Windows\\MEMORY.DMP"
+  - "C:\\Windows\\LiveKernelReports"
+
+# Tự động xoá file dump copy trong thư mục làm việc sau khi phân tích xong (true/false)
+auto_cleanup_copied_dumps: false
+
+# 3. Cấu hình tương quan Event Log
+# Khoảng thời gian (phút) trước khi sập để quét các sự kiện nghi ngờ trong Event Log
+event_window_minutes: 10
+
+# Số ngày trước lần sập đầu tiên để kiểm tra các bản cập nhật / phần mềm mới cài đặt
+update_history_days: 7
+
+# 4. Ngưỡng chấm điểm & độ tin cậy của Rule Engine
+confidence_thresholds:
+  high: 70      # Điểm từ 70 trở lên: Độ tin cậy CAO
+  medium: 40    # Điểm từ 40 đến 69: Độ tin cậy TRUNG BÌNH
+  # Dưới 40: Độ tin cậy THẤP
+
+# Điểm sàn tối thiểu: nếu điểm số cao nhất dưới ngưỡng này -> kết luận "không đủ dữ kiện"
+min_verdict_score: 35
+
+# Ngưỡng chênh lệch điểm để phát hiện mâu thuẫn giữa Dump và Event Log (điểm)
+# Nếu dump chỉ một hướng, log chỉ hướng khác và điểm chênh lệch < 15 -> gắn cờ "chưa thống nhất"
+conflict_threshold: 15
+
+# Thưởng lặp lại: Hệ số nhân tăng điểm khi cùng một giả thuyết lặp lại trên >= 3 lần crash
+repeat_multiplier: 1.25
+
+# 5. Ghi log hệ thống
+logging:
+  level: "INFO"                # DEBUG, INFO, WARNING, ERROR
+  log_file: "./logs/dumpanalyzer.log"
+  max_bytes: 10485760          # 10 MB mỗi file
+  backup_count: 5              # Lưu tối đa 5 file xoay vòng

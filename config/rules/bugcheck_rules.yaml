@@ -1,0 +1,131 @@
+# ==============================================================================
+# BỘ LUẬT KHỞI ĐẦU THEO MÃ BUG CHECK (bugcheck_rules.yaml)
+# Trọng số khởi đầu (prior) cho từng nhóm nghi ngờ.
+# Người dùng IT có thể bổ sung các mã lỗi và bước kiểm tra theo nhu cầu.
+# ==============================================================================
+
+0x124:
+  name: WHEA_UNCORRECTABLE_ERROR
+  suspects:
+    cpu: 40
+    ram: 30
+    psu: 20
+    thermal: 10
+  extra_cdb:
+    - "!errrec {p2}"
+  next_steps:
+    - "Kiểm tra nhiệt độ CPU và quạt tản nhiệt trong BIOS hoặc phần mềm giám sát"
+    - "Chạy MemTest86 kiểm tra RAM (ít nhất 2 lượt)"
+    - "Kiểm tra bộ nguồn (PSU) hoặc thử nguồn khác"
+    - "Cập nhật BIOS bo mạch chủ lên phiên bản mới nhất"
+
+0x133:
+  name: DPC_WATCHDOG_VIOLATION
+  suspects:
+    driver: 50
+    storage: 30
+    cpu: 10
+    gpu: 10
+  extra_cdb:
+    - "!dpcs"
+    - "!timer"
+  next_steps:
+    - "Cập nhật firmware ổ SSD và driver chipset / controller lưu trữ"
+    - "Gỡ hoặc cập nhật driver bên thứ ba vừa cài gần đây"
+    - "Kiểm tra tình trạng sức khỏe ổ đĩa qua SMART"
+
+0x1A:
+  name: MEMORY_MANAGEMENT
+  suspects:
+    ram: 55
+    driver: 25
+    storage: 20
+  extra_cdb:
+    - "!vm"
+    - "!poolused 2"
+  next_steps:
+    - "Chạy MemTest86 hoặc Windows Memory Diagnostic"
+    - "Tháo và thử riêng từng thanh RAM"
+    - "Kiểm tra lỗi ổ đĩa chứa file pagefile bằng lệnh chkdsk"
+
+0x50:
+  name: PAGE_FAULT_IN_NONPAGED_AREA
+  suspects:
+    ram: 45
+    driver: 35
+    storage: 20
+  extra_cdb:
+    - "!poolused 2"
+  next_steps:
+    - "Kiểm tra RAM bằng MemTest86"
+    - "Xác định driver bên thứ ba xuất hiện trong stack để cập nhật hoặc gỡ bỏ"
+    - "Kiểm tra bad sector ổ cứng bằng chkdsk /f /r"
+
+0x3B:
+  name: SYSTEM_SERVICE_EXCEPTION
+  suspects:
+    driver: 60
+    gpu: 25
+    ram: 15
+  next_steps:
+    - "Cập nhật driver card màn hình (GPU) hoặc gỡ sạch bằng DDU rồi cài lại"
+    - "Cập nhật driver thiết bị ngoại vi và phần mềm diệt virus"
+
+0x0A:
+  name: IRQL_NOT_LESS_OR_EQUAL
+  suspects:
+    driver: 65
+    ram: 20
+    bios: 15
+  extra_cdb:
+    - "!irp"
+  next_steps:
+    - "Kiểm tra driver bên thứ ba xuất hiện ở đỉnh call stack"
+    - "Gỡ bỏ driver mới cập nhật hoặc thiết bị phần cứng mới gắn"
+    - "Kiểm tra RAM nếu lỗi xuất hiện ngẫu nhiên không cố định module"
+
+0xD1:
+  name: DRIVER_IRQL_NOT_LESS_OR_EQUAL
+  suspects:
+    driver: 70
+    network: 15
+    ram: 15
+  extra_cdb:
+    - "!irp"
+    - "!devstack"
+  next_steps:
+    - "Cập nhật hoặc cài lại driver mạng, wifi, hoặc card âm thanh"
+    - "Kiểm tra tên file driver .sys được chỉ định làm thủ phạm trong dump"
+
+0x116:
+  name: VIDEO_TDR_FAILURE
+  suspects:
+    gpu: 80
+    thermal: 10
+    psu: 10
+  next_steps:
+    - "Gỡ sạch driver GPU bằng DDU (Display Driver Uninstaller) trong Safe Mode rồi cài lại"
+    - "Kiểm tra nhiệt độ card đồ họa và quạt tản nhiệt GPU"
+    - "Kiểm tra nguồn phụ cắm vào card màn hình"
+
+0x7B:
+  name: INACCESSIBLE_BOOT_DEVICE
+  suspects:
+    storage: 75
+    driver: 15
+    bios: 10
+  next_steps:
+    - "Kiểm tra cáp kết nối ổ đĩa hoặc khe cắm M.2 SSD"
+    - "Kiểm tra chế độ SATA (AHCI / RAID / IDE) trong BIOS"
+    - "Cài đặt lại driver lưu trữ / RAID"
+
+0x9F:
+  name: DRIVER_POWER_STATE_FAILURE
+  suspects:
+    driver: 60
+    psu: 25
+    bios: 15
+  next_steps:
+    - "Cập nhật driver các thiết bị quản lý nguồn, chipset và mạng"
+    - "Tắt chế độ Fast Startup trong Windows Power Options"
+    - "Cập nhật BIOS bo mạch chủ"

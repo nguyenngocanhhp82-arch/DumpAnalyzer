@@ -1,0 +1,55 @@
+# ==============================================================================
+# MẪU HÌNH TỔNG HỢP NHIỀU CRASH (patterns.yaml)
+# Đánh giá xu hướng khi phân tích nhiều lần sập trên cùng một máy tính.
+# ==============================================================================
+
+patterns:
+  - name: "Module lỗi thay đổi liên tục, toàn module Microsoft"
+    when:
+      min_dumps: 3
+      distinct_modules_min: 3
+      only_microsoft_modules: true
+    add:
+      ram: 35
+      psu: 25
+      thermal: 15
+    note: "Dấu hiệu phần cứng không ổn định (đặc biệt là RAM bị lỗi bit ngẫu nhiên, nguồn điện sụt áp hoặc quá nhiệt)"
+    next_steps:
+      - "Chạy MemTest86 kiểm tra kỹ toàn bộ các thanh RAM"
+      - "Kiểm tra nhiệt độ CPU/GPU khi tải nặng"
+      - "Kiểm tra điện áp cấp từ bộ nguồn (PSU)"
+
+  - name: "Cùng một driver bên thứ ba lặp lại nhiều lần"
+    when:
+      min_dumps: 3
+      same_third_party_module_min: 3
+    add:
+      driver_of_module: 45
+    note: "Xác suất rất cao driver này có lỗi rò rỉ bộ nhớ, deadlock hoặc xung đột phần cứng"
+    next_steps:
+      - "Gỡ bỏ hoàn toàn driver và cài đặt bản driver ổn định (WHQL)"
+      - "Kiểm tra bản cập nhật firmware tương ứng của thiết bị"
+
+  - name: "Sự cố bắt đầu xuất hiện sau khi cài bản cập nhật hoặc phần mềm mới"
+    when:
+      first_crash_within_days_after_update: 7
+    add:
+      update: 30
+    note: "Sự cố có tương quan chặt chẽ với bản cập nhật Windows hoặc phần mềm vừa cài"
+    next_steps:
+      - "Kiểm tra danh sách bản cập nhật KB gần nhất và gỡ bỏ thử nghiệm (Uninstall Update)"
+      - "Khôi phục hệ thống về điểm System Restore trước ngày cài đặt"
+
+  - name: "Mất nguồn đột ngột không kịp tạo dump (Kernel-Power 41 với BugcheckCode = 0)"
+    when:
+      no_dump: true
+      kernelpower41_bugcheck0: true
+    add:
+      psu: 40
+      thermal: 35
+      cpu: 10
+    note: "Máy tính tắt hoặc khởi động lại ngay lập tức mà không có màn hình xanh BSOD, thường do ngắt điện đột ngột hoặc rơ-le quá nhiệt kích hoạt"
+    next_steps:
+      - "Vệ sinh quạt tản nhiệt, bôi lại keo tản nhiệt CPU và GPU"
+      - "Kiểm tra ổ cắm, dây nguồn và bộ nguồn (PSU) của máy"
+      - "Kiểm tra bộ lưu điện (UPS) nếu có"

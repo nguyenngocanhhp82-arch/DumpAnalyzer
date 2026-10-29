@@ -1,0 +1,95 @@
+# ==============================================================================
+# QUY TẮC PHÂN TÍCH EVENT LOG (event_rules.yaml)
+# Định nghĩa các Event Provider và ID cần giám sát trong cửa sổ trước khi crash.
+# Trọng số cộng điểm (adds) sẽ tăng điểm nghi ngờ cho từng nhóm nguyên nhân.
+# ==============================================================================
+
+events:
+  - source: "Microsoft-Windows-WHEA-Logger"
+    ids: [1, 17, 18, 19, 20, 47]
+    description: "Cảnh báo lỗi phần cứng CPU / Bus PCIe / Bộ nhớ từ Windows Hardware Error Architecture"
+    adds:
+      cpu: 25
+      ram: 15
+      psu: 10
+    cap: 40
+
+  - source: "Disk"
+    ids: [7, 11, 51, 153]
+    description: "Lỗi đọc/ghi bad block ổ cứng hoặc timeout I/O"
+    adds:
+      storage: 25
+    cap: 40
+
+  - source: "stornvme"
+    ids: [129]
+    description: "Lệnh reset thiết bị điều khiển NVMe"
+    adds:
+      storage: 25
+    cap: 35
+
+  - source: "storahci"
+    ids: [129]
+    description: "Lệnh reset cổng SATA AHCI"
+    adds:
+      storage: 20
+    cap: 30
+
+  - source: "Display"
+    ids: [4101]
+    description: "Driver card đồ hoạ bị treo và đã tự phục hồi (TDR)"
+    adds:
+      gpu: 30
+    cap: 40
+
+  - source: "nvlddmkm"
+    ids: [13, 14]
+    description: "Lỗi crash hoặc timeout nội bộ từ driver đồ họa NVIDIA"
+    adds:
+      gpu: 35
+    cap: 45
+
+  - source: "Ntfs"
+    ids: [55]
+    description: "Hệ thống tệp NTFS bị hỏng cấu trúc (file system corruption)"
+    adds:
+      storage: 20
+    cap: 30
+
+  - source: "Microsoft-Windows-Kernel-Power"
+    ids: [41]
+    description: "Hệ thống bị tắt hoặc khởi động lại không sạch (mất điện, treo cứng hoặc BSOD)"
+    adds:
+      psu: 15
+      thermal: 10
+    cap: 25
+
+  - source: "EventLog"
+    ids: [6008]
+    description: "Lần tắt máy trước đó xảy ra đột ngột / bất thường"
+    adds:
+      psu: 10
+      thermal: 10
+    cap: 20
+
+  - source: "volmgr"
+    ids: [161]
+    description: "Ghi file dump thất bại do lỗi thiết bị lưu trữ hoặc thiếu dung lượng"
+    adds:
+      storage: 20
+    cap: 25
+
+  - source: "WindowsUpdateClient"
+    ids: [19, 20]
+    description: "Bản cập nhật Windows vừa cài đặt thành công hoặc thất bại"
+    adds:
+      update: 20
+    cap: 30
+
+  - source: "MsiInstaller"
+    ids: [11707, 1033]
+    description: "Phần mềm mới vừa được cài đặt hoặc gỡ bỏ qua Windows Installer"
+    adds:
+      driver: 10
+      update: 15
+    cap: 20

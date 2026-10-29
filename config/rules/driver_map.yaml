@@ -1,0 +1,66 @@
+# ==============================================================================
+# ÁNH XẠ DRIVER VÀ THIẾT BỊ (driver_map.yaml)
+# Định nghĩa tên driver bên thứ ba phổ biến và hành động khắc phục tương ứng.
+# ==============================================================================
+
+drivers:
+  nvlddmkm.sys:
+    device: "Card đồ họa NVIDIA"
+    type: "gpu"
+    action: "Gỡ sạch driver bằng DDU trong Safe Mode, sau đó cài lại bản driver ổn định từ NVIDIA"
+
+  amdkmdag.sys:
+    device: "Card đồ họa AMD Radeon"
+    type: "gpu"
+    action: "Cài lại bản driver WHQL ổn định từ trang hỗ trợ của AMD"
+
+  igdkmd64.sys:
+    device: "Card đồ họa tích hợp Intel HD/UHD/Iris Graphics"
+    type: "gpu"
+    action: "Cập nhật driver đồ hoạ Intel thông qua Intel Driver & Support Assistant"
+
+  stornvme.sys:
+    device: "Bộ điều khiển ổ cứng SSD NVMe"
+    type: "storage"
+    action: "Cập nhật firmware SSD từ hãng (Samsung Magician, WD Dashboard...), kiểm tra SMART"
+
+  storahci.sys:
+    device: "Bộ điều khiển SATA AHCI"
+    type: "storage"
+    action: "Kiểm tra cáp SATA, nguồn ổ cứng, kiểm tra thông số SMART và cập nhật driver chipset"
+
+  rt640x64.sys:
+    device: "Card mạng có dây Realtek PCIe GbE Family Controller"
+    type: "network"
+    action: "Cập nhật hoặc cài lại driver mạng Realtek chính thức"
+
+  e1d68x64.sys:
+    device: "Card mạng có dây Intel Ethernet Connection"
+    type: "network"
+    action: "Cập nhật driver mạng Intel"
+
+  netwtw10.sys:
+    device: "Card mạng không dây Intel Wi-Fi"
+    type: "network"
+    action: "Cập nhật driver Intel Wi-Fi từ trang chủ Intel"
+
+  rtwlane.sys:
+    device: "Card mạng không dây Realtek Wireless LAN"
+    type: "network"
+    action: "Cập nhật hoặc cài lại driver Wi-Fi Realtek"
+
+# Danh sách module lõi của hệ điều hành Microsoft:
+# ĐÂY LÀ NHỮNG MODULE NẠN NHÂN (nơi bắt được crash), TUYỆT ĐỐI KHÔNG KẾT LUẬN LÀ THỦ PHẠM
+ms_core_modules:
+  - "ntoskrnl.exe"
+  - "ntkrnlmp.exe"
+  - "win32k.sys"
+  - "win32kfull.sys"
+  - "win32kbase.sys"
+  - "hal.dll"
+  - "ntfs.sys"
+  - "fltmgr.sys"
+  - "clfs.sys"
+  - "ci.dll"
+  - "ksecdd.sys"
+  - "werkernel.sys"

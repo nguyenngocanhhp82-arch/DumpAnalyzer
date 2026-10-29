@@ -1,0 +1,2662 @@
+{
+  "$BUGCHECKRAW": {
+    "code": "$BUGCHECKRAW",
+    "name": "= @\"",
+    "description": "= @\"",
+    "suggested_group": "kernel",
+    "action": ""
+  },
+  "0x1": {
+    "code": "0x1",
+    "name": "APC_INDEX_MISMATCH",
+    "description": "Apc index mismatch",
+    "suggested_group": "kernel",
+    "action": ""
+  },
+  "0x2": {
+    "code": "0x2",
+    "name": "DEVICE_QUEUE_NOT_BUSY",
+    "description": "Device queue not busy",
+    "suggested_group": "kernel",
+    "action": ""
+  },
+  "0x3": {
+    "code": "0x3",
+    "name": "INVALID_AFFINITY_SET",
+    "description": "Invalid affinity set",
+    "suggested_group": "kernel",
+    "action": ""
+  },
+  "0x4": {
+    "code": "0x4",
+    "name": "INVALID_DATA_ACCESS_TRAP",
+    "description": "Invalid data access trap",
+    "suggested_group": "kernel",
+    "action": ""
+  },
+  "0x5": {
+    "code": "0x5",
+    "name": "INVALID_PROCESS_ATTACH_ATTEMPT",
+    "description": "Invalid process attach attempt",
+    "suggested_group": "kernel",
+    "action": ""
+  },
+  "0x6": {
+    "code": "0x6",
+    "name": "INVALID_PROCESS_DETACH_ATTEMPT",
+    "description": "Invalid process detach attempt",
+    "suggested_group": "kernel",
+    "action": ""
+  },
+  "0x7": {
+    "code": "0x7",
+    "name": "INVALID_SOFTWARE_INTERRUPT",
+    "description": "Invalid software interrupt",
+    "suggested_group": "kernel",
+    "action": ""
+  },
+  "0x8": {
+    "code": "0x8",
+    "name": "IRQL_NOT_DISPATCH_LEVEL",
+    "description": "Irql not dispatch level",
+    "suggested_group": "driver",
+    "action": ""
+  },
+  "0x9": {
+    "code": "0x9",
+    "name": "IRQL_NOT_GREATER_OR_EQUAL",
+    "description": "Irql not greater or equal",
+    "suggested_group": "driver",
+    "action": ""
+  },
+  "0xA": {
+    "code": "0xA",
+    "name": "IRQL_NOT_LESS_OR_EQUAL",
+    "description": "Irql not less or equal",
+    "suggested_group": "driver",
+    "action": ""
+  },
+  "0xB": {
+    "code": "0xB",
+    "name": "NO_EXCEPTION_HANDLING_SUPPORT",
+    "description": "No exception handling support",
+    "suggested_group": "kernel",
+    "action": ""
+  },
+  "0xC": {
+    "code": "0xC",
+    "name": "MAXIMUM_WAIT_OBJECTS_EXCEEDED",
+    "description": "Maximum wait objects exceeded",
+    "suggested_group": "kernel",
+    "action": ""
+  },
+  "0xD": {
+    "code": "0xD",
+    "name": "MUTEX_LEVEL_NUMBER_VIOLATION",
+    "description": "Mutex level number violation",
+    "suggested_group": "kernel",
+    "action": ""
+  },
+  "0xE": {
+    "code": "0xE",
+    "name": "NO_USER_MODE_CONTEXT",
+    "description": "No user mode context",
+    "suggested_group": "kernel",
+    "action": ""
+  },
+  "0xF": {
+    "code": "0xF",
+    "name": "SPIN_LOCK_ALREADY_OWNED",
+    "description": "Spin lock already owned",
+    "suggested_group": "kernel",
+    "action": ""
+  },
+  "0x10": {
+    "code": "0x10",
+    "name": "SPIN_LOCK_NOT_OWNED",
+    "description": "Spin lock not owned",
+    "suggested_group": "kernel",
+    "action": ""
+  },
+  "0x11": {
+    "code": "0x11",
+    "name": "THREAD_NOT_MUTEX_OWNER",
+    "description": "Thread not mutex owner",
+    "suggested_group": "kernel",
+    "action": ""
+  },
+  "0x12": {
+    "code": "0x12",
+    "name": "TRAP_CAUSE_UNKNOWN",
+    "description": "Trap cause unknown",
+    "suggested_group": "kernel",
+    "action": ""
+  },
+  "0x13": {
+    "code": "0x13",
+    "name": "EMPTY_THREAD_REAPER_LIST",
+    "description": "Empty thread reaper list",
+    "suggested_group": "kernel",
+    "action": ""
+  },
+  "0x14": {
+    "code": "0x14",
+    "name": "CREATE_DELETE_LOCK_NOT_LOCKED",
+    "description": "Create delete lock not locked",
+    "suggested_group": "kernel",
+    "action": ""
+  },
+  "0x15": {
+    "code": "0x15",
+    "name": "LAST_CHANCE_CALLED_FROM_KMODE",
+    "description": "Last chance called from kmode",
+    "suggested_group": "kernel",
+    "action": ""
+  },
+  "0x16": {
+    "code": "0x16",
+    "name": "CID_HANDLE_CREATION",
+    "description": "Cid handle creation",
+    "suggested_group": "kernel",
+    "action": ""
+  },
+  "0x17": {
+    "code": "0x17",
+    "name": "CID_HANDLE_DELETION",
+    "description": "Cid handle deletion",
+    "suggested_group": "kernel",
+    "action": ""
+  },
+  "0x18": {
+    "code": "0x18",
+    "name": "REFERENCE_BY_POINTER",
+    "description": "Reference by pointer",
+    "suggested_group": "kernel",
+    "action": ""
+  },
+  "0x19": {
+    "code": "0x19",
+    "name": "BAD_POOL_HEADER",
+    "description": "Bad pool header",
+    "suggested_group": "ram",
+    "action": ""
+  },
+  "0x1A": {
+    "code": "0x1A",
+    "name": "MEMORY_MANAGEMENT",
+    "description": "Memory management",
+    "suggested_group": "ram",
+    "action": ""
+  },
+  "0x1B": {
+    "code": "0x1B",
+    "name": "PFN_SHARE_COUNT",
+    "description": "Pfn share count",
+    "suggested_group": "ram",
+    "action": ""
+  },
+  "0x1C": {
+    "code": "0x1C",
+    "name": "PFN_REFERENCE_COUNT",
+    "description": "Pfn reference count",
+    "suggested_group": "ram",
+    "action": ""
+  },
+  "0x1D": {
+    "code": "0x1D",
+    "name": "NO_SPIN_LOCK_AVAILABLE",
+    "description": "No spin lock available",
+    "suggested_group": "kernel",
+    "action": ""
+  },
+  "0x1E": {
+    "code": "0x1E",
+    "name": "KMODE_EXCEPTION_NOT_HANDLED",
+    "description": "Kmode exception not handled",
+    "suggested_group": "kernel",
+    "action": ""
+  },
+  "0x1F": {
+    "code": "0x1F",
+    "name": "SHARED_RESOURCE_CONV_ERROR",
+    "description": "Shared resource conv error",
+    "suggested_group": "kernel",
+    "action": ""
+  },
+  "0x20": {
+    "code": "0x20",
+    "name": "KERNEL_APC_PENDING_DURING_EXIT",
+    "description": "Kernel apc pending during exit",
+    "suggested_group": "kernel",
+    "action": ""
+  },
+  "0x21": {
+    "code": "0x21",
+    "name": "QUOTA_UNDERFLOW",
+    "description": "Quota underflow",
+    "suggested_group": "kernel",
+    "action": ""
+  },
+  "0x22": {
+    "code": "0x22",
+    "name": "FILE_SYSTEM",
+    "description": "File system",
+    "suggested_group": "storage",
+    "action": ""
+  },
+  "0x23": {
+    "code": "0x23",
+    "name": "FAT_FILE_SYSTEM",
+    "description": "Fat file system",
+    "suggested_group": "storage",
+    "action": ""
+  },
+  "0x24": {
+    "code": "0x24",
+    "name": "NTFS_FILE_SYSTEM",
+    "description": "Ntfs file system",
+    "suggested_group": "storage",
+    "action": ""
+  },
+  "0x25": {
+    "code": "0x25",
+    "name": "NPFS_FILE_SYSTEM",
+    "description": "Npfs file system",
+    "suggested_group": "storage",
+    "action": ""
+  },
+  "0x26": {
+    "code": "0x26",
+    "name": "CDFS_FILE_SYSTEM",
+    "description": "Cdfs file system",
+    "suggested_group": "storage",
+    "action": ""
+  },
+  "0x27": {
+    "code": "0x27",
+    "name": "RDR_FILE_SYSTEM",
+    "description": "Rdr file system",
+    "suggested_group": "storage",
+    "action": ""
+  },
+  "0x28": {
+    "code": "0x28",
+    "name": "CORRUPT_ACCESS_TOKEN",
+    "description": "Corrupt access token",
+    "suggested_group": "kernel",
+    "action": ""
+  },
+  "0x29": {
+    "code": "0x29",
+    "name": "SECURITY_SYSTEM",
+    "description": "Security system",
+    "suggested_group": "kernel",
+    "action": ""
+  },
+  "0x2A": {
+    "code": "0x2A",
+    "name": "INCONSISTENT_IRP",
+    "description": "Inconsistent irp",
+    "suggested_group": "kernel",
+    "action": ""
+  },
+  "0x2B": {
+    "code": "0x2B",
+    "name": "PANIC_STACK_SWITCH",
+    "description": "Panic stack switch",
+    "suggested_group": "kernel",
+    "action": ""
+  },
+  "0x2C": {
+    "code": "0x2C",
+    "name": "PORT_DRIVER_INTERNAL",
+    "description": "Port driver internal",
+    "suggested_group": "driver",
+    "action": ""
+  },
+  "0x2D": {
+    "code": "0x2D",
+    "name": "SCSI_DISK_DRIVER_INTERNAL",
+    "description": "Scsi disk driver internal",
+    "suggested_group": "storage",
+    "action": ""
+  },
+  "0x2E": {
+    "code": "0x2E",
+    "name": "DATA_BUS_ERROR",
+    "description": "Data bus error",
+    "suggested_group": "kernel",
+    "action": ""
+  },
+  "0x2F": {
+    "code": "0x2F",
+    "name": "INSTRUCTION_BUS_ERROR",
+    "description": "Instruction bus error",
+    "suggested_group": "kernel",
+    "action": ""
+  },
+  "0x30": {
+    "code": "0x30",
+    "name": "SET_OF_INVALID_CONTEXT",
+    "description": "Set of invalid context",
+    "suggested_group": "kernel",
+    "action": ""
+  },
+  "0x31": {
+    "code": "0x31",
+    "name": "PHASE0_INITIALIZATION_FAILED",
+    "description": "Phase0 initialization failed",
+    "suggested_group": "kernel",
+    "action": ""
+  },
+  "0x32": {
+    "code": "0x32",
+    "name": "PHASE1_INITIALIZATION_FAILED",
+    "description": "Phase1 initialization failed",
+    "suggested_group": "kernel",
+    "action": ""
+  },
+  "0x33": {
+    "code": "0x33",
+    "name": "UNEXPECTED_INITIALIZATION_CALL",
+    "description": "Unexpected initialization call",
+    "suggested_group": "kernel",
+    "action": ""
+  },
+  "0x34": {
+    "code": "0x34",
+    "name": "CACHE_MANAGER",
+    "description": "Cache manager",
+    "suggested_group": "kernel",
+    "action": ""
+  },
+  "0x35": {
+    "code": "0x35",
+    "name": "NO_MORE_IRP_STACK_LOCATIONS",
+    "description": "No more irp stack locations",
+    "suggested_group": "kernel",
+    "action": ""
+  },
+  "0x36": {
+    "code": "0x36",
+    "name": "DEVICE_REFERENCE_COUNT_NOT_ZERO",
+    "description": "Device reference count not zero",
+    "suggested_group": "kernel",
+    "action": ""
+  },
+  "0x37": {
+    "code": "0x37",
+    "name": "FLOPPY_INTERNAL_ERROR",
+    "description": "Floppy internal error",
+    "suggested_group": "kernel",
+    "action": ""
+  },
+  "0x38": {
+    "code": "0x38",
+    "name": "SERIAL_DRIVER_INTERNAL",
+    "description": "Serial driver internal",
+    "suggested_group": "driver",
+    "action": ""
+  },
+  "0x39": {
+    "code": "0x39",
+    "name": "SYSTEM_EXIT_OWNED_MUTEX",
+    "description": "System exit owned mutex",
+    "suggested_group": "kernel",
+    "action": ""
+  },
+  "0x3A": {
+    "code": "0x3A",
+    "name": "SYSTEM_UNWIND_PREVIOUS_USER",
+    "description": "System unwind previous user",
+    "suggested_group": "kernel",
+    "action": ""
+  },
+  "0x3B": {
+    "code": "0x3B",
+    "name": "SYSTEM_SERVICE_EXCEPTION",
+    "description": "System service exception",
+    "suggested_group": "kernel",
+    "action": ""
+  },
+  "0x3C": {
+    "code": "0x3C",
+    "name": "INTERRUPT_UNWIND_ATTEMPTED",
+    "description": "Interrupt unwind attempted",
+    "suggested_group": "kernel",
+    "action": ""
+  },
+  "0x3D": {
+    "code": "0x3D",
+    "name": "INTERRUPT_EXCEPTION_NOT_HANDLED",
+    "description": "Interrupt exception not handled",
+    "suggested_group": "kernel",
+    "action": ""
+  },
+  "0x3E": {
+    "code": "0x3E",
+    "name": "MULTIPROCESSOR_CONFIGURATION_NOT_SUPPORTED",
+    "description": "Multiprocessor configuration not supported",
+    "suggested_group": "kernel",
+    "action": ""
+  },
+  "0x3F": {
+    "code": "0x3F",
+    "name": "NO_MORE_SYSTEM_PTES",
+    "description": "No more system ptes",
+    "suggested_group": "ram",
+    "action": ""
+  },
+  "0x40": {
+    "code": "0x40",
+    "name": "TARGET_MDL_TOO_SMALL",
+    "description": "Target mdl too small",
+    "suggested_group": "ram",
+    "action": ""
+  },
+  "0x41": {
+    "code": "0x41",
+    "name": "MUST_SUCCEED_POOL_EMPTY",
+    "description": "Must succeed pool empty",
+    "suggested_group": "ram",
+    "action": ""
+  },
+  "0x42": {
+    "code": "0x42",
+    "name": "ATDISK_DRIVER_INTERNAL",
+    "description": "Atdisk driver internal",
+    "suggested_group": "storage",
+    "action": ""
+  },
+  "0x43": {
+    "code": "0x43",
+    "name": "NO_SUCH_PARTITION",
+    "description": "No such partition",
+    "suggested_group": "storage",
+    "action": ""
+  },
+  "0x44": {
+    "code": "0x44",
+    "name": "MULTIPLE_IRP_COMPLETE_REQUESTS",
+    "description": "Multiple irp complete requests",
+    "suggested_group": "kernel",
+    "action": ""
+  },
+  "0x45": {
+    "code": "0x45",
+    "name": "INSUFFICIENT_SYSTEM_MAP_REGS",
+    "description": "Insufficient system map regs",
+    "suggested_group": "kernel",
+    "action": ""
+  },
+  "0x46": {
+    "code": "0x46",
+    "name": "DEREF_UNKNOWN_LOGON_SESSION",
+    "description": "Deref unknown logon session",
+    "suggested_group": "kernel",
+    "action": ""
+  },
+  "0x47": {
+    "code": "0x47",
+    "name": "REF_UNKNOWN_LOGON_SESSION",
+    "description": "Ref unknown logon session",
+    "suggested_group": "kernel",
+    "action": ""
+  },
+  "0x48": {
+    "code": "0x48",
+    "name": "CANCEL_STATE_IN_COMPLETED_IRP",
+    "description": "Cancel state in completed irp",
+    "suggested_group": "kernel",
+    "action": ""
+  },
+  "0x49": {
+    "code": "0x49",
+    "name": "PAGE_FAULT_WITH_INTERRUPTS_OFF",
+    "description": "Page fault with interrupts off",
+    "suggested_group": "ram",
+    "action": ""
+  },
+  "0x4A": {
+    "code": "0x4A",
+    "name": "IRQL_GT_ZERO_AT_SYSTEM_SERVICE",
+    "description": "Irql gt zero at system service",
+    "suggested_group": "driver",
+    "action": ""
+  },
+  "0x4B": {
+    "code": "0x4B",
+    "name": "STREAMS_INTERNAL_ERROR",
+    "description": "Streams internal error",
+    "suggested_group": "kernel",
+    "action": ""
+  },
+  "0x4C": {
+    "code": "0x4C",
+    "name": "FATAL_UNHANDLED_HARD_ERROR",
+    "description": "Fatal unhandled hard error",
+    "suggested_group": "kernel",
+    "action": ""
+  },
+  "0x4D": {
+    "code": "0x4D",
+    "name": "NO_PAGES_AVAILABLE",
+    "description": "No pages available",
+    "suggested_group": "ram",
+    "action": ""
+  },
+  "0x4E": {
+    "code": "0x4E",
+    "name": "PFN_LIST_CORRUPT",
+    "description": "Pfn list corrupt",
+    "suggested_group": "ram",
+    "action": ""
+  },
+  "0x4F": {
+    "code": "0x4F",
+    "name": "NDIS_INTERNAL_ERROR",
+    "description": "Ndis internal error",
+    "suggested_group": "network",
+    "action": ""
+  },
+  "0x50": {
+    "code": "0x50",
+    "name": "PAGE_FAULT_IN_NONPAGED_AREA",
+    "description": "Page fault in nonpaged area",
+    "suggested_group": "ram",
+    "action": ""
+  },
+  "0x51": {
+    "code": "0x51",
+    "name": "REGISTRY_ERROR",
+    "description": "Registry error",
+    "suggested_group": "kernel",
+    "action": ""
+  },
+  "0x52": {
+    "code": "0x52",
+    "name": "MAILSLOT_FILE_SYSTEM",
+    "description": "Mailslot file system",
+    "suggested_group": "storage",
+    "action": ""
+  },
+  "0x53": {
+    "code": "0x53",
+    "name": "NO_BOOT_DEVICE",
+    "description": "No boot device",
+    "suggested_group": "storage",
+    "action": ""
+  },
+  "0x54": {
+    "code": "0x54",
+    "name": "LM_SERVER_INTERNAL_ERROR",
+    "description": "Lm server internal error",
+    "suggested_group": "kernel",
+    "action": ""
+  },
+  "0x55": {
+    "code": "0x55",
+    "name": "DATA_COHERENCY_EXCEPTION",
+    "description": "Data coherency exception",
+    "suggested_group": "kernel",
+    "action": ""
+  },
+  "0x56": {
+    "code": "0x56",
+    "name": "INSTRUCTION_COHERENCY_EXCEPTION",
+    "description": "Instruction coherency exception",
+    "suggested_group": "kernel",
+    "action": ""
+  },
+  "0x57": {
+    "code": "0x57",
+    "name": "XNS_INTERNAL_ERROR",
+    "description": "Xns internal error",
+    "suggested_group": "kernel",
+    "action": ""
+  },
+  "0x58": {
+    "code": "0x58",
+    "name": "FTDISK_INTERNAL_ERROR",
+    "description": "Ftdisk internal error",
+    "suggested_group": "storage",
+    "action": ""
+  },
+  "0x59": {
+    "code": "0x59",
+    "name": "PINBALL_FILE_SYSTEM",
+    "description": "Pinball file system",
+    "suggested_group": "storage",
+    "action": ""
+  },
+  "0x5A": {
+    "code": "0x5A",
+    "name": "CRITICAL_SERVICE_FAILED",
+    "description": "Critical service failed",
+    "suggested_group": "kernel",
+    "action": ""
+  },
+  "0x5B": {
+    "code": "0x5B",
+    "name": "SET_ENV_VAR_FAILED",
+    "description": "Set env var failed",
+    "suggested_group": "kernel",
+    "action": ""
+  },
+  "0x5C": {
+    "code": "0x5C",
+    "name": "HAL_INITIALIZATION_FAILED",
+    "description": "Hal initialization failed",
+    "suggested_group": "bios",
+    "action": ""
+  },
+  "0x5D": {
+    "code": "0x5D",
+    "name": "UNSUPPORTED_PROCESSOR",
+    "description": "Unsupported processor",
+    "suggested_group": "cpu",
+    "action": ""
+  },
+  "0x5E": {
+    "code": "0x5E",
+    "name": "OBJECT_INITIALIZATION_FAILED",
+    "description": "Object initialization failed",
+    "suggested_group": "kernel",
+    "action": ""
+  },
+  "0x5F": {
+    "code": "0x5F",
+    "name": "SECURITY_INITIALIZATION_FAILED",
+    "description": "Security initialization failed",
+    "suggested_group": "kernel",
+    "action": ""
+  },
+  "0x60": {
+    "code": "0x60",
+    "name": "PROCESS_INITIALIZATION_FAILED",
+    "description": "Process initialization failed",
+    "suggested_group": "kernel",
+    "action": ""
+  },
+  "0x61": {
+    "code": "0x61",
+    "name": "HAL1_INITIALIZATION_FAILED",
+    "description": "Hal1 initialization failed",
+    "suggested_group": "bios",
+    "action": ""
+  },
+  "0x62": {
+    "code": "0x62",
+    "name": "OBJECT1_INITIALIZATION_FAILED",
+    "description": "Object1 initialization failed",
+    "suggested_group": "kernel",
+    "action": ""
+  },
+  "0x63": {
+    "code": "0x63",
+    "name": "SECURITY1_INITIALIZATION_FAILED",
+    "description": "Security1 initialization failed",
+    "suggested_group": "kernel",
+    "action": ""
+  },
+  "0x64": {
+    "code": "0x64",
+    "name": "SYMBOLIC_INITIALIZATION_FAILED",
+    "description": "Symbolic initialization failed",
+    "suggested_group": "kernel",
+    "action": ""
+  },
+  "0x65": {
+    "code": "0x65",
+    "name": "MEMORY1_INITIALIZATION_FAILED",
+    "description": "Memory1 initialization failed",
+    "suggested_group": "ram",
+    "action": ""
+  },
+  "0x66": {
+    "code": "0x66",
+    "name": "CACHE_INITIALIZATION_FAILED",
+    "description": "Cache initialization failed",
+    "suggested_group": "kernel",
+    "action": ""
+  },
+  "0x67": {
+    "code": "0x67",
+    "name": "CONFIG_INITIALIZATION_FAILED",
+    "description": "Config initialization failed",
+    "suggested_group": "kernel",
+    "action": ""
+  },
+  "0x68": {
+    "code": "0x68",
+    "name": "FILE_INITIALIZATION_FAILED",
+    "description": "File initialization failed",
+    "suggested_group": "kernel",
+    "action": ""
+  },
+  "0x69": {
+    "code": "0x69",
+    "name": "IO1_INITIALIZATION_FAILED",
+    "description": "Io1 initialization failed",
+    "suggested_group": "kernel",
+    "action": ""
+  },
+  "0x6A": {
+    "code": "0x6A",
+    "name": "LPC_INITIALIZATION_FAILED",
+    "description": "Lpc initialization failed",
+    "suggested_group": "kernel",
+    "action": ""
+  },
+  "0x6B": {
+    "code": "0x6B",
+    "name": "PROCESS1_INITIALIZATION_FAILED",
+    "description": "Process1 initialization failed",
+    "suggested_group": "kernel",
+    "action": ""
+  },
+  "0x6C": {
+    "code": "0x6C",
+    "name": "REFMON_INITIALIZATION_FAILED",
+    "description": "Refmon initialization failed",
+    "suggested_group": "kernel",
+    "action": ""
+  },
+  "0x6D": {
+    "code": "0x6D",
+    "name": "SESSION1_INITIALIZATION_FAILED",
+    "description": "Session1 initialization failed",
+    "suggested_group": "kernel",
+    "action": ""
+  },
+  "0x6E": {
+    "code": "0x6E",
+    "name": "SESSION2_INITIALIZATION_FAILED",
+    "description": "Session2 initialization failed",
+    "suggested_group": "kernel",
+    "action": ""
+  },
+  "0x6F": {
+    "code": "0x6F",
+    "name": "SESSION3_INITIALIZATION_FAILED",
+    "description": "Session3 initialization failed",
+    "suggested_group": "kernel",
+    "action": ""
+  },
+  "0x70": {
+    "code": "0x70",
+    "name": "SESSION4_INITIALIZATION_FAILED",
+    "description": "Session4 initialization failed",
+    "suggested_group": "kernel",
+    "action": ""
+  },
+  "0x71": {
+    "code": "0x71",
+    "name": "SESSION5_INITIALIZATION_FAILED",
+    "description": "Session5 initialization failed",
+    "suggested_group": "kernel",
+    "action": ""
+  },
+  "0x72": {
+    "code": "0x72",
+    "name": "ASSIGN_DRIVE_LETTERS_FAILED",
+    "description": "Assign drive letters failed",
+    "suggested_group": "kernel",
+    "action": ""
+  },
+  "0x73": {
+    "code": "0x73",
+    "name": "CONFIG_LIST_FAILED",
+    "description": "Config list failed",
+    "suggested_group": "kernel",
+    "action": ""
+  },
+  "0x74": {
+    "code": "0x74",
+    "name": "BAD_SYSTEM_CONFIG_INFO",
+    "description": "Bad system config info",
+    "suggested_group": "kernel",
+    "action": ""
+  },
+  "0x75": {
+    "code": "0x75",
+    "name": "CANNOT_WRITE_CONFIGURATION",
+    "description": "Cannot write configuration",
+    "suggested_group": "kernel",
+    "action": ""
+  },
+  "0x76": {
+    "code": "0x76",
+    "name": "PROCESS_HAS_LOCKED_PAGES",
+    "description": "Process has locked pages",
+    "suggested_group": "ram",
+    "action": ""
+  },
+  "0x77": {
+    "code": "0x77",
+    "name": "KERNEL_STACK_INPAGE_ERROR",
+    "description": "Kernel stack inpage error",
+    "suggested_group": "storage",
+    "action": ""
+  },
+  "0x78": {
+    "code": "0x78",
+    "name": "PHASE0_EXCEPTION",
+    "description": "Phase0 exception",
+    "suggested_group": "kernel",
+    "action": ""
+  },
+  "0x79": {
+    "code": "0x79",
+    "name": "MISMATCHED_HAL",
+    "description": "Mismatched hal",
+    "suggested_group": "bios",
+    "action": ""
+  },
+  "0x7A": {
+    "code": "0x7A",
+    "name": "KERNEL_DATA_INPAGE_ERROR",
+    "description": "Kernel data inpage error",
+    "suggested_group": "storage",
+    "action": ""
+  },
+  "0x7B": {
+    "code": "0x7B",
+    "name": "INACCESSIBLE_BOOT_DEVICE",
+    "description": "Inaccessible boot device",
+    "suggested_group": "storage",
+    "action": ""
+  },
+  "0x7C": {
+    "code": "0x7C",
+    "name": "BUGCODE_NDIS_DRIVER",
+    "description": "Bugcode ndis driver",
+    "suggested_group": "network",
+    "action": ""
+  },
+  "0x7D": {
+    "code": "0x7D",
+    "name": "INSTALL_MORE_MEMORY",
+    "description": "Install more memory",
+    "suggested_group": "ram",
+    "action": ""
+  },
+  "0x7E": {
+    "code": "0x7E",
+    "name": "SYSTEM_THREAD_EXCEPTION_NOT_HANDLED",
+    "description": "System thread exception not handled",
+    "suggested_group": "kernel",
+    "action": ""
+  },
+  "0x7F": {
+    "code": "0x7F",
+    "name": "UNEXPECTED_KERNEL_MODE_TRAP",
+    "description": "Unexpected kernel mode trap",
+    "suggested_group": "kernel",
+    "action": ""
+  },
+  "0x80": {
+    "code": "0x80",
+    "name": "NMI_HARDWARE_FAILURE",
+    "description": "Nmi hardware failure",
+    "suggested_group": "cpu",
+    "action": ""
+  },
+  "0x81": {
+    "code": "0x81",
+    "name": "SPIN_LOCK_INIT_FAILURE",
+    "description": "Spin lock init failure",
+    "suggested_group": "kernel",
+    "action": ""
+  },
+  "0x82": {
+    "code": "0x82",
+    "name": "DFS_FILE_SYSTEM",
+    "description": "Dfs file system",
+    "suggested_group": "storage",
+    "action": ""
+  },
+  "0x85": {
+    "code": "0x85",
+    "name": "SETUP_FAILURE",
+    "description": "Setup failure",
+    "suggested_group": "kernel",
+    "action": ""
+  },
+  "0x8B": {
+    "code": "0x8B",
+    "name": "MBR_CHECKSUM_MISMATCH",
+    "description": "Mbr checksum mismatch",
+    "suggested_group": "storage",
+    "action": ""
+  },
+  "0x8E": {
+    "code": "0x8E",
+    "name": "KERNEL_MODE_EXCEPTION_NOT_HANDLED",
+    "description": "Kernel mode exception not handled",
+    "suggested_group": "kernel",
+    "action": ""
+  },
+  "0x8F": {
+    "code": "0x8F",
+    "name": "PP0_INITIALIZATION_FAILED",
+    "description": "Pp0 initialization failed",
+    "suggested_group": "kernel",
+    "action": ""
+  },
+  "0x90": {
+    "code": "0x90",
+    "name": "PP1_INITIALIZATION_FAILED",
+    "description": "Pp1 initialization failed",
+    "suggested_group": "kernel",
+    "action": ""
+  },
+  "0x92": {
+    "code": "0x92",
+    "name": "UP_DRIVER_ON_MP_SYSTEM",
+    "description": "Up driver on mp system",
+    "suggested_group": "driver",
+    "action": ""
+  },
+  "0x93": {
+    "code": "0x93",
+    "name": "INVALID_KERNEL_HANDLE",
+    "description": "Invalid kernel handle",
+    "suggested_group": "kernel",
+    "action": ""
+  },
+  "0x94": {
+    "code": "0x94",
+    "name": "KERNEL_STACK_LOCKED_AT_EXIT",
+    "description": "Kernel stack locked at exit",
+    "suggested_group": "kernel",
+    "action": ""
+  },
+  "0x96": {
+    "code": "0x96",
+    "name": "INVALID_WORK_QUEUE_ITEM",
+    "description": "Invalid work queue item",
+    "suggested_group": "kernel",
+    "action": ""
+  },
+  "0x97": {
+    "code": "0x97",
+    "name": "BOUND_IMAGE_UNSUPPORTED",
+    "description": "Bound image unsupported",
+    "suggested_group": "kernel",
+    "action": ""
+  },
+  "0x98": {
+    "code": "0x98",
+    "name": "END_OF_NT_EVALUATION_PERIOD",
+    "description": "End of nt evaluation period",
+    "suggested_group": "kernel",
+    "action": ""
+  },
+  "0x99": {
+    "code": "0x99",
+    "name": "INVALID_REGION_OR_SEGMENT",
+    "description": "Invalid region or segment",
+    "suggested_group": "kernel",
+    "action": ""
+  },
+  "0x9A": {
+    "code": "0x9A",
+    "name": "SYSTEM_LICENSE_VIOLATION",
+    "description": "System license violation",
+    "suggested_group": "kernel",
+    "action": ""
+  },
+  "0x9B": {
+    "code": "0x9B",
+    "name": "UDFS_FILE_SYSTEM",
+    "description": "Udfs file system",
+    "suggested_group": "storage",
+    "action": ""
+  },
+  "0x9C": {
+    "code": "0x9C",
+    "name": "MACHINE_CHECK_EXCEPTION",
+    "description": "Machine check exception",
+    "suggested_group": "cpu",
+    "action": ""
+  },
+  "0x9E": {
+    "code": "0x9E",
+    "name": "USER_MODE_HEALTH_MONITOR",
+    "description": "User mode health monitor",
+    "suggested_group": "kernel",
+    "action": ""
+  },
+  "0x9F": {
+    "code": "0x9F",
+    "name": "DRIVER_POWER_STATE_FAILURE",
+    "description": "Driver power state failure",
+    "suggested_group": "driver",
+    "action": ""
+  },
+  "0xA0": {
+    "code": "0xA0",
+    "name": "INTERNAL_POWER_ERROR",
+    "description": "Internal power error",
+    "suggested_group": "driver",
+    "action": ""
+  },
+  "0xA1": {
+    "code": "0xA1",
+    "name": "PCI_BUS_DRIVER_INTERNAL",
+    "description": "Pci bus driver internal",
+    "suggested_group": "driver",
+    "action": ""
+  },
+  "0xA2": {
+    "code": "0xA2",
+    "name": "MEMORY_IMAGE_CORRUPT",
+    "description": "Memory image corrupt",
+    "suggested_group": "ram",
+    "action": ""
+  },
+  "0xA3": {
+    "code": "0xA3",
+    "name": "ACPI_DRIVER_INTERNAL",
+    "description": "Acpi driver internal",
+    "suggested_group": "bios",
+    "action": ""
+  },
+  "0xA4": {
+    "code": "0xA4",
+    "name": "CNSS_FILE_SYSTEM_FILTER",
+    "description": "Cnss file system filter",
+    "suggested_group": "storage",
+    "action": ""
+  },
+  "0xA5": {
+    "code": "0xA5",
+    "name": "ACPI_BIOS_ERROR",
+    "description": "Acpi bios error",
+    "suggested_group": "bios",
+    "action": ""
+  },
+  "0xA7": {
+    "code": "0xA7",
+    "name": "BAD_EXHANDLE",
+    "description": "Bad exhandle",
+    "suggested_group": "kernel",
+    "action": ""
+  },
+  "0xAC": {
+    "code": "0xAC",
+    "name": "HAL_MEMORY_ALLOCATION",
+    "description": "Hal memory allocation",
+    "suggested_group": "bios",
+    "action": ""
+  },
+  "0xAD": {
+    "code": "0xAD",
+    "name": "VIDEO_DRIVER_DEBUG_REPORT_REQUEST",
+    "description": "Video driver debug report request",
+    "suggested_group": "gpu",
+    "action": ""
+  },
+  "0xB1": {
+    "code": "0xB1",
+    "name": "BGI_DETECTED_VIOLATION",
+    "description": "Bgi detected violation",
+    "suggested_group": "kernel",
+    "action": ""
+  },
+  "0xB4": {
+    "code": "0xB4",
+    "name": "VIDEO_DRIVER_INIT_FAILURE",
+    "description": "Video driver init failure",
+    "suggested_group": "gpu",
+    "action": ""
+  },
+  "0xB8": {
+    "code": "0xB8",
+    "name": "ATTEMPTED_SWITCH_FROM_DPC",
+    "description": "Attempted switch from dpc",
+    "suggested_group": "kernel",
+    "action": ""
+  },
+  "0xB9": {
+    "code": "0xB9",
+    "name": "CHIPSET_DETECTED_ERROR",
+    "description": "Chipset detected error",
+    "suggested_group": "cpu",
+    "action": ""
+  },
+  "0xBA": {
+    "code": "0xBA",
+    "name": "SESSION_HAS_VALID_VIEWS_ON_EXIT",
+    "description": "Session has valid views on exit",
+    "suggested_group": "kernel",
+    "action": ""
+  },
+  "0xBB": {
+    "code": "0xBB",
+    "name": "NETWORK_BOOT_INITIALIZATION_FAILED",
+    "description": "Network boot initialization failed",
+    "suggested_group": "network",
+    "action": ""
+  },
+  "0xBC": {
+    "code": "0xBC",
+    "name": "NETWORK_BOOT_DUPLICATE_ADDRESS",
+    "description": "Network boot duplicate address",
+    "suggested_group": "network",
+    "action": ""
+  },
+  "0xBD": {
+    "code": "0xBD",
+    "name": "INVALID_HIBERNATED_STATE",
+    "description": "Invalid hibernated state",
+    "suggested_group": "kernel",
+    "action": ""
+  },
+  "0xBE": {
+    "code": "0xBE",
+    "name": "ATTEMPTED_WRITE_TO_READONLY_MEMORY",
+    "description": "Attempted write to readonly memory",
+    "suggested_group": "ram",
+    "action": ""
+  },
+  "0xBF": {
+    "code": "0xBF",
+    "name": "MUTEX_ALREADY_OWNED",
+    "description": "Mutex already owned",
+    "suggested_group": "kernel",
+    "action": ""
+  },
+  "0xC1": {
+    "code": "0xC1",
+    "name": "SPECIAL_POOL_DETECTED_MEMORY_CORRUPTION",
+    "description": "Special pool detected memory corruption",
+    "suggested_group": "ram",
+    "action": ""
+  },
+  "0xC2": {
+    "code": "0xC2",
+    "name": "BAD_POOL_CALLER",
+    "description": "Bad pool caller",
+    "suggested_group": "ram",
+    "action": ""
+  },
+  "0xC4": {
+    "code": "0xC4",
+    "name": "DRIVER_VERIFIER_DETECTED_VIOLATION",
+    "description": "Driver verifier detected violation",
+    "suggested_group": "driver",
+    "action": ""
+  },
+  "0xC5": {
+    "code": "0xC5",
+    "name": "DRIVER_CORRUPTED_EXPOOL",
+    "description": "Driver corrupted expool",
+    "suggested_group": "ram",
+    "action": ""
+  },
+  "0xC6": {
+    "code": "0xC6",
+    "name": "DRIVER_CAUGHT_MODIFYING_FREED_POOL",
+    "description": "Driver caught modifying freed pool",
+    "suggested_group": "ram",
+    "action": ""
+  },
+  "0xC7": {
+    "code": "0xC7",
+    "name": "TIMER_OR_DPC_INVALID",
+    "description": "Timer or dpc invalid",
+    "suggested_group": "kernel",
+    "action": ""
+  },
+  "0xC8": {
+    "code": "0xC8",
+    "name": "IRQL_UNEXPECTED_VALUE",
+    "description": "Irql unexpected value",
+    "suggested_group": "driver",
+    "action": ""
+  },
+  "0xC9": {
+    "code": "0xC9",
+    "name": "DRIVER_VERIFIER_IOMANAGER_VIOLATION",
+    "description": "Driver verifier iomanager violation",
+    "suggested_group": "driver",
+    "action": ""
+  },
+  "0xCA": {
+    "code": "0xCA",
+    "name": "PNP_DETECTED_FATAL_ERROR",
+    "description": "Pnp detected fatal error",
+    "suggested_group": "driver",
+    "action": ""
+  },
+  "0xCB": {
+    "code": "0xCB",
+    "name": "DRIVER_LEFT_LOCKED_PAGES_IN_PROCESS",
+    "description": "Driver left locked pages in process",
+    "suggested_group": "ram",
+    "action": ""
+  },
+  "0xCC": {
+    "code": "0xCC",
+    "name": "PAGE_FAULT_IN_FREED_SPECIAL_POOL",
+    "description": "Page fault in freed special pool",
+    "suggested_group": "ram",
+    "action": ""
+  },
+  "0xCD": {
+    "code": "0xCD",
+    "name": "PAGE_FAULT_BEYOND_END_OF_ALLOCATION",
+    "description": "Page fault beyond end of allocation",
+    "suggested_group": "ram",
+    "action": ""
+  },
+  "0xCE": {
+    "code": "0xCE",
+    "name": "DRIVER_UNLOADED_WITHOUT_CANCELLING_PENDING_OPERATIONS",
+    "description": "Driver unloaded without cancelling pending operations",
+    "suggested_group": "driver",
+    "action": ""
+  },
+  "0xCF": {
+    "code": "0xCF",
+    "name": "TERMINAL_SERVER_DRIVER_MADE_INCORRECT_MEMORY_REFERENCE",
+    "description": "Terminal server driver made incorrect memory reference",
+    "suggested_group": "ram",
+    "action": ""
+  },
+  "0xD0": {
+    "code": "0xD0",
+    "name": "DRIVER_CORRUPTED_MMPOOL",
+    "description": "Driver corrupted mmpool",
+    "suggested_group": "ram",
+    "action": ""
+  },
+  "0xD1": {
+    "code": "0xD1",
+    "name": "DRIVER_IRQL_NOT_LESS_OR_EQUAL",
+    "description": "Driver irql not less or equal",
+    "suggested_group": "driver",
+    "action": ""
+  },
+  "0xD2": {
+    "code": "0xD2",
+    "name": "BUGCODE_ID_DRIVER",
+    "description": "Bugcode id driver",
+    "suggested_group": "driver",
+    "action": ""
+  },
+  "0xD3": {
+    "code": "0xD3",
+    "name": "DRIVER_PORTION_MUST_BE_NONPAGED",
+    "description": "Driver portion must be nonpaged",
+    "suggested_group": "ram",
+    "action": ""
+  },
+  "0xD4": {
+    "code": "0xD4",
+    "name": "SYSTEM_SCAN_AT_RAISED_IRQL_CAUGHT_IMPROPER_DRIVER_UNLOAD",
+    "description": "System scan at raised irql caught improper driver unload",
+    "suggested_group": "driver",
+    "action": ""
+  },
+  "0xD5": {
+    "code": "0xD5",
+    "name": "DRIVER_PAGE_FAULT_IN_FREED_SPECIAL_POOL",
+    "description": "Driver page fault in freed special pool",
+    "suggested_group": "ram",
+    "action": ""
+  },
+  "0xD6": {
+    "code": "0xD6",
+    "name": "DRIVER_PAGE_FAULT_BEYOND_END_OF_ALLOCATION",
+    "description": "Driver page fault beyond end of allocation",
+    "suggested_group": "ram",
+    "action": ""
+  },
+  "0xD7": {
+    "code": "0xD7",
+    "name": "DRIVER_UNMAPPING_INVALID_VIEW",
+    "description": "Driver unmapping invalid view",
+    "suggested_group": "driver",
+    "action": ""
+  },
+  "0xD8": {
+    "code": "0xD8",
+    "name": "DRIVER_USED_EXCESSIVE_PTES",
+    "description": "Driver used excessive ptes",
+    "suggested_group": "ram",
+    "action": ""
+  },
+  "0xD9": {
+    "code": "0xD9",
+    "name": "LOCKED_PAGES_TRACKER_CORRUPTION",
+    "description": "Locked pages tracker corruption",
+    "suggested_group": "ram",
+    "action": ""
+  },
+  "0xDA": {
+    "code": "0xDA",
+    "name": "SYSTEM_PTE_MISUSE",
+    "description": "System pte misuse",
+    "suggested_group": "ram",
+    "action": ""
+  },
+  "0xDB": {
+    "code": "0xDB",
+    "name": "DRIVER_CORRUPTED_SYSPTES",
+    "description": "Driver corrupted sysptes",
+    "suggested_group": "ram",
+    "action": ""
+  },
+  "0xDC": {
+    "code": "0xDC",
+    "name": "DRIVER_INVALID_STACK_ACCESS",
+    "description": "Driver invalid stack access",
+    "suggested_group": "driver",
+    "action": ""
+  },
+  "0xDE": {
+    "code": "0xDE",
+    "name": "POOL_CORRUPTION_IN_FILE_AREA",
+    "description": "Pool corruption in file area",
+    "suggested_group": "ram",
+    "action": ""
+  },
+  "0xDF": {
+    "code": "0xDF",
+    "name": "IMPERSONATING_WORKER_THREAD",
+    "description": "Impersonating worker thread",
+    "suggested_group": "kernel",
+    "action": ""
+  },
+  "0xE0": {
+    "code": "0xE0",
+    "name": "ACPI_BIOS_FATAL_ERROR",
+    "description": "Acpi bios fatal error",
+    "suggested_group": "bios",
+    "action": ""
+  },
+  "0xE1": {
+    "code": "0xE1",
+    "name": "WORKER_THREAD_RETURNED_AT_BAD_IRQL",
+    "description": "Worker thread returned at bad irql",
+    "suggested_group": "driver",
+    "action": ""
+  },
+  "0xE2": {
+    "code": "0xE2",
+    "name": "MANUALLY_INITIATED_CRASH",
+    "description": "Manually initiated crash",
+    "suggested_group": "kernel",
+    "action": ""
+  },
+  "0xE3": {
+    "code": "0xE3",
+    "name": "RESOURCE_NOT_OWNED",
+    "description": "Resource not owned",
+    "suggested_group": "kernel",
+    "action": ""
+  },
+  "0xE4": {
+    "code": "0xE4",
+    "name": "WORKER_INVALID",
+    "description": "Worker invalid",
+    "suggested_group": "kernel",
+    "action": ""
+  },
+  "0xE6": {
+    "code": "0xE6",
+    "name": "DRIVER_VERIFIER_DMA_VIOLATION",
+    "description": "Driver verifier dma violation",
+    "suggested_group": "driver",
+    "action": ""
+  },
+  "0xE7": {
+    "code": "0xE7",
+    "name": "INVALID_FLOATING_POINT_STATE",
+    "description": "Invalid floating point state",
+    "suggested_group": "kernel",
+    "action": ""
+  },
+  "0xE8": {
+    "code": "0xE8",
+    "name": "INVALID_CANCEL_OF_FILE_OPEN",
+    "description": "Invalid cancel of file open",
+    "suggested_group": "kernel",
+    "action": ""
+  },
+  "0xE9": {
+    "code": "0xE9",
+    "name": "ACTIVE_EX_WORKER_THREAD_TERMINATION",
+    "description": "Active ex worker thread termination",
+    "suggested_group": "kernel",
+    "action": ""
+  },
+  "0xEA": {
+    "code": "0xEA",
+    "name": "THREAD_STUCK_IN_DEVICE_DRIVER",
+    "description": "Thread stuck in device driver",
+    "suggested_group": "driver",
+    "action": ""
+  },
+  "0xEB": {
+    "code": "0xEB",
+    "name": "DIRTY_MAPPED_PAGES_CONGESTION",
+    "description": "Dirty mapped pages congestion",
+    "suggested_group": "ram",
+    "action": ""
+  },
+  "0xEC": {
+    "code": "0xEC",
+    "name": "SESSION_HAS_VALID_SPECIAL_POOL_ON_EXIT",
+    "description": "Session has valid special pool on exit",
+    "suggested_group": "ram",
+    "action": ""
+  },
+  "0xED": {
+    "code": "0xED",
+    "name": "UNMOUNTABLE_BOOT_VOLUME",
+    "description": "Unmountable boot volume",
+    "suggested_group": "storage",
+    "action": ""
+  },
+  "0xEF": {
+    "code": "0xEF",
+    "name": "CRITICAL_PROCESS_DIED",
+    "description": "Critical process died",
+    "suggested_group": "kernel",
+    "action": ""
+  },
+  "0xF0": {
+    "code": "0xF0",
+    "name": "STORAGE_MINIPORT_ERROR",
+    "description": "Storage miniport error",
+    "suggested_group": "storage",
+    "action": ""
+  },
+  "0xF1": {
+    "code": "0xF1",
+    "name": "SCSI_VERIFIER_DETECTED_VIOLATION",
+    "description": "Scsi verifier detected violation",
+    "suggested_group": "storage",
+    "action": ""
+  },
+  "0xF2": {
+    "code": "0xF2",
+    "name": "HARDWARE_INTERRUPT_STORM",
+    "description": "Hardware interrupt storm",
+    "suggested_group": "cpu",
+    "action": ""
+  },
+  "0xF3": {
+    "code": "0xF3",
+    "name": "DISORDERLY_SHUTDOWN",
+    "description": "Disorderly shutdown",
+    "suggested_group": "kernel",
+    "action": ""
+  },
+  "0xF4": {
+    "code": "0xF4",
+    "name": "CRITICAL_OBJECT_TERMINATION",
+    "description": "Critical object termination",
+    "suggested_group": "kernel",
+    "action": ""
+  },
+  "0xF5": {
+    "code": "0xF5",
+    "name": "FLTMGR_FILE_SYSTEM",
+    "description": "Fltmgr file system",
+    "suggested_group": "storage",
+    "action": ""
+  },
+  "0xF6": {
+    "code": "0xF6",
+    "name": "PCI_VERIFIER_DETECTED_VIOLATION",
+    "description": "Pci verifier detected violation",
+    "suggested_group": "kernel",
+    "action": ""
+  },
+  "0xF7": {
+    "code": "0xF7",
+    "name": "DRIVER_OVERRAN_STACK_BUFFER",
+    "description": "Driver overran stack buffer",
+    "suggested_group": "driver",
+    "action": ""
+  },
+  "0xF8": {
+    "code": "0xF8",
+    "name": "RAMDISK_BOOT_INITIALIZATION_FAILED",
+    "description": "Ramdisk boot initialization failed",
+    "suggested_group": "storage",
+    "action": ""
+  },
+  "0xF9": {
+    "code": "0xF9",
+    "name": "DRIVER_RETURNED_STATUS_REPARSE_FOR_VOLUME_OPEN",
+    "description": "Driver returned status reparse for volume open",
+    "suggested_group": "storage",
+    "action": ""
+  },
+  "0xFA": {
+    "code": "0xFA",
+    "name": "HTTP_DRIVER_CORRUPTED",
+    "description": "Http driver corrupted",
+    "suggested_group": "driver",
+    "action": ""
+  },
+  "0xFC": {
+    "code": "0xFC",
+    "name": "ATTEMPTED_EXECUTE_OF_NOEXECUTE_MEMORY",
+    "description": "Attempted execute of noexecute memory",
+    "suggested_group": "ram",
+    "action": ""
+  },
+  "0xFD": {
+    "code": "0xFD",
+    "name": "DIRTY_NOWRITE_PAGES_CONGESTION",
+    "description": "Dirty nowrite pages congestion",
+    "suggested_group": "ram",
+    "action": ""
+  },
+  "0xFE": {
+    "code": "0xFE",
+    "name": "BUGCODE_USB_DRIVER",
+    "description": "Bugcode usb driver",
+    "suggested_group": "network",
+    "action": ""
+  },
+  "0xFF": {
+    "code": "0xFF",
+    "name": "RESERVE_QUEUE_OVERFLOW",
+    "description": "Reserve queue overflow",
+    "suggested_group": "kernel",
+    "action": ""
+  },
+  "0x100": {
+    "code": "0x100",
+    "name": "LOADER_BLOCK_MISMATCH",
+    "description": "Loader block mismatch",
+    "suggested_group": "kernel",
+    "action": ""
+  },
+  "0x101": {
+    "code": "0x101",
+    "name": "CLOCK_WATCHDOG_TIMEOUT",
+    "description": "Clock watchdog timeout",
+    "suggested_group": "cpu",
+    "action": ""
+  },
+  "0x102": {
+    "code": "0x102",
+    "name": "DPC_WATCHDOG_TIMEOUT",
+    "description": "Dpc watchdog timeout",
+    "suggested_group": "driver",
+    "action": ""
+  },
+  "0x103": {
+    "code": "0x103",
+    "name": "MUP_FILE_SYSTEM",
+    "description": "Mup file system",
+    "suggested_group": "storage",
+    "action": ""
+  },
+  "0x104": {
+    "code": "0x104",
+    "name": "AGP_INVALID_ACCESS",
+    "description": "Agp invalid access",
+    "suggested_group": "gpu",
+    "action": ""
+  },
+  "0x105": {
+    "code": "0x105",
+    "name": "AGP_GART_CORRUPTION",
+    "description": "Agp gart corruption",
+    "suggested_group": "gpu",
+    "action": ""
+  },
+  "0x106": {
+    "code": "0x106",
+    "name": "AGP_ILLEGALLY_REPROGRAMMED",
+    "description": "Agp illegally reprogrammed",
+    "suggested_group": "gpu",
+    "action": ""
+  },
+  "0x108": {
+    "code": "0x108",
+    "name": "THIRD_PARTY_FILE_SYSTEM_FAILURE",
+    "description": "Third party file system failure",
+    "suggested_group": "storage",
+    "action": ""
+  },
+  "0x109": {
+    "code": "0x109",
+    "name": "CRITICAL_STRUCTURE_CORRUPTION",
+    "description": "Critical structure corruption",
+    "suggested_group": "kernel",
+    "action": ""
+  },
+  "0x10A": {
+    "code": "0x10A",
+    "name": "APP_TAGGING_INITIALIZATION_FAILED",
+    "description": "App tagging initialization failed",
+    "suggested_group": "kernel",
+    "action": ""
+  },
+  "0x10C": {
+    "code": "0x10C",
+    "name": "FSRTL_EXTRA_CREATE_PARAMETER_VIOLATION",
+    "description": "Fsrtl extra create parameter violation",
+    "suggested_group": "kernel",
+    "action": ""
+  },
+  "0x10D": {
+    "code": "0x10D",
+    "name": "WDF_VIOLATION",
+    "description": "Wdf violation",
+    "suggested_group": "driver",
+    "action": ""
+  },
+  "0x10E": {
+    "code": "0x10E",
+    "name": "VIDEO_MEMORY_MANAGEMENT_INTERNAL",
+    "description": "Video memory management internal",
+    "suggested_group": "gpu",
+    "action": ""
+  },
+  "0x10F": {
+    "code": "0x10F",
+    "name": "RESOURCE_MANAGER_EXCEPTION_NOT_HANDLED",
+    "description": "Resource manager exception not handled",
+    "suggested_group": "kernel",
+    "action": ""
+  },
+  "0x111": {
+    "code": "0x111",
+    "name": "RECURSIVE_NMI",
+    "description": "Recursive nmi",
+    "suggested_group": "cpu",
+    "action": ""
+  },
+  "0x112": {
+    "code": "0x112",
+    "name": "MSRPC_STATE_VIOLATION",
+    "description": "Msrpc state violation",
+    "suggested_group": "kernel",
+    "action": ""
+  },
+  "0x113": {
+    "code": "0x113",
+    "name": "VIDEO_DXGKRNL_FATAL_ERROR",
+    "description": "Video dxgkrnl fatal error",
+    "suggested_group": "gpu",
+    "action": ""
+  },
+  "0x114": {
+    "code": "0x114",
+    "name": "VIDEO_SHADOW_DRIVER_FATAL_ERROR",
+    "description": "Video shadow driver fatal error",
+    "suggested_group": "gpu",
+    "action": ""
+  },
+  "0x115": {
+    "code": "0x115",
+    "name": "AGP_INTERNAL",
+    "description": "Agp internal",
+    "suggested_group": "gpu",
+    "action": ""
+  },
+  "0x116": {
+    "code": "0x116",
+    "name": "VIDEO_TDR_FAILURE",
+    "description": "Video tdr failure",
+    "suggested_group": "gpu",
+    "action": ""
+  },
+  "0x117": {
+    "code": "0x117",
+    "name": "VIDEO_TDR_TIMEOUT_DETECTED",
+    "description": "Video tdr timeout detected",
+    "suggested_group": "gpu",
+    "action": ""
+  },
+  "0x119": {
+    "code": "0x119",
+    "name": "VIDEO_SCHEDULER_INTERNAL_ERROR",
+    "description": "Video scheduler internal error",
+    "suggested_group": "gpu",
+    "action": ""
+  },
+  "0x11A": {
+    "code": "0x11A",
+    "name": "EM_INITIALIZATION_FAILURE",
+    "description": "Em initialization failure",
+    "suggested_group": "kernel",
+    "action": ""
+  },
+  "0x11B": {
+    "code": "0x11B",
+    "name": "DRIVER_RETURNED_HOLDING_CANCEL_LOCK",
+    "description": "Driver returned holding cancel lock",
+    "suggested_group": "driver",
+    "action": ""
+  },
+  "0x11C": {
+    "code": "0x11C",
+    "name": "ATTEMPTED_WRITE_TO_CM_PROTECTED_STORAGE",
+    "description": "Attempted write to cm protected storage",
+    "suggested_group": "storage",
+    "action": ""
+  },
+  "0x11D": {
+    "code": "0x11D",
+    "name": "EVENT_TRACING_FATAL_ERROR",
+    "description": "Event tracing fatal error",
+    "suggested_group": "kernel",
+    "action": ""
+  },
+  "0x11E": {
+    "code": "0x11E",
+    "name": "TOO_MANY_RECURSIVE_FAULTS",
+    "description": "Too many recursive faults",
+    "suggested_group": "kernel",
+    "action": ""
+  },
+  "0x11F": {
+    "code": "0x11F",
+    "name": "INVALID_DRIVER_HANDLE",
+    "description": "Invalid driver handle",
+    "suggested_group": "driver",
+    "action": ""
+  },
+  "0x120": {
+    "code": "0x120",
+    "name": "BITLOCKER_FATAL_ERROR",
+    "description": "Bitlocker fatal error",
+    "suggested_group": "kernel",
+    "action": ""
+  },
+  "0x121": {
+    "code": "0x121",
+    "name": "DRIVER_VIOLATION",
+    "description": "Driver violation",
+    "suggested_group": "driver",
+    "action": ""
+  },
+  "0x122": {
+    "code": "0x122",
+    "name": "WHEA_INTERNAL_ERROR",
+    "description": "Whea internal error",
+    "suggested_group": "cpu",
+    "action": ""
+  },
+  "0x123": {
+    "code": "0x123",
+    "name": "CRYPTO_SELF_TEST_FAILURE",
+    "description": "Crypto self test failure",
+    "suggested_group": "kernel",
+    "action": ""
+  },
+  "0x124": {
+    "code": "0x124",
+    "name": "WHEA_UNCORRECTABLE_ERROR",
+    "description": "Whea uncorrectable error",
+    "suggested_group": "cpu",
+    "action": ""
+  },
+  "0x125": {
+    "code": "0x125",
+    "name": "NMR_INVALID_STATE",
+    "description": "Nmr invalid state",
+    "suggested_group": "kernel",
+    "action": ""
+  },
+  "0x126": {
+    "code": "0x126",
+    "name": "NETIO_INVALID_POOL_CALLER",
+    "description": "Netio invalid pool caller",
+    "suggested_group": "network",
+    "action": ""
+  },
+  "0x127": {
+    "code": "0x127",
+    "name": "PAGE_NOT_ZERO",
+    "description": "Page not zero",
+    "suggested_group": "ram",
+    "action": ""
+  },
+  "0x128": {
+    "code": "0x128",
+    "name": "WORKER_THREAD_RETURNED_WITH_BAD_IO_PRIORITY",
+    "description": "Worker thread returned with bad io priority",
+    "suggested_group": "kernel",
+    "action": ""
+  },
+  "0x129": {
+    "code": "0x129",
+    "name": "WORKER_THREAD_RETURNED_WITH_BAD_PAGING_IO_PRIORITY",
+    "description": "Worker thread returned with bad paging io priority",
+    "suggested_group": "kernel",
+    "action": ""
+  },
+  "0x12A": {
+    "code": "0x12A",
+    "name": "MUI_NO_VALID_SYSTEM_LANGUAGE",
+    "description": "Mui no valid system language",
+    "suggested_group": "kernel",
+    "action": ""
+  },
+  "0x12B": {
+    "code": "0x12B",
+    "name": "FAULTY_HARDWARE_CORRUPTED_PAGE",
+    "description": "Faulty hardware corrupted page",
+    "suggested_group": "cpu",
+    "action": ""
+  },
+  "0x12C": {
+    "code": "0x12C",
+    "name": "EXFAT_FILE_SYSTEM",
+    "description": "Exfat file system",
+    "suggested_group": "storage",
+    "action": ""
+  },
+  "0x12D": {
+    "code": "0x12D",
+    "name": "VOLSNAP_OVERLAPPED_TABLE_ACCESS",
+    "description": "Volsnap overlapped table access",
+    "suggested_group": "storage",
+    "action": ""
+  },
+  "0x12E": {
+    "code": "0x12E",
+    "name": "INVALID_MDL_RANGE",
+    "description": "Invalid mdl range",
+    "suggested_group": "ram",
+    "action": ""
+  },
+  "0x12F": {
+    "code": "0x12F",
+    "name": "VHD_BOOT_INITIALIZATION_FAILED",
+    "description": "Vhd boot initialization failed",
+    "suggested_group": "storage",
+    "action": ""
+  },
+  "0x130": {
+    "code": "0x130",
+    "name": "DYNAMIC_ADD_PROCESSOR_MISMATCH",
+    "description": "Dynamic add processor mismatch",
+    "suggested_group": "cpu",
+    "action": ""
+  },
+  "0x131": {
+    "code": "0x131",
+    "name": "INVALID_EXTENDED_PROCESSOR_STATE",
+    "description": "Invalid extended processor state",
+    "suggested_group": "cpu",
+    "action": ""
+  },
+  "0x132": {
+    "code": "0x132",
+    "name": "RESOURCE_OWNER_POINTER_INVALID",
+    "description": "Resource owner pointer invalid",
+    "suggested_group": "kernel",
+    "action": ""
+  },
+  "0x133": {
+    "code": "0x133",
+    "name": "DPC_WATCHDOG_VIOLATION",
+    "description": "Dpc watchdog violation",
+    "suggested_group": "driver",
+    "action": ""
+  },
+  "0x134": {
+    "code": "0x134",
+    "name": "DRIVE_EXTENDER",
+    "description": "Drive extender",
+    "suggested_group": "kernel",
+    "action": ""
+  },
+  "0x135": {
+    "code": "0x135",
+    "name": "REGISTRY_FILTER_DRIVER_EXCEPTION",
+    "description": "Registry filter driver exception",
+    "suggested_group": "driver",
+    "action": ""
+  },
+  "0x136": {
+    "code": "0x136",
+    "name": "VHD_BOOT_HOST_VOLUME_NOT_ENOUGH_SPACE",
+    "description": "Vhd boot host volume not enough space",
+    "suggested_group": "storage",
+    "action": ""
+  },
+  "0x137": {
+    "code": "0x137",
+    "name": "WIN32K_HANDLE_MANAGER",
+    "description": "Win32k handle manager",
+    "suggested_group": "kernel",
+    "action": ""
+  },
+  "0x138": {
+    "code": "0x138",
+    "name": "GPIO_CONTROLLER_DRIVER_ERROR",
+    "description": "Gpio controller driver error",
+    "suggested_group": "driver",
+    "action": ""
+  },
+  "0x139": {
+    "code": "0x139",
+    "name": "KERNEL_SECURITY_CHECK_FAILURE",
+    "description": "Kernel security check failure",
+    "suggested_group": "kernel",
+    "action": ""
+  },
+  "0x13A": {
+    "code": "0x13A",
+    "name": "KERNEL_MODE_HEAP_CORRUPTION",
+    "description": "Kernel mode heap corruption",
+    "suggested_group": "kernel",
+    "action": ""
+  },
+  "0x13B": {
+    "code": "0x13B",
+    "name": "PASSIVE_INTERRUPT_ERROR",
+    "description": "Passive interrupt error",
+    "suggested_group": "kernel",
+    "action": ""
+  },
+  "0x13C": {
+    "code": "0x13C",
+    "name": "INVALID_IO_BOOST_STATE",
+    "description": "Invalid io boost state",
+    "suggested_group": "kernel",
+    "action": ""
+  },
+  "0x13D": {
+    "code": "0x13D",
+    "name": "CRITICAL_INITIALIZATION_FAILURE",
+    "description": "Critical initialization failure",
+    "suggested_group": "kernel",
+    "action": ""
+  },
+  "0x140": {
+    "code": "0x140",
+    "name": "STORAGE_DEVICE_ABNORMALITY_DETECTED",
+    "description": "Storage device abnormality detected",
+    "suggested_group": "storage",
+    "action": ""
+  },
+  "0x143": {
+    "code": "0x143",
+    "name": "PROCESSOR_DRIVER_INTERNAL",
+    "description": "Processor driver internal",
+    "suggested_group": "cpu",
+    "action": ""
+  },
+  "0x144": {
+    "code": "0x144",
+    "name": "BUGCODE_USB3_DRIVER",
+    "description": "Bugcode usb3 driver",
+    "suggested_group": "network",
+    "action": ""
+  },
+  "0x145": {
+    "code": "0x145",
+    "name": "SECURE_BOOT_VIOLATION",
+    "description": "Secure boot violation",
+    "suggested_group": "kernel",
+    "action": ""
+  },
+  "0x147": {
+    "code": "0x147",
+    "name": "ABNORMAL_RESET_DETECTED",
+    "description": "Abnormal reset detected",
+    "suggested_group": "kernel",
+    "action": ""
+  },
+  "0x149": {
+    "code": "0x149",
+    "name": "REFS_FILE_SYSTEM",
+    "description": "Refs file system",
+    "suggested_group": "storage",
+    "action": ""
+  },
+  "0x14A": {
+    "code": "0x14A",
+    "name": "KERNEL_WMI_INTERNAL",
+    "description": "Kernel wmi internal",
+    "suggested_group": "kernel",
+    "action": ""
+  },
+  "0x14B": {
+    "code": "0x14B",
+    "name": "SOC_SUBSYSTEM_FAILURE",
+    "description": "Soc subsystem failure",
+    "suggested_group": "cpu",
+    "action": ""
+  },
+  "0x14C": {
+    "code": "0x14C",
+    "name": "FATAL_ABNORMAL_RESET_ERROR",
+    "description": "Fatal abnormal reset error",
+    "suggested_group": "kernel",
+    "action": ""
+  },
+  "0x14D": {
+    "code": "0x14D",
+    "name": "EXCEPTION_SCOPE_INVALID",
+    "description": "Exception scope invalid",
+    "suggested_group": "kernel",
+    "action": ""
+  },
+  "0x14E": {
+    "code": "0x14E",
+    "name": "SOC_CRITICAL_DEVICE_REMOVED",
+    "description": "Soc critical device removed",
+    "suggested_group": "cpu",
+    "action": ""
+  },
+  "0x14F": {
+    "code": "0x14F",
+    "name": "PDC_WATCHDOG_TIMEOUT",
+    "description": "Pdc watchdog timeout",
+    "suggested_group": "driver",
+    "action": ""
+  },
+  "0x150": {
+    "code": "0x150",
+    "name": "TCPIP_AOAC_NIC_ACTIVE_REFERENCE_LEAK",
+    "description": "Tcpip aoac nic active reference leak",
+    "suggested_group": "network",
+    "action": ""
+  },
+  "0x151": {
+    "code": "0x151",
+    "name": "UNSUPPORTED_INSTRUCTION_MODE",
+    "description": "Unsupported instruction mode",
+    "suggested_group": "kernel",
+    "action": ""
+  },
+  "0x152": {
+    "code": "0x152",
+    "name": "INVALID_PUSH_LOCK_FLAGS",
+    "description": "Invalid push lock flags",
+    "suggested_group": "kernel",
+    "action": ""
+  },
+  "0x153": {
+    "code": "0x153",
+    "name": "KERNEL_LOCK_ENTRY_LEAKED_ON_THREAD_TERMINATION",
+    "description": "Kernel lock entry leaked on thread termination",
+    "suggested_group": "kernel",
+    "action": ""
+  },
+  "0x154": {
+    "code": "0x154",
+    "name": "UNEXPECTED_STORE_EXCEPTION",
+    "description": "Unexpected store exception",
+    "suggested_group": "storage",
+    "action": ""
+  },
+  "0x155": {
+    "code": "0x155",
+    "name": "OS_DATA_TAMPERING",
+    "description": "Os data tampering",
+    "suggested_group": "kernel",
+    "action": ""
+  },
+  "0x157": {
+    "code": "0x157",
+    "name": "KERNEL_THREAD_PRIORITY_FLOOR_VIOLATION",
+    "description": "Kernel thread priority floor violation",
+    "suggested_group": "kernel",
+    "action": ""
+  },
+  "0x158": {
+    "code": "0x158",
+    "name": "ILLEGAL_IOMMU_PAGE_FAULT",
+    "description": "Illegal iommu page fault",
+    "suggested_group": "cpu",
+    "action": ""
+  },
+  "0x159": {
+    "code": "0x159",
+    "name": "HAL_ILLEGAL_IOMMU_PAGE_FAULT",
+    "description": "Hal illegal iommu page fault",
+    "suggested_group": "cpu",
+    "action": ""
+  },
+  "0x15A": {
+    "code": "0x15A",
+    "name": "SDBUS_INTERNAL_ERROR",
+    "description": "Sdbus internal error",
+    "suggested_group": "network",
+    "action": ""
+  },
+  "0x15B": {
+    "code": "0x15B",
+    "name": "WORKER_THREAD_RETURNED_WITH_SYSTEM_PAGE_PRIORITY_ACTIVE",
+    "description": "Worker thread returned with system page priority active",
+    "suggested_group": "ram",
+    "action": ""
+  },
+  "0x160": {
+    "code": "0x160",
+    "name": "WIN32K_ATOMIC_CHECK_FAILURE",
+    "description": "Win32k atomic check failure",
+    "suggested_group": "kernel",
+    "action": ""
+  },
+  "0x162": {
+    "code": "0x162",
+    "name": "KERNEL_AUTO_BOOST_INVALID_LOCK_RELEASE",
+    "description": "Kernel auto boost invalid lock release",
+    "suggested_group": "kernel",
+    "action": ""
+  },
+  "0x163": {
+    "code": "0x163",
+    "name": "WORKER_THREAD_TEST_CONDITION",
+    "description": "Worker thread test condition",
+    "suggested_group": "kernel",
+    "action": ""
+  },
+  "0x164": {
+    "code": "0x164",
+    "name": "WIN32K_CRITICAL_FAILURE",
+    "description": "Win32k critical failure",
+    "suggested_group": "kernel",
+    "action": ""
+  },
+  "0x16C": {
+    "code": "0x16C",
+    "name": "INVALID_RUNDOWN_PROTECTION_FLAGS",
+    "description": "Invalid rundown protection flags",
+    "suggested_group": "kernel",
+    "action": ""
+  },
+  "0x16D": {
+    "code": "0x16D",
+    "name": "INVALID_SLOT_ALLOCATOR_FLAGS",
+    "description": "Invalid slot allocator flags",
+    "suggested_group": "kernel",
+    "action": ""
+  },
+  "0x16E": {
+    "code": "0x16E",
+    "name": "ERESOURCE_INVALID_RELEASE",
+    "description": "Eresource invalid release",
+    "suggested_group": "kernel",
+    "action": ""
+  },
+  "0x170": {
+    "code": "0x170",
+    "name": "CLUSTER_CSV_CLUSSVC_DISCONNECT_WATCHDOG",
+    "description": "Cluster csv clussvc disconnect watchdog",
+    "suggested_group": "driver",
+    "action": ""
+  },
+  "0x171": {
+    "code": "0x171",
+    "name": "CRYPTO_LIBRARY_INTERNAL_ERROR",
+    "description": "Crypto library internal error",
+    "suggested_group": "kernel",
+    "action": ""
+  },
+  "0x173": {
+    "code": "0x173",
+    "name": "COREMSGCALL_INTERNAL_ERROR",
+    "description": "Coremsgcall internal error",
+    "suggested_group": "kernel",
+    "action": ""
+  },
+  "0x174": {
+    "code": "0x174",
+    "name": "COREMSG_INTERNAL_ERROR",
+    "description": "Coremsg internal error",
+    "suggested_group": "kernel",
+    "action": ""
+  },
+  "0x178": {
+    "code": "0x178",
+    "name": "ELAM_DRIVER_DETECTED_FATAL_ERROR",
+    "description": "Elam driver detected fatal error",
+    "suggested_group": "driver",
+    "action": ""
+  },
+  "0x17B": {
+    "code": "0x17B",
+    "name": "PROFILER_CONFIGURATION_ILLEGAL",
+    "description": "Profiler configuration illegal",
+    "suggested_group": "kernel",
+    "action": ""
+  },
+  "0x17E": {
+    "code": "0x17E",
+    "name": "MICROCODE_REVISION_MISMATCH",
+    "description": "Microcode revision mismatch",
+    "suggested_group": "cpu",
+    "action": ""
+  },
+  "0x187": {
+    "code": "0x187",
+    "name": "VIDEO_DWMINIT_TIMEOUT_FALLBACK_BDD",
+    "description": "Video dwminit timeout fallback bdd",
+    "suggested_group": "gpu",
+    "action": ""
+  },
+  "0x189": {
+    "code": "0x189",
+    "name": "BAD_OBJECT_HEADER",
+    "description": "Bad object header",
+    "suggested_group": "kernel",
+    "action": ""
+  },
+  "0x18B": {
+    "code": "0x18B",
+    "name": "SECURE_KERNEL_ERROR",
+    "description": "Secure kernel error",
+    "suggested_group": "kernel",
+    "action": ""
+  },
+  "0x18C": {
+    "code": "0x18C",
+    "name": "HYPERGUARD_VIOLATION",
+    "description": "Hyperguard violation",
+    "suggested_group": "kernel",
+    "action": ""
+  },
+  "0x18D": {
+    "code": "0x18D",
+    "name": "SECURE_FAULT_UNHANDLED",
+    "description": "Secure fault unhandled",
+    "suggested_group": "kernel",
+    "action": ""
+  },
+  "0x18E": {
+    "code": "0x18E",
+    "name": "KERNEL_PARTITION_REFERENCE_VIOLATION",
+    "description": "Kernel partition reference violation",
+    "suggested_group": "storage",
+    "action": ""
+  },
+  "0x191": {
+    "code": "0x191",
+    "name": "PF_DETECTED_CORRUPTION",
+    "description": "Pf detected corruption",
+    "suggested_group": "kernel",
+    "action": ""
+  },
+  "0x192": {
+    "code": "0x192",
+    "name": "KERNEL_AUTO_BOOST_LOCK_ACQUISITION_WITH_RAISED_IRQL",
+    "description": "Kernel auto boost lock acquisition with raised irql",
+    "suggested_group": "driver",
+    "action": ""
+  },
+  "0x196": {
+    "code": "0x196",
+    "name": "LOADER_ROLLBACK_DETECTED",
+    "description": "Loader rollback detected",
+    "suggested_group": "kernel",
+    "action": ""
+  },
+  "0x197": {
+    "code": "0x197",
+    "name": "WIN32K_SECURITY_FAILURE",
+    "description": "Win32k security failure",
+    "suggested_group": "kernel",
+    "action": ""
+  },
+  "0x199": {
+    "code": "0x199",
+    "name": "KERNEL_STORAGE_SLOT_IN_USE",
+    "description": "Kernel storage slot in use",
+    "suggested_group": "kernel",
+    "action": ""
+  },
+  "0x19A": {
+    "code": "0x19A",
+    "name": "WORKER_THREAD_RETURNED_WHILE_ATTACHED_TO_SILO",
+    "description": "Worker thread returned while attached to silo",
+    "suggested_group": "kernel",
+    "action": ""
+  },
+  "0x19B": {
+    "code": "0x19B",
+    "name": "TTM_FATAL_ERROR",
+    "description": "Ttm fatal error",
+    "suggested_group": "kernel",
+    "action": ""
+  },
+  "0x19C": {
+    "code": "0x19C",
+    "name": "WIN32K_POWER_WATCHDOG_TIMEOUT",
+    "description": "Win32k power watchdog timeout",
+    "suggested_group": "driver",
+    "action": ""
+  },
+  "0x1A0": {
+    "code": "0x1A0",
+    "name": "TTM_WATCHDOG_TIMEOUT",
+    "description": "Ttm watchdog timeout",
+    "suggested_group": "driver",
+    "action": ""
+  },
+  "0x1A2": {
+    "code": "0x1A2",
+    "name": "WIN32K_CALLOUT_WATCHDOG_BUGCHECK",
+    "description": "Win32k callout watchdog bugcheck",
+    "suggested_group": "driver",
+    "action": ""
+  },
+  "0x1AA": {
+    "code": "0x1AA",
+    "name": "EXCEPTION_ON_INVALID_STACK",
+    "description": "Exception on invalid stack",
+    "suggested_group": "kernel",
+    "action": ""
+  },
+  "0x1AB": {
+    "code": "0x1AB",
+    "name": "UNWIND_ON_INVALID_STACK",
+    "description": "Unwind on invalid stack",
+    "suggested_group": "kernel",
+    "action": ""
+  },
+  "0x1C6": {
+    "code": "0x1C6",
+    "name": "FAST_ERESOURCE_PRECONDITION_VIOLATION",
+    "description": "Fast eresource precondition violation",
+    "suggested_group": "kernel",
+    "action": ""
+  },
+  "0x1C7": {
+    "code": "0x1C7",
+    "name": "STORE_DATA_STRUCTURE_CORRUPTION",
+    "description": "Store data structure corruption",
+    "suggested_group": "storage",
+    "action": ""
+  },
+  "0x1C8": {
+    "code": "0x1C8",
+    "name": "MANUALLY_INITIATED_POWER_BUTTON_HOLD",
+    "description": "Manually initiated power button hold",
+    "suggested_group": "driver",
+    "action": ""
+  },
+  "0x1CA": {
+    "code": "0x1CA",
+    "name": "SYNTHETIC_WATCHDOG_TIMEOUT",
+    "description": "Synthetic watchdog timeout",
+    "suggested_group": "driver",
+    "action": ""
+  },
+  "0x1CB": {
+    "code": "0x1CB",
+    "name": "INVALID_SILO_DETACH",
+    "description": "Invalid silo detach",
+    "suggested_group": "kernel",
+    "action": ""
+  },
+  "0x1CD": {
+    "code": "0x1CD",
+    "name": "INVALID_CALLBACK_STACK_ADDRESS",
+    "description": "Invalid callback stack address",
+    "suggested_group": "kernel",
+    "action": ""
+  },
+  "0x1CE": {
+    "code": "0x1CE",
+    "name": "INVALID_KERNEL_STACK_ADDRESS",
+    "description": "Invalid kernel stack address",
+    "suggested_group": "kernel",
+    "action": ""
+  },
+  "0x1CF": {
+    "code": "0x1CF",
+    "name": "HARDWARE_WATCHDOG_TIMEOUT",
+    "description": "Hardware watchdog timeout",
+    "suggested_group": "cpu",
+    "action": ""
+  },
+  "0x1D0": {
+    "code": "0x1D0",
+    "name": "CPI_FIRMWARE_WATCHDOG_TIMEOUT",
+    "description": "Cpi firmware watchdog timeout",
+    "suggested_group": "driver",
+    "action": ""
+  },
+  "0x1D2": {
+    "code": "0x1D2",
+    "name": "WORKER_THREAD_INVALID_STATE",
+    "description": "Worker thread invalid state",
+    "suggested_group": "kernel",
+    "action": ""
+  },
+  "0x1D3": {
+    "code": "0x1D3",
+    "name": "WFP_INVALID_OPERATION",
+    "description": "Wfp invalid operation",
+    "suggested_group": "kernel",
+    "action": ""
+  },
+  "0x1D5": {
+    "code": "0x1D5",
+    "name": "DRIVER_PNP_WATCHDOG",
+    "description": "Driver pnp watchdog",
+    "suggested_group": "driver",
+    "action": ""
+  },
+  "0x1D6": {
+    "code": "0x1D6",
+    "name": "WORKER_THREAD_RETURNED_WITH_NON_DEFAULT_WORKLOAD_CLASS",
+    "description": "Worker thread returned with non default workload class",
+    "suggested_group": "kernel",
+    "action": ""
+  },
+  "0x1D7": {
+    "code": "0x1D7",
+    "name": "EFS_FATAL_ERROR",
+    "description": "Efs fatal error",
+    "suggested_group": "kernel",
+    "action": ""
+  },
+  "0x1D8": {
+    "code": "0x1D8",
+    "name": "UCMUCSI_FAILURE",
+    "description": "Ucmucsi failure",
+    "suggested_group": "network",
+    "action": ""
+  },
+  "0x1D9": {
+    "code": "0x1D9",
+    "name": "HAL_IOMMU_INTERNAL_ERROR",
+    "description": "Hal iommu internal error",
+    "suggested_group": "cpu",
+    "action": ""
+  },
+  "0x1DA": {
+    "code": "0x1DA",
+    "name": "HAL_BLOCKED_PROCESSOR_INTERNAL_ERROR",
+    "description": "Hal blocked processor internal error",
+    "suggested_group": "cpu",
+    "action": ""
+  },
+  "0x1DB": {
+    "code": "0x1DB",
+    "name": "IPI_WATCHDOG_TIMEOUT",
+    "description": "Ipi watchdog timeout",
+    "suggested_group": "cpu",
+    "action": ""
+  },
+  "0x1DC": {
+    "code": "0x1DC",
+    "name": "DMA_COMMON_BUFFER_VECTOR_ERROR",
+    "description": "Dma common buffer vector error",
+    "suggested_group": "kernel",
+    "action": ""
+  },
+  "0x1DD": {
+    "code": "0x1DD",
+    "name": "BUGCODE_MBBADAPTER_DRIVER",
+    "description": "Bugcode mbbadapter driver",
+    "suggested_group": "network",
+    "action": ""
+  },
+  "0x1DE": {
+    "code": "0x1DE",
+    "name": "BUGCODE_WIFIADAPTER_DRIVER",
+    "description": "Bugcode wifiadapter driver",
+    "suggested_group": "network",
+    "action": ""
+  },
+  "0x1DF": {
+    "code": "0x1DF",
+    "name": "PROCESSOR_START_TIMEOUT",
+    "description": "Processor start timeout",
+    "suggested_group": "cpu",
+    "action": ""
+  },
+  "0x1E4": {
+    "code": "0x1E4",
+    "name": "VIDEO_DXGKRNL_SYSMM_FATAL_ERROR",
+    "description": "Video dxgkrnl sysmm fatal error",
+    "suggested_group": "gpu",
+    "action": ""
+  },
+  "0x1E9": {
+    "code": "0x1E9",
+    "name": "ILLEGAL_ATS_INITIALIZATION",
+    "description": "Illegal ats initialization",
+    "suggested_group": "kernel",
+    "action": ""
+  },
+  "0x1EA": {
+    "code": "0x1EA",
+    "name": "SECURE_PCI_CONFIG_SPACE_ACCESS_VIOLATION",
+    "description": "Secure pci config space access violation",
+    "suggested_group": "kernel",
+    "action": ""
+  },
+  "0x1EB": {
+    "code": "0x1EB",
+    "name": "DAM_WATCHDOG_TIMEOUT",
+    "description": "Dam watchdog timeout",
+    "suggested_group": "driver",
+    "action": ""
+  },
+  "0x1ED": {
+    "code": "0x1ED",
+    "name": "HANDLE_ERROR_ON_CRITICAL_THREAD",
+    "description": "Handle error on critical thread",
+    "suggested_group": "kernel",
+    "action": ""
+  },
+  "0x1F1": {
+    "code": "0x1F1",
+    "name": "KASAN_ENLIGHTENMENT_VIOLATION",
+    "description": "Kasan enlightenment violation",
+    "suggested_group": "kernel",
+    "action": ""
+  },
+  "0x1F2": {
+    "code": "0x1F2",
+    "name": "KASAN_ILLEGAL_ACCESS",
+    "description": "Kasan illegal access",
+    "suggested_group": "kernel",
+    "action": ""
+  },
+  "0x356": {
+    "code": "0x356",
+    "name": "XBOX_ERACTRL_CS_TIMEOUT",
+    "description": "Xbox eractrl cs timeout",
+    "suggested_group": "driver",
+    "action": ""
+  },
+  "0xBFE": {
+    "code": "0xBFE",
+    "name": "BC_BLUETOOTH_VERIFIER_FAULT",
+    "description": "Bc bluetooth verifier fault",
+    "suggested_group": "network",
+    "action": ""
+  },
+  "0xBFF": {
+    "code": "0xBFF",
+    "name": "BC_BTHMINI_VERIFIER_FAULT",
+    "description": "Bc bthmini verifier fault",
+    "suggested_group": "network",
+    "action": ""
+  },
+  "0x20001": {
+    "code": "0x20001",
+    "name": "HYPERVISOR_ERROR",
+    "description": "Hypervisor error",
+    "suggested_group": "kernel",
+    "action": ""
+  },
+  "0x1000007E": {
+    "code": "0x1000007E",
+    "name": "SYSTEM_THREAD_EXCEPTION_NOT_HANDLED_M",
+    "description": "System thread exception not handled m",
+    "suggested_group": "kernel",
+    "action": ""
+  },
+  "0x1000007F": {
+    "code": "0x1000007F",
+    "name": "UNEXPECTED_KERNEL_MODE_TRAP_M",
+    "description": "Unexpected kernel mode trap m",
+    "suggested_group": "kernel",
+    "action": ""
+  },
+  "0x1000008E": {
+    "code": "0x1000008E",
+    "name": "KERNEL_MODE_EXCEPTION_NOT_HANDLED_M",
+    "description": "Kernel mode exception not handled m",
+    "suggested_group": "kernel",
+    "action": ""
+  },
+  "0x100000EA": {
+    "code": "0x100000EA",
+    "name": "THREAD_STUCK_IN_DEVICE_DRIVER_M",
+    "description": "Thread stuck in device driver m",
+    "suggested_group": "driver",
+    "action": ""
+  },
+  "0x4000008A": {
+    "code": "0x4000008A",
+    "name": "THREAD_TERMINATE_HELD_MUTEX",
+    "description": "Thread terminate held mutex",
+    "suggested_group": "kernel",
+    "action": ""
+  },
+  "0xC0000218": {
+    "code": "0xC0000218",
+    "name": "STATUS_CANNOT_LOAD_REGISTRY_FILE",
+    "description": "Status cannot load registry file",
+    "suggested_group": "kernel",
+    "action": ""
+  },
+  "0xC000021A": {
+    "code": "0xC000021A",
+    "name": "WINLOGON_FATAL_ERROR",
+    "description": "Winlogon fatal error",
+    "suggested_group": "kernel",
+    "action": ""
+  },
+  "0xC0000221": {
+    "code": "0xC0000221",
+    "name": "STATUS_IMAGE_CHECKSUM_MISMATCH",
+    "description": "Status image checksum mismatch",
+    "suggested_group": "kernel",
+    "action": ""
+  },
+  "0xDEADDEAD": {
+    "code": "0xDEADDEAD",
+    "name": "MANUALLY_INITIATED_CRASH1",
+    "description": "Manually initiated crash1",
+    "suggested_group": "kernel",
+    "action": ""
+  }
+}
