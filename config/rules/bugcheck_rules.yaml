@@ -129,3 +129,177 @@
     - "Cập nhật driver các thiết bị quản lý nguồn, chipset và mạng"
     - "Tắt chế độ Fast Startup trong Windows Power Options"
     - "Cập nhật BIOS bo mạch chủ"
+
+0x1E:
+  name: KMODE_EXCEPTION_NOT_HANDLED
+  suspects:
+    driver: 60
+    ram: 25
+    cpu: 15
+  next_steps:
+    - "Cập nhật driver mới cài đặt hoặc phần mềm diệt virus"
+    - "Chạy MemTest86 kiểm tra bộ nhớ RAM"
+    - "Kiểm tra nhiệt độ CPU khi chịu tải"
+
+0xEF:
+  name: CRITICAL_PROCESS_DIED
+  suspects:
+    driver: 45
+    storage: 30
+    ram: 25
+  next_steps:
+    - "Kiểm tra tình trạng sức khỏe ổ đĩa cứng (SMART, chkdsk)"
+    - "Chạy lệnh sfc /scannow để sửa các tệp hệ điều hành hỏng"
+    - "Cập nhật driver thiết bị lưu trữ và chipset"
+
+0x139:
+  name: KERNEL_SECURITY_CHECK_FAILURE
+  suspects:
+    driver: 60
+    ram: 25
+    storage: 15
+  next_steps:
+    - "Cập nhật driver bên thứ ba (đặc biệt card âm thanh, mạng, GPU)"
+    - "Kiểm tra tính toàn vẹn bộ nhớ RAM bằng MemTest86"
+    - "Gỡ bỏ phần mềm bảo mật / antivirus không tương thích"
+
+0x101:
+  name: CLOCK_WATCHDOG_TIMEOUT
+  suspects:
+    cpu: 55
+    bios: 25
+    thermal: 20
+  next_steps:
+    - "Kiểm tra nhiệt độ CPU và vệ sinh tản nhiệt / thay keo tản nhiệt"
+    - "Khôi phục thiết lập ép xung CPU về mặc định trong BIOS"
+    - "Cập nhật BIOS bo mạch chủ lên bản mới nhất"
+
+0x7A:
+  name: KERNEL_DATA_INPAGE_ERROR
+  suspects:
+    storage: 70
+    ram: 20
+    driver: 10
+  next_steps:
+    - "Kiểm tra cáp kết nối ổ đĩa hoặc khe cắm SSD M.2 NVMe"
+    - "Kiểm tra lỗi bad sector và thông số SMART của ổ cứng"
+    - "Chạy MemTest86 kiểm tra RAM"
+
+0xF4:
+  name: CRITICAL_OBJECT_TERMINATION
+  suspects:
+    storage: 60
+    driver: 25
+    ram: 15
+  next_steps:
+    - "Kiểm tra kết nối và firmware ổ đĩa chứa hệ điều hành"
+    - "Chạy kiểm tra sửa lỗi tệp hệ thống sfc /scannow"
+    - "Kiểm tra SMART ổ SSD / HDD"
+
+0x24:
+  name: NTFS_FILE_SYSTEM
+  suspects:
+    storage: 75
+    ram: 15
+    driver: 10
+  next_steps:
+    - "Chạy lệnh chkdsk /f /r để sửa lỗi phân vùng NTFS"
+    - "Kiểm tra sức khỏe ổ cứng (SMART) để phát hiện bad block"
+    - "Cập nhật driver điều khiển lưu trữ (SATA/NVMe)"
+
+0x23:
+  name: FAT_FILE_SYSTEM
+  suspects:
+    storage: 75
+    ram: 15
+    driver: 10
+  next_steps:
+    - "Kiểm tra ổ đĩa USB hoặc thẻ nhớ định dạng FAT"
+    - "Chạy lệnh chkdsk kiểm tra và sửa lỗi hệ thống tệp"
+
+0x4E:
+  name: PFN_LIST_CORRUPT
+  suspects:
+    ram: 75
+    driver: 15
+    storage: 10
+  next_steps:
+    - "Chạy MemTest86 kiểm tra kỹ bộ nhớ RAM (ít nhất 2 lượt)"
+    - "Tháo lắp và thử riêng từng thanh RAM"
+    - "Cập nhật driver chipset và kiểm tra ổ đĩa"
+
+0xC2:
+  name: BAD_POOL_CALLER
+  suspects:
+    driver: 65
+    ram: 25
+    storage: 10
+  extra_cdb:
+    - "!poolused 2"
+  next_steps:
+    - "Xác định driver bên thứ ba xuất hiện ở đỉnh call stack để gỡ hoặc cập nhật"
+    - "Kiểm tra RAM bằng MemTest86"
+    - "Tạm tắt phần mềm diệt virus bên thứ ba"
+
+0xC4:
+  name: DRIVER_VERIFIER_DETECTED_VIOLATION
+  suspects:
+    driver: 85
+    ram: 15
+  extra_cdb:
+    - "!verifier 3"
+  next_steps:
+    - "Đọc tên driver bị Driver Verifier bắt lỗi và gỡ bỏ ngay lập tức"
+    - "Tắt Driver Verifier bằng lệnh verifier /reset nếu cần khởi động bình thường"
+
+0xC9:
+  name: DRIVER_VERIFIER_IOMANAGER_VIOLATION
+  suspects:
+    driver: 85
+    storage: 15
+  next_steps:
+    - "Cập nhật hoặc gỡ bỏ driver I/O vi phạm"
+    - "Chạy verifier /reset để tắt chế độ kiểm tra"
+
+0x117:
+  name: VIDEO_TDR_TIMEOUT_DETECTED
+  suspects:
+    gpu: 80
+    thermal: 10
+    psu: 10
+  next_steps:
+    - "Gỡ sạch driver GPU bằng DDU trong Safe Mode rồi cài lại bản WHQL ổn định"
+    - "Kiểm tra nhiệt độ card màn hình và quạt tản nhiệt GPU"
+    - "Kiểm tra nguồn phụ PCIe cắm vào card đồ họa"
+
+0x119:
+  name: VIDEO_SCHEDULER_INTERNAL_ERROR
+  suspects:
+    gpu: 80
+    driver: 15
+    psu: 5
+  next_steps:
+    - "Cài đặt lại driver card đồ họa mới nhất từ trang chủ"
+    - "Kiểm tra card màn hình có bị ép xung hoặc quá nhiệt không"
+
+0x12E:
+  name: INVALID_KERNEL_STACK_ADDRESS
+  suspects:
+    ram: 60
+    driver: 30
+    cpu: 10
+  next_steps:
+    - "Chạy MemTest86 kiểm tra RAM"
+    - "Kiểm tra driver mới cập nhật"
+
+0x0:
+  name: UNCOMMANDED_POWER_OFF_OR_FREEZE
+  suspects:
+    psu: 45
+    thermal: 35
+    cpu: 20
+  next_steps:
+    - "Kiểm tra ổ cắm điện, dây nguồn và bộ nguồn (PSU) của máy tính"
+    - "Vệ sinh quạt tản nhiệt, bôi lại keo tản nhiệt CPU và GPU"
+    - "Bật tính năng ghi dump trong DumpAnalyzer để có dữ liệu chẩn đoán sâu hơn"
+

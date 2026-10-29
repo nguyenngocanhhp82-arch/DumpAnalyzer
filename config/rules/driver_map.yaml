@@ -49,6 +49,17 @@ drivers:
     type: "network"
     action: "Cập nhật hoặc cài lại driver Wi-Fi Realtek"
 
+  authenticamd.sys:
+    device: "Kiến trúc phần cứng Bộ xử lý AMD CPU"
+    type: "cpu"
+    action: "Kiểm tra nhiệt độ CPU, quạt tản nhiệt, ép xung và cập nhật BIOS bo mạch chủ"
+
+  genuineintel.sys:
+    device: "Kiến trúc phần cứng Bộ xử lý Intel CPU"
+    type: "cpu"
+    action: "Kiểm tra nhiệt độ CPU, khôi phục thiết lập ép xung và cập nhật BIOS"
+
+
 # Danh sách module lõi của hệ điều hành Microsoft:
 # ĐÂY LÀ NHỮNG MODULE NẠN NHÂN (nơi bắt được crash), TUYỆT ĐỐI KHÔNG KẾT LUẬN LÀ THỦ PHẠM
 ms_core_modules:

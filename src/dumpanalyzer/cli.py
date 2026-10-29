@@ -7,6 +7,7 @@ import sys
 import argparse
 import json
 from pathlib import Path
+from typing import Any, Dict, List, Optional, Tuple
 from dumpanalyzer import __version__
 from dumpanalyzer.core.config import (
     check_environment_summary,
@@ -39,7 +40,11 @@ from dumpanalyzer.collectors.eventlog import read_system_events
 from dumpanalyzer.collectors.hardware import collect_machine_info
 from dumpanalyzer.collectors.drivers_updates import collect_recent_windows_updates
 from dumpanalyzer.engine.correlator import Correlator
-from dumpanalyzer.core.models import Evidence
+from dumpanalyzer.core.models import Evidence, Finding
+from dumpanalyzer.engine.rule_loader import validate_rules_and_settings, load_all_rules
+from dumpanalyzer.engine.scorer import score_single_crash, score_machine_crashes, get_suspect_label_vi
+from dumpanalyzer.engine.verdict import generate_crash_finding, generate_machine_finding
+
 
 
 
@@ -339,60 +344,255 @@ def cmd_check_dump_config(args):
         return 0
 
 
-def build_parser() -> argparse.ArgumentParser:
-    """Xây dựng bộ phân tích tham số dòng lệnh."""
-    parser = argparse.ArgumentParser(
-        prog="dumpanalyzer",
-        description="DumpAnalyzer - Phân tích BSOD dump kết hợp Windows Event Log",
-        formatter_class=argparse.RawTextHelpFormatter,
+def cmd_validate_rules(args):
+    """Kiểm tra cú pháp và tính hợp lệ của tất cả các file cấu hình và quy tắc YAML."""
+    print_banner()
+    print("\n--- KIỂM TRA TÍNH HỢP LỆ FILE QUY TẮC (Validate Rules) ---")
+
+    is_valid, errors, summary = validate_rules_and_settings()
+    if is_valid:
+        print("[OK] TOÀN BỘ CÁC FILE QUY TẮC ĐỀU HỢP LỆ VÀ SẴN SÀNG SỬ DỤNG!")
+        print(f"  - settings.yaml:          Hợp lệ")
+        print(f"  - bugcheck_rules.yaml:    {summary.get('bugcheck_rules_count', 0)} quy tắc mã lỗi")
+        print(f"  - driver_map.yaml:        {summary.get('driver_mappings_count', 0)} ánh xạ driver, {summary.get('ms_core_modules_count', 0)} module lõi Microsoft")
+        print(f"  - event_rules.yaml:       {summary.get('event_rules_count', 0)} quy tắc sự kiện Event Log")
+        print(f"  - patterns.yaml:          {summary.get('patterns_count', 0)} mẫu hình đa crash")
+        print("\nKhông phát hiện lỗi cú pháp hay thiếu trường bắt buộc nào.\n")
+        return 0
+    else:
+        print(f"[X] PHÁT HIỆN {len(errors)} LỖI TRONG CÁC FILE CẤU HÌNH / QUY TẮC:")
+        for idx, err in enumerate(errors, 1):
+            print(f"  {idx}. {err}")
+        print("\nVui lòng kiểm tra lại số dòng và sửa các lỗi trên trước khi tiếp tục.\n")
+        return 1
+
+
+def _print_finding_report(finding: Finding, crash: Crash, scored: Dict[str, Any]):
+    """In báo cáo kết luận cho một crash đơn lẻ."""
+    time_str = utc_to_local_str(crash.crash_time_utc)
+    bc_str = crash.bugcheck_code or "N/A"
+    bc_name = crash.bugcheck_name or "Chưa rõ"
+
+    print(f"\n======================================================================")
+    print(f"  KẾT LUẬN VỤ SẬP: Lúc {time_str} | Mã lỗi: {bc_str} ({bc_name})")
+    print(f"======================================================================")
+    print(f"Phân loại dump:   {crash.dump_type} (Phân tích bằng: {crash.analyzed_by})")
+    print(f"Nghi vấn chính:   {get_suspect_label_vi(finding.suspect)} ({finding.score:.1f}%)")
+    print(f"Độ tin cậy:       [{finding.confidence.upper()}]")
+    if finding.evidence_ids:
+        print(f"Bằng chứng số:    {', '.join(f'#{i}' for i in finding.evidence_ids)}")
+
+    print(f"\n[XẾP HẠNG CÁC NHÓM NGUYÊN NHÂN]:")
+    for susp, pct in scored.get("suspect_scores", [])[:4]:
+        bar_len = int(pct / 5)
+        bar = "█" * bar_len + "░" * (20 - bar_len)
+        lbl = get_suspect_label_vi(susp)
+        print(f"  {lbl:<36} : {bar} {pct:>5.1f}%")
+
+    print(f"\n[GIẢI THÍCH NGUYÊN NHÂN (Rationale)]:")
+    print(f"  {finding.rationale}")
+
+    print(f"\n[CÁC BƯỚC KIỂM TRA ĐỀ XUẤT (Từ dễ đến khó)]:")
+    for idx, step in enumerate(finding.next_steps, 1):
+        print(f"  Bước {idx}: {step}")
+    print(f"======================================================================\n")
+
+
+def _print_machine_verdict_report(
+    finding: Finding,
+    scored: Dict[str, Any],
+    crashes_with_evs: List[Tuple[Crash, List[Evidence]]],
+):
+    """In báo cáo kết luận tổng hợp theo máy tính."""
+    crash_count = len(crashes_with_evs)
+    print(f"\n======================================================================")
+    print(f"  TỔNG HỢP CHẨN ĐOÁN HỆ THỐNG ({crash_count} LẦN SẬP ĐƯỢC PHÂN TÍCH)")
+    print(f"======================================================================")
+    print(f"Nguyên nhân hàng đầu: {get_suspect_label_vi(finding.suspect)} ({finding.score:.1f}%)")
+    print(f"Mức độ tin cậy:       [{finding.confidence.upper()}]")
+
+    if scored.get("is_conflicted"):
+        print(f"\n[!] CẢNH BÁO MÂU THUẪN:")
+        print(f"    {scored.get('conflict_note')}")
+
+    if scored.get("patterns_matched"):
+        print(f"\n[*] MẪU HÌNH NHẬN DIỆN ĐƯỢC:")
+        for p in scored["patterns_matched"]:
+            print(f"    - {p}")
+
+    print(f"\n[XẾP HẠNG NGHI VẤN TỔNG HỢP]:")
+    for susp, pct in scored.get("suspect_scores", [])[:5]:
+        bar_len = int(pct / 5)
+        bar = "█" * bar_len + "░" * (20 - bar_len)
+        lbl = get_suspect_label_vi(susp)
+        print(f"  {lbl:<36} : {bar} {pct:>5.1f}%")
+
+    print(f"\n[GIẢI THÍCH NGUYÊN NHÂN (Rationale)]:")
+    print(f"  {finding.rationale}")
+
+    print(f"\n[HÀNH ĐỘNG KIỂM TRA KHUYẾN NGHỊ (Sắp xếp từ DỄ -> KHÓ)]:")
+    for idx, step in enumerate(finding.next_steps, 1):
+        print(f"  {idx}. {step}")
+
+    print(f"\n[CHI TIẾT CÁC LẦN SẬP ĐÃ PHÂN TÍCH]:")
+    col_t = 20
+    col_code = 10
+    col_name = 28
+    col_by = 12
+    hdr = f"{'Thời điểm (Giờ địa phương)':<{col_t}} | {'Mã lỗi':<{col_code}} | {'Tên lỗi':<{col_name}} | {'Phân tích bằng':<{col_by}}"
+    sep = "-" * len(hdr) + "-" * 10
+    print(sep)
+    print(hdr)
+    print(sep)
+    for c, _ in crashes_with_evs:
+        t_loc = utc_to_local_str(c.crash_time_utc)[:col_t]
+        c_code = (c.bugcheck_code or "N/A")[:col_code]
+        c_name = (c.bugcheck_name or "Chưa rõ")[:col_name]
+        c_by = c.analyzed_by[:col_by]
+        print(f"{t_loc:<{col_t}} | {c_code:<{col_code}} | {c_name:<{col_name}} | {c_by:<{col_by}}")
+    print(sep)
+    print(f"======================================================================\n")
+
+
+def cmd_verdict(args):
+    """Chấm điểm và đưa ra kết luận chẩn đoán nguyên nhân sập cho từng crash hoặc toàn bộ máy."""
+    print_banner()
+    print("\n--- KẾT LUẬN CHẨN ĐOÁN NGUYÊN NHÂN (Verdict Engine) ---")
+
+    is_valid, errs, _ = validate_rules_and_settings()
+    if not is_valid:
+        print("[X] Không thể đưa ra kết luận vì file quy tắc YAML có lỗi:")
+        for e in errs:
+            print(f"  * {e}")
+        return 1
+
+    rules = load_all_rules()
+    settings = load_settings()
+    db = Database()
+
+    # 1. Trường hợp chỉ định crash_id cụ thể
+    if getattr(args, "crash_id", None):
+        crash_data = db.get_crash_by_id(args.crash_id)
+        if not crash_data:
+            print(f"[X] Không tìm thấy bản ghi crash với ID = {args.crash_id} trong CSDL.")
+            db.close()
+            return 1
+
+        ev_dicts = db.get_evidences_by_crash(args.crash_id)
+        crash_obj = Crash(
+            id=crash_data["id"],
+            machine_id=crash_data.get("machine_id"),
+            dump_path=crash_data.get("dump_path", ""),
+            dump_sha256=crash_data.get("dump_sha256", ""),
+            dump_type=crash_data.get("dump_type", "mini"),
+            crash_time_utc=crash_data.get("crash_time_utc"),
+            bugcheck_code=crash_data.get("bugcheck_code", ""),
+            bugcheck_name=crash_data.get("bugcheck_name", ""),
+            p1=crash_data.get("p1", ""),
+            p2=crash_data.get("p2", ""),
+            p3=crash_data.get("p3", ""),
+            p4=crash_data.get("p4", ""),
+            image_name=crash_data.get("image_name", ""),
+            module_name=crash_data.get("module_name", ""),
+            process_name=crash_data.get("process_name", ""),
+            failure_bucket_id=crash_data.get("failure_bucket_id", ""),
+            uptime_seconds=crash_data.get("uptime_seconds", 0),
+            cdb_raw_output=crash_data.get("cdb_raw_output", ""),
+            analyzed_by=crash_data.get("analyzed_by", "none"),
+        )
+        ev_objs = [
+            Evidence(
+                id=e["id"],
+                crash_id=e["crash_id"],
+                kind=e["kind"],
+                source=e["source"],
+                event_id=e["event_id"],
+                time_utc=e["time_utc"],
+                summary=e["summary"],
+                detail=e["detail"],
+            )
+            for e in ev_dicts
+        ]
+
+        scored = score_single_crash(crash_obj, ev_objs, rules, settings)
+        finding = generate_crash_finding(crash_obj, scored, rules)
+        db.insert_finding(finding)
+
+        _print_finding_report(finding, crash_obj, scored)
+        db.close()
+        return 0
+
+    # 2. Trường hợp đánh giá theo máy hoặc toàn bộ crash
+    machine_id = None
+    if getattr(args, "machine", None):
+        m = db.get_machine_by_hostname(args.machine)
+        if m:
+            machine_id = m["id"]
+        else:
+            print(f"[*] Máy '{args.machine}' chưa có bản ghi cấu hình riêng trong CSDL, sẽ quét theo thời gian...")
+
+    from_d = getattr(args, "from_date", None)
+    to_d = getattr(args, "to_date", None)
+    crashes_dicts = db.get_crashes_by_machine(
+        machine_id=machine_id,
+        from_date=from_d,
+        to_date=to_d,
     )
 
-    parser.add_argument(
-        "-v", "--version",
-        action="version",
-        version=f"DumpAnalyzer v{__version__}",
-        help="Hiển thị phiên bản hiện tại của phần mềm",
-    )
+    if not crashes_dicts:
+        print("[!] Không tìm thấy dữ liệu sập nào phù hợp trong CSDL.")
+        db.close()
+        return 0
 
-    subparsers = parser.add_subparsers(
-        dest="command",
-        title="Lệnh khả dụng",
-        description="Chọn lệnh cần thực thi",
-        help="Nhập 'dumpanalyzer <lệnh> --help' để xem chi tiết từng lệnh",
-    )
+    crashes_with_evs = []
+    for cd in crashes_dicts:
+        c_obj = Crash(
+            id=cd["id"],
+            machine_id=cd.get("machine_id"),
+            dump_path=cd.get("dump_path", ""),
+            dump_sha256=cd.get("dump_sha256", ""),
+            dump_type=cd.get("dump_type", "mini"),
+            crash_time_utc=cd.get("crash_time_utc"),
+            bugcheck_code=cd.get("bugcheck_code", ""),
+            bugcheck_name=cd.get("bugcheck_name", ""),
+            p1=cd.get("p1", ""),
+            p2=cd.get("p2", ""),
+            p3=cd.get("p3", ""),
+            p4=cd.get("p4", ""),
+            image_name=cd.get("image_name", ""),
+            module_name=cd.get("module_name", ""),
+            process_name=cd.get("process_name", ""),
+            failure_bucket_id=cd.get("failure_bucket_id", ""),
+            uptime_seconds=cd.get("uptime_seconds", 0),
+            cdb_raw_output=cd.get("cdb_raw_output", ""),
+            analyzed_by=cd.get("analyzed_by", "none"),
+        )
+        ev_dicts = db.get_evidences_by_crash(cd["id"])
+        ev_objs = [
+            Evidence(
+                id=e["id"],
+                crash_id=e["crash_id"],
+                kind=e["kind"],
+                source=e["source"],
+                event_id=e["event_id"],
+                time_utc=e["time_utc"],
+                summary=e["summary"],
+                detail=e["detail"],
+            )
+            for e in ev_dicts
+        ]
+        crashes_with_evs.append((c_obj, ev_objs))
 
-    # Subcommand: check-env
-    parser_check = subparsers.add_parser(
-        "check-env",
-        help="Kiểm tra môi trường hệ thống (cdb.exe, quyền Admin, thư mục dump)",
-    )
-    parser_check.set_defaults(func=cmd_check_env)
+    # Chấm điểm tổng hợp máy
+    scored_machine = score_machine_crashes(crashes_with_evs, rules, settings)
+    m_finding = generate_machine_finding(machine_id, scored_machine, rules)
+    db.insert_finding(m_finding)
 
-    # Subcommand: scan
-    parser_scan = subparsers.add_parser(
-        "scan",
-        help="Quét và đọc mã lỗi từ header file dump (không cần cdb.exe)",
-    )
-    parser_scan.add_argument(
-        "--path",
-        help="Đường dẫn thư mục hoặc file dump cần quét (ví dụ: 'C:\\Windows\\Minidump' hoặc file cụ thể)",
-    )
-    parser_scan.add_argument(
-        "--from",
-        dest="from_date",
-        help="Chỉ quét các file dump từ ngày này (định dạng: YYYY-MM-DD)",
-    )
-    parser_scan.add_argument(
-        "--to",
-        dest="to_date",
-        help="Chỉ quét các file dump đến ngày này (định dạng: YYYY-MM-DD)",
-    )
-    parser_scan.add_argument(
-        "--force",
-        action="store_true",
-        help="Bỏ qua cache SHA256, bắt buộc đọc lại và cập nhật cơ sở dữ liệu",
-    )
-    parser_scan.set_defaults(func=cmd_scan)
+    _print_machine_verdict_report(m_finding, scored_machine, crashes_with_evs)
+    db.close()
+    return 0
+
+
 
 def cmd_analyze(args):
     """Phân tích chuyên sâu file dump bằng cdb.exe (!analyze -v) và lưu output thô."""
@@ -735,7 +935,41 @@ def build_parser() -> argparse.ArgumentParser:
     )
     parser_events.set_defaults(func=cmd_events)
 
+    # Subcommand: validate-rules (Phase 4)
+    parser_val = subparsers.add_parser(
+        "validate-rules",
+        help="Kiểm tra cú pháp và tính hợp lệ của tất cả các file cấu hình và quy tắc YAML",
+    )
+    parser_val.set_defaults(func=cmd_validate_rules)
+
+    # Subcommand: verdict (Phase 4)
+    parser_verdict = subparsers.add_parser(
+        "verdict",
+        help="Chấm điểm, khoanh vùng nguyên nhân và đưa ra các bước kiểm tra từ dễ đến khó",
+    )
+    parser_verdict.add_argument(
+        "--machine",
+        help="Tên máy tính (hostname) cần tổng hợp kết luận",
+    )
+    parser_verdict.add_argument(
+        "--crash-id",
+        type=int,
+        help="ID của một vụ sập cụ thể trong CSDL",
+    )
+    parser_verdict.add_argument(
+        "--from",
+        dest="from_date",
+        help="Lọc vụ sập từ ngày này (định dạng: YYYY-MM-DD)",
+    )
+    parser_verdict.add_argument(
+        "--to",
+        dest="to_date",
+        help="Lọc vụ sập đến ngày này (định dạng: YYYY-MM-DD)",
+    )
+    parser_verdict.set_defaults(func=cmd_verdict)
+
     return parser
+
 
 
 def main(argv=None):

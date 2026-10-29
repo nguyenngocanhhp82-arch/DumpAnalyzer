@@ -4,6 +4,53 @@ Mọi thay đổi quan trọng của dự án DumpAnalyzer được ghi lại t�
 
 ---
 
+## [v0.4.0] - 2026-10-29
+
+### Hoàn thành Phase 4 (Rule Engine: Chấm điểm & Kết luận)
+- **Module nạp và kiểm tra tính hợp lệ của bộ luật (`rule_loader.py`):**
+  - Chuẩn hoá mã Bug Check (hỗ trợ `0x124`, `124`, `0x00000124` về dạng chuẩn `0x124`).
+  - Tải toàn bộ cấu hình YAML: `bugcheck_rules.yaml`, `driver_map.yaml`, `event_rules.yaml`, `patterns.yaml`, `settings.yaml`.
+  - Kiểm tra cú pháp YAML nghiêm ngặt: thông báo chính xác số dòng, số cột và giải thích lỗi nếu file cấu hình bị sai cú pháp.
+  - Kiểm tra ngữ nghĩa cấu hình: phát hiện mã lỗi trùng lặp, thiếu trường bắt buộc (`priors`, `actions`, `thresholds`...), trọng số không hợp lệ.
+  - Bổ sung hàm `validate_rules_and_settings()` cho phép kiểm tra toàn diện trước khi khởi chạy.
+- **Mở rộng bộ luật chẩn đoán chuẩn (`bugcheck_rules.yaml` & `driver_map.yaml`):**
+  - Mở rộng thêm 16 mã Bug Check phổ biến (0x1E, 0xEF, 0x139, 0x101, 0x7A, 0xF4, 0x24, 0x23, 0x4E, 0xC2, 0xC4, 0xC9, 0x117, 0x119, 0x12E và 0x0 uncommanded power off/freeze).
+  - Bổ sung ánh xạ CPU hardware driver trong `driver_map.yaml` (`authenticamd.sys`, `genuineintel.sys` -> type: `cpu`).
+- **Bộ máy chấm điểm giả thuyết (`scorer.py`):**
+  - `score_single_crash()`: Chấm điểm từng phiên crash:
+    - Bắt đầu từ xác suất tiên nghiệm (prior) của mã Bug Check.
+    - Phân định rõ driver bên thứ ba theo thiết bị (GPU, CPU, Storage, Network, Antivirus...), cộng điểm trực tiếp vào nhóm thiết bị tương ứng mà không phân mảnh điểm số.
+    - Áp dụng hệ số đồng thuận (consensus factor 1.5x) khi bằng chứng Event Log (nvlddmkm, WHEA, Disk, stornvme...) khớp với giả thuyết từ dump.
+    - Chuẩn hoá điểm theo thang phần trăm (0 - 100%).
+    - Áp dụng các trần độ tin cậy nghiêm ngặt:
+      - 1 crash đơn lẻ: trần tối đa mức "trung bình" (< 70%).
+      - `header_only` (không có cdb.exe): trần tối đa "trung bình".
+      - `log_only` có sự kiện bổ trợ (WHEA, Disk...): trần tối đa "trung bình".
+      - `log_only` không có sự kiện bổ trợ hoặc BugCheck 0 (mất nguồn): độ tin cậy "thấp" (< 40%).
+      - Quy tắc vàng `log_only`: Chỉ được kết luận về nhóm thiết bị phần cứng hoặc sự cố nguồn, tuyệt đối không quy trách nhiệm cho một file driver cụ thể.
+  - `score_machine_crashes()`: Tổng hợp chẩn đoán trên toàn máy:
+    - Tổng hợp điểm của từng giả thuyết qua các crash (crash `log_only` tính trọng số 0.5 để không lấn át dump thực sự).
+    - Áp dụng mẫu hình đa crash từ `patterns.yaml`:
+      - Nhiều crash cùng driver bên thứ ba: điểm thưởng lặp lại (repeat bonus 1.25x khi xuất hiện >= 3 lần), cho phép đạt mức tin cậy "cao" (>= 70%).
+      - Nhiều crash khác nhau nhưng cùng đổ lỗi cho các module hệ thống Microsoft khác nhau (`ntoskrnl.exe`, `win32kbase.sys`, `hal.dll`...): nghi vấn lỗi phần cứng chung (RAM/CPU/Mainboard).
+    - Phát hiện mâu thuẫn (conflict detection): cảnh báo rõ khi giả thuyết từ dump và giả thuyết từ Event Log xung đột mà chênh lệch điểm < 15%.
+- **Bộ máy kết luận & khuyến nghị hành động (`verdict.py`):**
+  - Phân loại hành động tiếp theo theo độ khó tăng dần (`sort_next_steps_easy_to_hard`):
+    - Tầng 1 (Dễ nhất): Kiểm tra phần mềm, nhiệt độ, kiểm tra cấu hình ghi dump.
+    - Tầng 2 (Trung bình): Gỡ driver bằng DDU và cài mới, chkdsk, SFC /scannow.
+    - Tầng 3 (Nâng cao): Kiểm tra phần cứng chuyên sâu, MemTest86, kiểm tra cáp ổ cứng/nguồn.
+    - Tầng 4 (Phức tạp nhất): Cập nhật BIOS bo mạch chủ, thay thế linh kiện (PSU, RAM, ổ cứng).
+  - Tự động sinh báo cáo kết luận finding bằng tiếng Việt giải thích rõ ràng cho nhân viên IT, liên kết với các ID bằng chứng cụ thể.
+  - Lưu kết luận vào CSDL bảng `finding` qua các hàm `insert_finding()`, `get_findings_by_crash()`, `get_findings_by_machine()`.
+- **Giao diện dòng lệnh (`cli.py`):**
+  - Bổ sung lệnh `dumpanalyzer validate-rules`.
+  - Bổ sung lệnh `dumpanalyzer verdict [--crash-id <id>] [--all-machine]`.
+- **Bộ kiểm thử tự động toàn diện:**
+  - Bổ sung `tests/test_rule_loader.py` (8 tests), `tests/test_scorer.py` (9 tests), `tests/test_verdict.py` (5 tests).
+  - Toàn bộ **72/72 tests PASSED (100%)**.
+
+---
+
 ## [v0.3.0] - 2026-10-29
 
 ### Hoàn thành Phase 3 (Mở rộng Nguồn dữ liệu & Tương quan)

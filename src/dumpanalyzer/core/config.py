@@ -74,6 +74,16 @@ def get_project_root() -> Path:
     return Path(__file__).resolve().parent.parent.parent.parent
 
 
+def get_rules_dir() -> Path:
+    """Trả về đường dẫn tới thư mục chứa các file rules (config/rules)."""
+    return get_project_root() / "config" / "rules"
+
+
+def get_settings_path() -> Path:
+    """Trả về đường dẫn tới file cấu hình chính (config/settings.yaml)."""
+    return get_project_root() / "config" / "settings.yaml"
+
+
 def load_settings(config_path: Optional[str] = None) -> Dict[str, Any]:
     """Nạp file settings.yaml, tự động kết hợp với giá trị mặc định an toàn."""
     settings = dict(DEFAULT_SETTINGS)

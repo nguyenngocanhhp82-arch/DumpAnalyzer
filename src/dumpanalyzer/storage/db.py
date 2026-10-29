@@ -3,6 +3,7 @@ Quản lý kết nối và thao tác với Cơ sở dữ liệu SQLite cho DumpA
 Đảm bảo lưu trữ bền vững các vụ sập, bằng chứng và kết luận chẩn đoán.
 """
 
+import json
 import sqlite3
 from pathlib import Path
 from typing import Optional, List, Dict, Any, Union
@@ -206,4 +207,92 @@ class Database:
         cursor = conn.execute("SELECT * FROM crash WHERE id = ?", (crash_id,))
         row = cursor.fetchone()
         return dict(row) if row else None
+
+    def get_machine_by_hostname(self, hostname: str) -> Optional[Dict[str, Any]]:
+        """Tìm thông tin máy theo hostname."""
+        conn = self._get_connection()
+        cursor = conn.execute("SELECT * FROM machine WHERE hostname = ? ORDER BY id DESC LIMIT 1", (hostname,))
+        row = cursor.fetchone()
+        return dict(row) if row else None
+
+    def get_crashes_by_machine(
+        self,
+        machine_id: Optional[int] = None,
+        from_date: Optional[str] = None,
+        to_date: Optional[str] = None,
+    ) -> List[Dict[str, Any]]:
+        """Lấy danh sách các crash của một máy, tuỳ chọn lọc theo khoảng thời gian."""
+        conn = self._get_connection()
+        query = "SELECT * FROM crash WHERE 1=1"
+        params: List[Any] = []
+
+        if machine_id is not None:
+            query += " AND machine_id = ?"
+            params.append(machine_id)
+        if from_date:
+            query += " AND crash_time_utc >= ?"
+            params.append(from_date)
+        if to_date:
+            query += " AND crash_time_utc <= ?"
+            params.append(to_date)
+
+        query += " ORDER BY crash_time_utc ASC"
+        cursor = conn.execute(query, params)
+        return [dict(r) for r in cursor.fetchall()]
+
+    def insert_finding(self, finding: Finding) -> int:
+        """Lưu kết luận chẩn đoán vào cơ sở dữ liệu."""
+        conn = self._get_connection()
+        sql = """
+        INSERT INTO finding (
+            scope, crash_id, machine_id, suspect, score, confidence, rationale, evidence_ids, next_steps
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """
+        ev_ids_str = ",".join(str(i) for i in finding.evidence_ids) if finding.evidence_ids else ""
+        next_steps_json = json.dumps(finding.next_steps or [], ensure_ascii=False)
+
+        with conn:
+            cursor = conn.execute(
+                sql,
+                (
+                    finding.scope,
+                    finding.crash_id,
+                    finding.machine_id,
+                    finding.suspect,
+                    finding.score,
+                    finding.confidence,
+                    finding.rationale,
+                    ev_ids_str,
+                    next_steps_json,
+                ),
+            )
+            finding.id = cursor.lastrowid
+            return finding.id
+
+    def get_findings_by_crash(self, crash_id: int) -> List[Dict[str, Any]]:
+        """Lấy danh sách các kết luận gắn với một vụ sập."""
+        conn = self._get_connection()
+        cursor = conn.execute(
+            "SELECT * FROM finding WHERE crash_id = ? ORDER BY id DESC",
+            (crash_id,),
+        )
+        rows = [dict(r) for r in cursor.fetchall()]
+        for r in rows:
+            r["next_steps"] = json.loads(r["next_steps"]) if r.get("next_steps") else []
+            r["evidence_ids"] = [int(i) for i in r["evidence_ids"].split(",") if i.strip()] if r.get("evidence_ids") else []
+        return rows
+
+    def get_findings_by_machine(self, machine_id: int) -> List[Dict[str, Any]]:
+        """Lấy danh sách các kết luận tổng thể của một máy."""
+        conn = self._get_connection()
+        cursor = conn.execute(
+            "SELECT * FROM finding WHERE machine_id = ? AND scope = 'machine' ORDER BY id DESC",
+            (machine_id,),
+        )
+        rows = [dict(r) for r in cursor.fetchall()]
+        for r in rows:
+            r["next_steps"] = json.loads(r["next_steps"]) if r.get("next_steps") else []
+            r["evidence_ids"] = [int(i) for i in r["evidence_ids"].split(",") if i.strip()] if r.get("evidence_ids") else []
+        return rows
+
 
