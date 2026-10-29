@@ -10,10 +10,10 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional
 from PySide6.QtCore import QThread, Signal
 
-from dumpanalyzer.analyzer.cdb_runner import analyze_dump_file
+from dumpanalyzer.analyzer.cdb_runner import build_crash_from_dump
 from dumpanalyzer.analyzer.header_parser import parse_dump_header
 from dumpanalyzer.collectors.drivers_updates import collect_recent_windows_updates
-from dumpanalyzer.collectors.dump_finder import copy_dump_safely, find_dumps
+from dumpanalyzer.collectors.dump_finder import calculate_sha256, copy_dump_safely, find_dumps
 from dumpanalyzer.collectors.eventlog import read_system_events
 from dumpanalyzer.collectors.hardware import collect_machine_info
 from dumpanalyzer.core.config import get_settings_path, load_settings
@@ -125,7 +125,13 @@ class AnalysisWorker(QThread):
                 self.progress.emit(pct, f"Đang phân tích dump {idx}/{total_dumps}: {d_path.name}")
 
                 # Copy an toàn sang workspace
-                copied_path, sha = copy_dump_safely(d_path, workspace_dir)
+                try:
+                    sha = calculate_sha256(d_path)
+                    copied_path = copy_dump_safely(d_path, workspace_dir, file_sha256=sha)
+                except Exception as e:
+                    logger.warning(f"Không thể copy dump {d_path.name}: {e}")
+                    continue
+
                 if not copied_path or not sha:
                     continue
 
@@ -138,9 +144,7 @@ class AnalysisWorker(QThread):
                     continue
 
                 # Phân tích sâu cdb hoặc header fallback
-                crash = analyze_dump_file(copied_path, settings)
-                crash.machine_id = machine_id
-                crash.dump_sha256 = sha
+                crash = build_crash_from_dump(copied_path, settings=settings, machine_id=machine_id, sha256=sha)
                 crash_id = db.insert_crash(crash)
                 crash.id = crash_id
                 crashes.append(crash)

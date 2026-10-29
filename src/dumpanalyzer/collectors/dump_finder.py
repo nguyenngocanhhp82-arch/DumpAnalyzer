@@ -153,3 +153,57 @@ def copy_dump_safely(
     logger.info(f"Đang sao chép dump: {src_path.name} -> {dest_path}")
     shutil.copy2(src_path, dest_path)
     return dest_path
+
+
+def cleanup_workspace(
+    working_dir: Union[str, Path],
+    extensions: Optional[List[str]] = None,
+) -> int:
+    """
+    Dọn dẹp an toàn các file dump đã sao chép trong thư mục làm việc (workspace).
+    TUYỆT ĐỐI KHÔNG BAO GIỜ XOÁ FILE GỐC. Chỉ dọn dẹp các file copy trong thư mục tạm.
+
+    Args:
+        working_dir: Đường dẫn thư mục làm việc cần dọn dẹp.
+        extensions: Danh sách phần mở rộng cần dọn (mặc định [".dmp", ".tmp"]).
+
+    Returns:
+        Số lượng file đã được xoá an toàn khỏi workspace.
+    """
+    target_dir = Path(working_dir).resolve()
+    if not target_dir.exists() or not target_dir.is_dir():
+        return 0
+
+    if extensions is None:
+        extensions = [".dmp", ".tmp"]
+
+    deleted_count = 0
+    for item in target_dir.iterdir():
+        if item.is_file() and any(item.name.lower().endswith(ext.lower()) for ext in extensions):
+            try:
+                item.unlink()
+                deleted_count += 1
+                logger.info(f"Đã xoá file tạm an toàn trong workspace: {item.name}")
+            except Exception as e:
+                logger.warning(f"Không thể xoá file tạm {item.name}: {e}")
+
+    return deleted_count
+
+
+def secure_workspace_permissions(working_dir: Union[str, Path]) -> bool:
+    """
+    Thiết lập phân quyền an toàn cho thư mục làm việc (chỉ tài khoản hiện tại được đọc/ghi).
+    Trên POSIX (Linux/macOS): chmod 0700.
+    Trên Windows: đảm bảo thư mục tồn tại và thiết lập thuộc tính bảo vệ.
+    """
+    import sys
+    target_dir = Path(working_dir).resolve()
+    target_dir.mkdir(parents=True, exist_ok=True)
+    try:
+        if sys.platform != "win32":
+            os.chmod(target_dir, 0o700)
+        return True
+    except Exception as e:
+        logger.warning(f"Lỗi khi thiết lập phân quyền an toàn cho {target_dir}: {e}")
+        return False
+

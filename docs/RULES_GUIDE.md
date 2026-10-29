@@ -1,164 +1,180 @@
-# HƯỚNG DẪN QUẢN TRỊ & TÙY BIẾN QUY TẮC CHẨN ĐOÁN (RULES GUIDE)
+# HƯỚNG DẪN TÙY BIẾN VÀ BỔ SUNG BỘ LUẬT CHẨN ĐOÁN (RULES_GUIDE)
 
-Tài liệu này dành cho **Kỹ thuật viên IT, Quản trị viên hệ thống (Sysadmin) và Kỹ sư bảo trì** nhằm giúp dễ dàng tùy biến, mở rộng và cập nhật các luật chẩn đoán của phần mềm **DumpAnalyzer** mà **không cần chỉnh sửa mã nguồn Python** hay biên dịch lại phần mềm.
+Tài liệu này dành riêng cho nhân viên IT / Kỹ thuật viên hệ thống muốn mở rộng, thêm bớt hoặc điều chỉnh các quy tắc chẩn đoán lỗi màn hình xanh (BSOD) và sự cố máy tính trong **DumpAnalyzer**.
 
----
-
-## 1. TỔNG QUAN HỆ THỐNG QUY TẮC
-
-Toàn bộ tri thức chẩn đoán của DumpAnalyzer được lưu trữ dưới định dạng **YAML** thuần túy trong thư mục:
+Mọi luật chẩn đoán được lưu trữ dưới định dạng **YAML** trong thư mục:
 ```text
-DumpAnalyzer/
-└── config/
-    ├── settings.yaml          # Ngưỡng điểm, trọng số, đường dẫn mặc định
-    ├── data/
-    │   └── bugcheck_codes.json # 380 mã Bug Check chuẩn của Microsoft
-    └── rules/
-        ├── bugcheck_rules.yaml # Quy tắc phân loại và xử lý từng mã lỗi màn hình xanh
-        ├── driver_map.yaml     # Bảng ánh xạ tên file driver (.sys) sang linh kiện
-        ├── event_rules.yaml    # Quy tắc chấm điểm sự kiện Windows Event Log
-        └── patterns.yaml       # Mẫu hình kết hợp khi máy tính sập nhiều lần
+config/rules/
+├── bugcheck_rules.yaml    # Trọng số nghi ngờ và khuyến nghị cho từng mã lỗi BSOD
+├── driver_map.yaml        # Phân loại driver phần cứng (GPU, SSD, RAM, mạng...)
+├── event_rules.yaml       # Quy tắc cộng/trừ điểm theo sự kiện Windows Event Log
+└── patterns.yaml          # Mẫu hình nhận diện khi máy bị sập nhiều lần
 ```
-
-> [!TIP]
-> Khi sử dụng bản đóng gói `.exe`, thư mục `config/` nằm ngay **bên cạnh file DumpAnalyzer.exe**. Bạn chỉ cần mở file bằng Notepad hoặc VS Code để sửa, lưu lại là phần mềm sẽ tự động áp dụng trong lần phân tích tiếp theo!
 
 ---
 
-## 2. HƯỚNG DẪN THÊM MÃ BUG CHECK MỚI (`bugcheck_rules.yaml`)
+## 1. NGUYÊN TẮC CƠ BẢN VỀ ĐỊNH DẠNG YAML
 
-Mỗi khi Microsoft ra mắt mã lỗi mới hoặc bạn muốn tinh chỉnh cách xử lý một mã lỗi cụ thể, hãy mở file `config/rules/bugcheck_rules.yaml`.
+1. **Thụt lề bằng khoảng trắng (Space)**: Tuyệt đối **KHÔNG dùng phím Tab**. Khuyến nghị thụt lề 2 dấu cách cho mỗi cấp độ.
+2. **Cặp khóa - giá trị**: Luôn có dấu hai chấm và một khoảng trắng `khoa: gia_tri`.
+3. **Mã Hex**: Có thể viết dạng chuỗi `0x124` hoặc `124` (DumpAnalyzer tự động chuẩn hóa về chữ hoa `0x124`).
+4. **Kiểm tra sau khi sửa**: Luôn chạy lệnh kiểm tra cú pháp trước khi sử dụng:
+   ```bash
+   DumpAnalyzer-cli.exe validate-rules
+   ```
+   Hoặc bấm nút **"Kiểm tra luật YAML"** trong tab **Cài đặt** trên giao diện đồ họa.
 
-### Cấu trúc một quy tắc Bug Check:
+---
+
+## 2. HƯỚNG DẪN CHỈNH SỬA TỪNG FILE LUẬT
+
+### 2.1. `bugcheck_rules.yaml` — Bổ sung mã lỗi Bug Check mới
+
+Mỗi mã lỗi quy định trọng số nghi ngờ ban đầu (prior) cho từng nhóm linh kiện và danh sách các bước khắc phục đề xuất theo thứ tự từ dễ đến khó.
+
+#### Cấu trúc mẫu:
 ```yaml
-bugchecks:
-  "0x154":                              # Mã lỗi dạng Hex viết hoa (bắt buộc)
-    name: "UNEXPECTED_STORE_EXCEPTION"   # Tên chuẩn của mã lỗi
-    description: "Lỗi bất thường trong hệ thống bộ nhớ đệm hoặc ổ đĩa chứa paging store."
-    suspects:                           # Phân bổ tỷ lệ nghi ngờ ban đầu (%)
-      storage: 60                       # Nhóm nghi ngờ: điểm trọng số (0 - 100)
-      ram: 25
-      driver: 15
-    next_steps:                         # Các bước khuyến nghị IT (tự động xếp DỄ -> KHÓ)
-      - "Kiểm tra sức khoẻ ổ đĩa bằng CrystalDiskInfo (chỉ số SMART)"
-      - "Chạy lệnh 'chkdsk C: /f /r' trong Command Prompt quyền Administrator"
-      - "Cập nhật driver controller ổ cứng (Intel RST, AMD RAID hoặc NVMe driver)"
-      - "Chạy MemTest86 kiểm tra RAM"
+0x116:
+  name: "VIDEO_TDR_FAILURE"
+  suspects:
+    gpu: 65         # Nghi vấn card đồ hoạ / driver màn hình
+    thermal: 20     # Quá nhiệt GPU
+    driver: 15      # Xung đột driver
+  extra_cdb:
+    - "!dpx"        # Lệnh cdb bổ sung khi phân tích sâu
+  next_steps:
+    - "Dùng phần mềm DDU (Display Driver Uninstaller) gỡ sạch driver card màn hình trong Safe Mode"
+    - "Cài đặt lại bản driver GPU WHQL ổn định nhất từ trang chủ NVIDIA/AMD/Intel"
+    - "Kiểm tra nhiệt độ GPU và vệ sinh quạt tản nhiệt của card đồ hoạ"
+    - "Thử giảm xung nhịp (underclock) hoặc thay thế card đồ hoạ sang máy khác để kiểm tra"
 ```
 
-### Các nhóm nghi ngờ hợp lệ (`suspects`):
-| Nhóm (`suspect`) | Tên tiếng Việt hiển thị | Ý nghĩa |
-|---|---|---|
-| `driver` | Driver bên thứ ba | Xung đột driver phần cứng, phần mềm diệt virus |
-| `ram` | Bộ nhớ RAM | Lỗi ô nhớ, tiếp xúc chân RAM, sai XMP/DOCP |
-| `storage` | Ổ cứng / Lưu trữ | Ổ SSD/HDD lỗi bad sector, lỗi cáp, controller |
-| `gpu` | Card đồ họa / Màn hình | Driver GPU crash, quá nhiệt GPU, hỏng VRAM |
-| `psu` | Bộ nguồn (PSU) | Nguồn sụt áp khi tải nặng, tụ nguồn lão hoá |
-| `thermal` | Nhiệt độ / Quá nhiệt | Quạt khô dầu, keo tản nhiệt thoái hoá |
-| `cpu` | Vi xử lý (CPU) | Lỗi tập lệnh, ép xung (overclock) không ổn định |
-| `motherboard` | Bo mạch chủ | Lỗi VRM, chipset, BIOS lỗi thời |
-| `windows_update` | Bản cập nhật Windows | Xung đột sau khi cài bản vá KB |
+#### Các nhóm nghi vấn (`suspects`) hợp lệ:
+- `cpu`: Vi xử lý, điện áp VCore, nhiệt độ CPU.
+- `ram`: Bộ nhớ trong, xung RAM, timing XMP.
+- `gpu`: Card đồ hoạ, driver màn hình, bộ nhớ VRAM.
+- `storage`: Ổ cứng SSD, HDD, cáp SATA, controller NVMe.
+- `psu`: Bộ nguồn máy tính, sụt áp 12V/5V.
+- `thermal`: Quá nhiệt chung của linh kiện hoặc thùng máy.
+- `driver`: Driver phần mềm bên thứ ba.
+- `system`: Tiến trình hoặc service hệ thống Windows.
 
 ---
 
-## 3. HƯỚNG DẪN ÁNH XẠ DRIVER MỚI (`driver_map.yaml`)
+### 2.2. `driver_map.yaml` — Phân loại Driver và Thiết bị phần cứng
 
-Khi một driver bên thứ ba xuất hiện trên stack trace nhưng DumpAnalyzer chưa nhận biết được hãng sản xuất hoặc nhóm linh kiện, hãy mở `config/rules/driver_map.yaml`.
+File này giúp DumpAnalyzer nhận diện driver gặp sự cố (`IMAGE_NAME` hoặc module trên stack) thuộc về thiết bị nào, từ đó quy trách nhiệm chính xác thay vì đổ lỗi cho Windows.
 
-### Cấu trúc một mục driver:
+#### Cấu trúc mẫu:
 ```yaml
-drivers:
-  # Cấu trúc: <tên_file_sys_viết_thường>:
-  rtwlanu.sys:
-    component: "Realtek Wireless USB LAN Adapter"  # Tên thiết bị
-    vendor: "Realtek"                            # Hãng sản xuất
-    category: "network"                          # Phân loại linh kiện
-    suspect_group: "driver"                      # Nhóm gán điểm nghi ngờ
+# 1. Driver card đồ hoạ (GPU)
+nvlddmkm.sys:
+  device: "Card đồ hoạ NVIDIA GeForce / Quadro"
+  type: "gpu"
+  action: "Gỡ sạch driver bằng DDU và cài đặt bản driver WHQL mới nhất từ nvidia.com"
 
-  amdfendrs.sys:
-    component: "AMD Crash Defender Driver"
-    vendor: "AMD"
-    category: "gpu"
-    suspect_group: "gpu"
+amdkmdag.sys:
+  device: "Card đồ hoạ AMD Radeon"
+  type: "gpu"
+  action: "Dùng AMD Cleanup Utility và cài lại driver từ amd.com"
+
+# 2. Driver lưu trữ và Controller SSD
+stornvme.sys:
+  device: "SSD NVMe Controller"
+  type: "storage"
+  action: "Kiểm tra sức khoẻ ổ cứng bằng CrystalDiskInfo (SMART) và cập nhật firmware SSD"
+
+# 3. Driver mạng
+rt640x64.sys:
+  device: "Card mạng LAN Realtek Gigabit"
+  type: "network"
+  action: "Cập nhật driver card mạng từ trang chủ bo mạch chủ hoặc Realtek"
+
+# 4. Danh sách module lõi Microsoft: LUÔN LÀ NẠN NHÂN, KHÔNG ĐỔ LỖI
+ms_core_modules:
+  - ntoskrnl.exe
+  - ntkrnlmp.exe
+  - win32k.sys
+  - win32kfull.sys
+  - fltmgr.sys
 ```
 
-> [!IMPORTANT]
-> - Tên driver **bắt buộc phải viết thường** kèm đuôi `.sys` (ví dụ: `nvlddmkm.sys`, `igdkmd64.sys`).
-> - Phần mềm đã cấu hình cơ chế bảo vệ: Các module nhân của hệ điều hành Microsoft (`ntoskrnl.exe`, `hal.dll`, `win32k.sys`...) được xếp vào danh mục `ms_core_modules` và **tuyệt đối không bao giờ bị coi là thủ phạm phần cứng đơn độc**.
+> **Lưu ý quan trọng**: Nếu `IMAGE_NAME` trong dump là `ntoskrnl.exe`, DumpAnalyzer sẽ **tự động hạ điểm đổ lỗi** cho hệ điều hành và truy quét call stack để tìm driver bên thứ ba thực sự gây lỗi!
 
 ---
 
-## 4. HƯỚNG DẪN BỔ SUNG QUY TẮC EVENT LOG (`event_rules.yaml`)
+### 2.3. `event_rules.yaml` — Bổ sung quy tắc từ Windows Event Log
 
-DumpAnalyzer tự động đối chiếu các sự kiện Windows Event Log xuất hiện trong cửa sổ 10 phút trước khi hệ thống sập để củng cố bằng chứng chẩn đoán.
+Quy định điểm số cộng thêm vào giả thuyết khi phát hiện các Event ID cụ thể trong vòng 10 phút trước khi máy sập.
 
-### Cấu trúc một quy tắc sự kiện:
+#### Cấu trúc mẫu:
 ```yaml
-event_rules:
-  - id: "EVENT_WHEA_FATAL_ERROR"
-    provider: "Microsoft-Windows-WHEA-Logger"  # Tên Event Provider
-    event_id: 18                              # Mã sự kiện (Event ID)
-    target_suspect: "cpu"                     # Nhóm nghi vấn được cộng điểm
-    adds: 35                                  # Số điểm cộng thêm vào xác suất (%)
-    cap: 85                                   # Điểm trần tối đa nhóm này có thể đạt
-    note: "Phát hiện lỗi phần cứng phần cứng nghiêm trọng từ bộ xử lý (Machine Check Exception)"
+- source: "disk"
+  ids: [7, 11, 15]
+  description: "Phát hiện khối nhớ ổ đĩa bị lỗi (Bad block / Controller error)"
+  adds:
+    storage: 35
+  next_steps:
+    - "Sao lưu dữ liệu gấp và kiểm tra thông số SMART ổ cứng"
+    - "Thay thế cáp tín hiệu SATA hoặc kiểm tra khe cắm M.2"
 
-  - id: "EVENT_DISK_CONTROLLER_TIMEOUT"
-    provider: "disk"
-    event_id: 129
-    target_suspect: "storage"
-    adds: 25
-    cap: 80
-    note: "Ổ đĩa không phản hồi lệnh IO trong khoảng thời gian timeout"
-```
-
-### Quy tắc điểm trần (`cap`):
-Để tránh trường hợp một sự kiện thứ cấp đẩy xác suất lên 100% một cách phi thực tế, tham số `cap` giới hạn mức điểm tối đa mà sự kiện đó có thể đóng góp.
-
----
-
-## 5. HƯỚNG DẪN MẪU HÌNH NHIỀU CRASH (`patterns.yaml`)
-
-Khi phân tích nhiều lần sập trên cùng một máy tính hoặc toàn đội máy, file `patterns.yaml` kích hoạt các suy luận mức chuyên gia:
-
-```yaml
-patterns:
-  - name: "Cùng một driver lặp lại nhiều lần"
-    when:
-      min_dumps: 3
-      same_third_party_module_min: 3
-    add:
-      driver: 45
-    note: "Driver này liên tục gây crash, xác suất cao do rò rỉ bộ nhớ hoặc lỗi phiên bản"
-    next_steps:
-      - "Gỡ sạch driver bằng tiện ích chuyên dụng (ví dụ DDU)"
-      - "Cài đặt bản driver WHQL ổn định nhất từ nhà sản xuất OEM"
-
-  - name: "Module lỗi thay đổi ngẫu nhiên, toàn bộ là module Microsoft"
-    when:
-      min_dumps: 3
-      distinct_modules_min: 3
-      only_microsoft_modules: true
-    add:
-      ram: 35
-      psu: 25
-    note: "Dấu hiệu phần cứng không ổn định (đặc biệt là lỗi bit nhớ RAM ngẫu nhiên hoặc sụt áp)"
+- source: "Microsoft-Windows-WHEA-Logger"
+  ids: [18, 19, 47]
+  description: "Lỗi phần cứng phần cứng nghiêm trọng do WHEA ghi nhận"
+  adds:
+    cpu: 30
+    ram: 25
+  next_steps:
+    - "Tắt chế độ ép xung CPU/RAM (XMP) trong BIOS"
+    - "Kiểm tra nhiệt độ CPU khi chịu tải nặng"
 ```
 
 ---
 
-## 6. LỆNH KIỂM TRA TÍNH HỢP LỆ TRƯỚC KHI TRIỂN KHAI
+### 2.4. `patterns.yaml` — Mẫu hình nhận diện khi máy bị sập nhiều lần
 
-Trước khi lưu file và đưa vào sử dụng thực tế, hãy luôn chạy lệnh kiểm tra cú pháp:
+Khi một máy tính gặp từ 2 vụ sập trở lên, file này giúp phát hiện các mẫu hình nâng cao.
 
-```bash
-# Trên dòng lệnh (CLI):
-dumpanalyzer validate-rules
-```
-Hoặc trong giao diện PySide6: Mở **Tab Cài đặt** $\rightarrow$ bấm nút **"Kiểm tra tính hợp lệ của quy tắc (validate-rules)"**.
+#### Các mẫu hình tiêu biểu:
+1. **Lặp lại cùng một driver bên thứ ba**:
+   ```yaml
+   - name: "repeat_same_driver"
+     condition: "repeat_third_party_module >= 2"
+     description: "Cùng một driver bên thứ ba xuất hiện liên tiếp trong nhiều lần sập"
+     add:
+       driver_of_module: 40
+     next_steps:
+       - "Driver này là thủ phạm chính, hãy gỡ bỏ hoặc quay về phiên bản cũ (Rollback)"
+   ```
 
-Phần mềm sẽ kiểm tra:
-1. Cú pháp YAML có bị sai thụt đầu dòng (indentation) không.
-2. Các mã lỗi hex có đúng định dạng không.
-3. Tổng tỷ lệ phần trăm phân bổ nghi ngờ có hợp lệ không.
-4. Có driver nào bị trùng lặp không.
+2. **Nhiều mã lỗi khác nhau nhưng toàn module hệ thống (Nghi ngờ phần cứng RAM/CPU)**:
+   ```yaml
+   - name: "random_ms_modules_hardware_flaky"
+     condition: "all_ms_modules and diff_bugchecks >= 2"
+     description: "Các lần sập có mã lỗi khác nhau và chỉ dừng tại module Windows (dấu hiệu RAM/Nguồn chập chờn)"
+     add:
+       ram: 30
+       psu: 20
+     next_steps:
+       - "Chạy MemTest86 ít nhất 2 lượt (pass) để kiểm tra từng thanh RAM"
+       - "Kiểm tra điện áp cấp từ bộ nguồn (PSU)"
+   ```
+
+---
+
+## 3. THAO TÁC KIỂM TRA TỰ ĐỘNG (VALIDATE RULES)
+
+Sau khi chỉnh sửa bất kỳ file YAML nào:
+1. Mở cửa sổ dòng lệnh và chạy:
+   ```bash
+   DumpAnalyzer-cli.exe validate-rules
+   ```
+2. Nếu có lỗi thụt lề hoặc sai kiểu dữ liệu, phần mềm sẽ chỉ rõ:
+   - Tên file bị lỗi.
+   - Số dòng và cột bị lỗi chính xác.
+   - Nội dung chi tiết cần sửa.
+3. Khi màn hình thông báo:
+   ```text
+   [OK] Tất cả các file cấu hình và luật chẩn đoán đều hợp lệ!
+   ```
+   Bạn đã sẵn sàng sử dụng bộ luật mới!

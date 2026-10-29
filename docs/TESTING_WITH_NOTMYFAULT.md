@@ -1,118 +1,133 @@
-# HƯỚNG DẪN KIỂM THỬ AN TOÀN VỚI SYSINTERNALS NOTMYFAULT
+# HƯỚNG DẪN KIỂM THỬ DUMPANALYZER VỚI NOTMYFAULT (TESTING_WITH_NOTMYFAULT)
 
-Tài liệu này hướng dẫn kỹ thuật viên IT và kiểm thử viên (QA) cách tạo ra các sự cố màn hình xanh (BSOD) và sập hệ thống có chủ đích trong môi trường kiểm nghiệm an toàn bằng công cụ **NotMyFault** của Microsoft Sysinternals, nhằm kiểm chứng khả năng phân tích và đưa ra kết luận của **DumpAnalyzer**.
+Tài liệu này hướng dẫn kỹ thuật viên IT cách tạo dump màn hình xanh (BSOD) thực tế trên máy ảo bằng công cụ chính thức của Microsoft (**Sysinternals NotMyFault**) để kiểm chứng độ chính xác và tính năng của **DumpAnalyzer**.
 
 ---
 
-## 1. NGUYÊN TẮC AN TOÀN BẮT BUỘC
+## 1. YÊU CẦU MÔI TRƯỜNG THỰC NGHIỆM
 
 > [!CAUTION]
-> **CẢNH BÁO NGUY HIỂM:**
-> - **CHỈ THỰC HIỆN TRÊN MÁY ẢO (VMware, VirtualBox, Hyper-V) HOẶC MÁY TÍNH THỬ NGHIỆM RIÊNG.**
-> - **TUYỆT ĐỐI KHÔNG CHẠY TRÊN MÁY TÍNH CÔNG VIỆC CHÍNH HOẶC MÁY CHỦ SẢN XUẤT (PRODUCTION SERVER).**
-> - Lưu và đóng toàn bộ tài liệu, ứng dụng trước khi bắt đầu bài kiểm tra.
+> **TUYỆT ĐỐI KHÔNG CHẠY NOTMYFAULT TRÊN MÁY TÍNH LÀM VIỆC CHÍNH HOẶC MÁY CHỦ PRODUCTIVE!**
+> NotMyFault sẽ chủ động làm sập nhân Windows (Kernel Crash) ngay lập tức. Mọi dữ liệu chưa lưu sẽ bị mất.
+
+### Khuyến nghị:
+- Sử dụng máy ảo: **VMware Workstation**, **Hyper-V** hoặc **VirtualBox**.
+- Hệ điều hành máy ảo: Windows 10 hoặc Windows 11 (bản 64-bit).
+- Bộ nhớ RAM máy ảo: 4 GB – 8 GB.
+- Dung lượng ổ C: Còn trống tối thiểu 20 GB.
 
 ---
 
-## 2. CHUẨN BỊ MÔI TRƯỜNG THỬ NGHIỆM
+## 2. CHUẨN BỊ MÁY ẢO TRƯỚC KHI TẠO CRASH
 
-### Bước 1: Tải NotMyFault chính hãng từ Microsoft
-- Truy cập trang chủ Sysinternals: [Microsoft Learn Sysinternals NotMyFault](https://learn.microsoft.com/en-us/sysinternals/downloads/notmyfault)
-- Tải về và giải nén file `NotMyFault.zip`.
-- Thư mục giải nén bao gồm:
-  + `NotMyFault.exe` (bản 32-bit)
-  + `NotMyFault64.exe` (bản 64-bit — khuyến nghị dùng trên Windows hiện đại)
-  + `notmyfaultc.exe` / `notmyfaultc64.exe` (bản dòng lệnh)
-
-### Bước 2: Bật tính năng ghi dump trên máy thử nghiệm
-Mở cửa sổ Command Prompt quyền Administrator và chạy lệnh của DumpAnalyzer:
-```bash
-# Kiểm tra xem máy đã bật ghi dump chưa:
-dumpanalyzer check-dump-config
-
-# Nếu CrashDumpEnabled = 0 (đang tắt), kích hoạt ghi dump tự động:
-dumpanalyzer check-dump-config --apply
-```
-*(Khởi động lại máy ảo nếu được yêu cầu để thiết lập registry có hiệu lực).*
-
----
-
-## 3. CÁC KỊCH BẢN GIẢ LẬP LỖI MÀN HÌNH XANH
-
-Mở file `NotMyFault64.exe` bằng quyền Administrator (`Run as administrator`). Giao diện sẽ hiển thị các loại lỗi kernel driver có thể kích hoạt:
-
-```text
-+---------------------------------------------------+
-| NotMyFault                                        |
-+---------------------------------------------------+
-| Crash  Hang  Leak  High IRQL                      |
-|                                                   |
-| ( ) High IRQL fault (Kernel-mode)                 |
-| ( ) Buffer overflow                               |
-| ( ) Code overwrite                                |
-| ( ) Stack trash                                   |
-| ( ) High IRQL fault                               |
-|                                                   |
-|                [ Crash ]   [ Hang ]               |
-+---------------------------------------------------+
-```
-
-### Kịch bản 1: Lỗi Driver truy cập bộ nhớ sai cấp độ (High IRQL Fault)
-1. Trong tab **Crash**, tích chọn mục **High IRQL fault (Kernel-mode)**.
-2. Bấm nút **Crash**.
-3. **Hiện tượng:** Máy tính lập tức xuất hiện màn hình xanh BSOD với mã lỗi `0x000000D1: DRIVER_IRQL_NOT_LESS_OR_EQUAL`.
-4. Driver gây lỗi: `myfault.sys`.
-5. Sau khi máy tự khởi động lại, kiểm tra file dump tại:
-   `C:\Windows\Minidump\*.dmp` hoặc `C:\Windows\MEMORY.DMP`.
-
-### Kịch bản 2: Lỗi tràn bộ nhớ đệm Driver (Buffer Overflow)
-1. Trong NotMyFault, chọn mục **Buffer overflow**.
-2. Bấm nút **Crash**.
-3. **Hiện tượng:** Màn hình xanh BSOD xuất hiện với mã `0x000000F7: DRIVER_OVERRUN_STACK_BUFFER`.
-
-### Kịch bản 3: Lỗi ghi đè vùng nhớ chỉ đọc (Code Overwrite)
-1. Chọn mục **Code overwrite**.
-2. Bấm nút **Crash**.
-3. **Hiện tượng:** Màn hình xanh xuất hiện với mã `0x000000BE: ATTEMPTED_WRITE_TO_READONLY_MEMORY`.
-
-### Kịch bản 4: Giả lập sập nguồn đột ngột không kịp tạo dump (Event 41, BugcheckCode = 0)
-1. Trong máy ảo (Virtual Machine), chọn thao tác **Reset** hoặc **Power Off** đột ngột (tương tự như rút phích cắm điện máy thật).
-2. Bật lại máy ảo.
-3. Windows sẽ ghi nhận sự kiện `Kernel-Power 41` với `BugcheckCode = 0` trong Windows Event Log (không có file `.dmp`).
-
----
-
-## 4. ĐỐI CHIẾU KẾT QUẢ VỚI DUMPANALYZER
-
-Sau khi máy khởi động lại thành công, mở DumpAnalyzer để kiểm tra:
-
-### Cách 1: Kiểm tra bằng giao diện đồ họa (GUI)
-1. Mở `DumpAnalyzer.exe` (hoặc chạy `python src/dumpanalyzer/gui/main.py`).
-2. Chọn nguồn dữ liệu: **"Máy này"** (hoặc chọn thư mục dump đã copy về).
-3. Bấm **Phân tích**.
-4. **Kiểm tra kết quả tab Tổng quan:**
-   - Số lần sập tăng lên tương ứng.
-   - Mã lỗi hiển thị chính xác: `0xD1`, `0xF7` hoặc `0xBE`.
-   - Cột Module nhận diện đúng driver: `myfault.sys`.
-5. **Kiểm tra kết quả tab Kết luận:**
-   - Xếp hạng nghi ngờ: Nhóm **Driver bên thứ ba** đứng đầu với tỷ lệ cao (> 85%).
-   - Bằng chứng củng cố: Hiển thị liên kết giữa stack trace file dump và sự kiện Event 41/1001.
-
-### Cách 2: Kiểm tra bằng dòng lệnh CLI
-```bash
-# Quét thu thập dump mới:
-dumpanalyzer scan
-
-# Quét tích hợp Windows Event Log:
-dumpanalyzer events
-
-# Xuất phán quyết chẩn đoán:
-dumpanalyzer verdict
-```
-
-### Cách 3: Đối chiếu với WinDbg (chuẩn tham chiếu Microsoft)
-Nếu máy có cài đặt WinDbg (`cdb.exe`), chạy lệnh sau để so khớp:
+### Bước 2.1: Bật chế độ ghi Dump tự động
+Trên máy ảo, mở Command Prompt với quyền **Run as administrator** và chạy:
 ```cmd
-cdb.exe -z "C:\Windows\Minidump\<tên_file>.dmp" -c ".bugcheck; lmvm myfault; q"
+DumpAnalyzer-cli.exe apply-dump-config
 ```
-Kết quả của DumpAnalyzer phải trùng khớp 100% về mã Bug Check, 4 tham số ngoại lệ và module gây lỗi so với WinDbg.
+Lệnh này sẽ:
+1. Tự động sao lưu registry hiện tại ra file `.reg`.
+2. Bật chế độ **Automatic Memory Dump** (`CrashDumpEnabled = 7`).
+3. Đảm bảo file pagefile trên ổ C có dung lượng đủ lớn để lưu trữ dump.
+
+### Bước 2.2: Tải công cụ NotMyFault
+1. Truy cập trang chính thức của Microsoft Sysinternals:
+   [https://learn.microsoft.com/en-us/sysinternals/downloads/notmyfault](https://learn.microsoft.com/en-us/sysinternals/downloads/notmyfault)
+2. Tải về và giải nén file `NotMyFault.zip`.
+3. Thư mục giải nén sẽ chứa `NotMyFault.exe` (bản 32-bit) và `NotMyFault64.exe` (bản 64-bit).
+
+---
+
+## 3. CÁC KỊCH BẢN TẠO CRASH ĐIỂN HÌNH
+
+Khởi chạy `NotMyFault64.exe` với quyền **Administrator**. Chọn một trong các kịch bản sau:
+
+### Kịch bản 1: Lỗi truy cập vùng nhớ mức ưu tiên cao (High IRQL Fault)
+- **Thiết lập trong NotMyFault**:
+  - Chọn tab: **BSOD**
+  - Radio button: **High IRQL fault (Kernel-mode)**
+  - Nhấn nút: **Crash**
+- **Kết quả BSOD**:
+  - Mã Bug Check: `0x000000D1` (`DRIVER_IRQL_NOT_LESS_OR_EQUAL`)
+  - Driver gây lỗi hiển thị trên màn hình xanh: `myfault.sys`
+
+---
+
+### Kịch bản 2: Tràn bộ đệm nhân Kernel (Buffer Overrun)
+- **Thiết lập trong NotMyFault**:
+  - Chọn tab: **BSOD**
+  - Radio button: **Buffer overflow**
+  - Nhấn nút: **Crash**
+- **Kết quả BSOD**:
+  - Mã Bug Check: `0x00000139` (`KERNEL_SECURITY_CHECK_FAILURE`)
+  - Thủ phạm: `myfault.sys`
+
+---
+
+### Kịch bản 3: Hỏng cấu trúc bộ nhớ cấp phát (Corrupt Pool)
+- **Thiết lập trong NotMyFault**:
+  - Chọn tab: **BSOD**
+  - Radio button: **Pool corruption**
+  - Nhấn nút: **Crash**
+- **Kết quả BSOD**:
+  - Mã Bug Check: `0x000000C2` (`BAD_POOL_CALLER`)
+
+---
+
+### Kịch bản 4: Treo DPC / Treo hệ thống (Hang)
+- **Thiết lập trong NotMyFault**:
+  - Chọn tab: **Hang**
+  - Chọn loại hang và nhấn nút: **Hang**
+- **Kết quả BSOD**:
+  - Hệ thống sẽ bị treo và sau đó kích hoạt `0x00000133` (`DPC_WATCHDOG_VIOLATION`).
+
+---
+
+## 4. KIỂM CHỨNG KẾT QUẢ VỚI DUMPANALYZER
+
+Sau khi máy ảo tự khởi động lại và đăng nhập vào Windows:
+
+### Cách 1: Sử dụng giao diện đồ họa (GUI)
+1. Mở `DumpAnalyzer.exe` hoặc click đúp `run_gui.bat`.
+2. Nguồn phân tích mặc định là: **Máy cục bộ này**.
+3. Bấm nút **"⚡ Phân tích ngay"**.
+4. Kiểm tra các kết quả hiển thị trên 3 tab chính:
+   - **Tab Tổng quan**: Thấy vụ sập mới nhất với mã `0xD1` hoặc `0x139`.
+   - **Tab Chi tiết crash**:
+     - `IMAGE_NAME` và `MODULE_NAME` hiển thị chính xác là `myfault.sys`.
+     - Monospace `STACK_TEXT` hiển thị rõ đỉnh stack gọi vào `myfault!myfault_ioctl`.
+   - **Tab Kết luận**:
+     - Nghi ngờ chính: `Driver (myfault.sys)`.
+     - Độ tin cậy: **Trung bình** (với 1 dump) hoặc **Cao** (nếu tạo 2 lần cùng crash).
+     - Rationale tiếng Việt giải thích rõ driver `myfault.sys` xuất hiện trực tiếp tại đỉnh stack.
+     - Các bước khuyến nghị từ dễ đến khó (gỡ driver, cập nhật, rollback).
+
+### Cách 2: Sử dụng dòng lệnh (CLI)
+Mở PowerShell hoặc Command Prompt trong thư mục DumpAnalyzer và chạy:
+```cmd
+DumpAnalyzer-cli.exe scan
+```
+Sau đó phân tích sâu:
+```cmd
+DumpAnalyzer-cli.exe analyze --all
+```
+Xem kết luận chẩn đoán:
+```cmd
+DumpAnalyzer-cli.exe verdict --latest
+```
+
+---
+
+## 5. ĐỐI CHIẾU VỚI WINDBG PREVIEW (MICROSOFT)
+
+Để đảm bảo tính trung thực và khách quan tuyệt đối:
+1. Mở công cụ **WinDbg Preview** (tải miễn phí từ Microsoft Store).
+2. Vào **File** -> **Open dump file** -> chọn file `C:\Windows\Minidump\xxxx.dmp`.
+3. Gõ lệnh: `!analyze -v`
+4. Đối chiếu các trường sau giữa WinDbg và DumpAnalyzer:
+   - `BUGCHECK_CODE`: Khớp 100%.
+   - `IMAGE_NAME`: Khớp 100% (`myfault.sys`).
+   - `FAILURE_BUCKET_ID`: Khớp 100%.
+   - `PROCESS_NAME`: Khớp 100% (`NotMyFault64.exe`).
+
+Nếu tất cả các chỉ số trên khớp hoàn toàn, bộ cài **DumpAnalyzer** đã đạt tiêu chuẩn nghiệm thu và sẵn sàng triển khai thực tế trên toàn bộ hệ thống máy tính công ty!

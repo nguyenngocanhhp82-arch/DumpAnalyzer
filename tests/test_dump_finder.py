@@ -49,3 +49,28 @@ def test_copy_dump_safely(tmp_path):
     # Kiểm tra file gốc không bị xoá hay sửa
     assert src_file.exists()
     assert src_file.read_bytes() == b"ORIGINAL_DUMP_DATA_BYTES"
+
+
+def test_cleanup_workspace(tmp_path):
+    """Kiểm tra dọn dẹp workspace xoá file copy tạm nhưng không chạm tới file gốc."""
+    from dumpanalyzer.collectors.dump_finder import cleanup_workspace
+
+    original = tmp_path / "original.dmp"
+    original.write_bytes(b"ORIGINAL")
+
+    workspace = tmp_path / "workspace"
+    workspace.mkdir()
+    temp1 = workspace / "temp1.dmp"
+    temp1.write_bytes(b"TEMP1")
+    temp2 = workspace / "temp2.tmp"
+    temp2.write_bytes(b"TEMP2")
+    keep_file = workspace / "results.json"
+    keep_file.write_bytes(b"KEEP")
+
+    deleted = cleanup_workspace(workspace)
+    assert deleted == 2
+    assert not temp1.exists()
+    assert not temp2.exists()
+    assert keep_file.exists()
+    assert original.exists()
+

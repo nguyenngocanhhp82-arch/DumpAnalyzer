@@ -892,6 +892,22 @@ def cmd_batch(args):
     return 0
 
 
+def cmd_clean_workspace(args):
+    """Lệnh dọn dẹp an toàn các file dump sao chép trong thư mục làm việc (workspace)."""
+    from dumpanalyzer.collectors.dump_finder import cleanup_workspace
+    from dumpanalyzer.core.config import load_settings, get_settings_path
+
+    settings = load_settings(get_settings_path())
+    ws_dir = getattr(args, "dir", None) or settings.get("working_dir", "./workspace")
+    print("\n--- DỌN DẸP AN TOÀN THƯ MỤC LÀM VIỆC (WORKSPACE) ---")
+    print(f"[*] Thư mục: {ws_dir}")
+    print("[!] LƯU Ý: Thao tác này chỉ xoá các file copy tạm thời, TUYỆT ĐỐI KHÔNG ẢNH HƯỞNG TỚI FILE DUMP GỐC.")
+
+    deleted = cleanup_workspace(ws_dir)
+    print(f"[+] Hoàn tất! Đã xoá an toàn {deleted} file dump tạm trong workspace.\n")
+    return 0
+
+
 def build_parser() -> argparse.ArgumentParser:
     """Xây dựng bộ phân tích tham số dòng lệnh."""
     parser = argparse.ArgumentParser(
@@ -1061,6 +1077,17 @@ def build_parser() -> argparse.ArgumentParser:
         help="Đường dẫn xuất dữ liệu tổng hợp dạng file JSON",
     )
     parser_batch.set_defaults(func=cmd_batch)
+
+    # Subcommand: clean-workspace (Phase 6)
+    parser_clean = subparsers.add_parser(
+        "clean-workspace",
+        help="Dọn dẹp an toàn các file dump sao chép trong thư mục tạm workspace (không xoá file gốc)",
+    )
+    parser_clean.add_argument(
+        "--dir",
+        help="Đường dẫn thư mục làm việc cần dọn dẹp (mặc định lấy theo settings.yaml)",
+    )
+    parser_clean.set_defaults(func=cmd_clean_workspace)
 
     return parser
 

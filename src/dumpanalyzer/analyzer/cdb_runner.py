@@ -339,3 +339,56 @@ def warmup_symbols(cdb_path: Optional[str] = None, symbol_path: Optional[str] = 
             "success": False,
             "message": f"Lỗi khi khởi động tải Symbol: {e}",
         }
+
+
+def build_crash_from_dump(
+    dump_path: Union[str, Path],
+    settings: Optional[Dict[str, Any]] = None,
+    machine_id: Optional[int] = None,
+    sha256: Optional[str] = None,
+) -> Any:
+    """Phân tích dump file và trả về đối tượng Crash hoàn chỉnh."""
+    from dumpanalyzer.core.models import Crash
+    from dumpanalyzer.collectors.dump_finder import calculate_sha256
+
+    path_obj = Path(dump_path).resolve()
+    settings = settings or {}
+
+    cdb_p = settings.get("cdb_path")
+    sym_p = settings.get("symbol_path")
+    timeout_s = settings.get("cdb_timeout_seconds", 300)
+
+    res = analyze_dump_file(
+        dump_path=path_obj,
+        cdb_path=cdb_p,
+        symbol_path=sym_p,
+        timeout_seconds=timeout_s,
+    )
+
+    cdb_res = res["cdb_result"]
+    h_info = res.get("header_info")
+    analyzed_by = res.get("analyzed_by", "header_only")
+
+    calculated_sha = sha256 or (calculate_sha256(path_obj) if path_obj.exists() else None)
+
+    return Crash(
+        machine_id=machine_id,
+        dump_path=str(path_obj),
+        dump_sha256=calculated_sha,
+        dump_type=getattr(h_info, "dump_type", "unknown") if h_info else "unknown",
+        crash_time_utc=getattr(cdb_res, "crash_time_utc", None) or (getattr(h_info, "crash_time_utc", None) if h_info else None),
+        bugcheck_code=getattr(cdb_res, "bugcheck_code", None) or (getattr(h_info, "bugcheck_code", "0x0") if h_info else "0x0"),
+        bugcheck_name=getattr(cdb_res, "bugcheck_name", None) or (getattr(h_info, "bugcheck_name", "UNKNOWN") if h_info else "UNKNOWN"),
+        p1=getattr(cdb_res, "p1", None) or (getattr(h_info, "p1", "0x0") if h_info else "0x0"),
+        p2=getattr(cdb_res, "p2", None) or (getattr(h_info, "p2", "0x0") if h_info else "0x0"),
+        p3=getattr(cdb_res, "p3", None) or (getattr(h_info, "p3", "0x0") if h_info else "0x0"),
+        p4=getattr(cdb_res, "p4", None) or (getattr(h_info, "p4", "0x0") if h_info else "0x0"),
+        image_name=getattr(cdb_res, "image_name", "") or "",
+        module_name=getattr(cdb_res, "module_name", "") or "",
+        process_name=getattr(cdb_res, "process_name", "") or "",
+        failure_bucket_id=getattr(cdb_res, "failure_bucket_id", "") or "",
+        uptime_seconds=getattr(cdb_res, "uptime_seconds", None),
+        cdb_raw_output=res.get("raw_output"),
+        analyzed_by=analyzed_by,
+    )
+

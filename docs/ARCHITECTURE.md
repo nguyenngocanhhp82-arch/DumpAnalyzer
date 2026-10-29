@@ -125,11 +125,12 @@ Trong quá trình khởi tạo dự án, hai tài sản nền tảng đã đư�
 
 ## 4. Lộ trình Triển khai theo Phase Cập nhật
 
-- **Phase 0:** Khảo sát, tài liệu kiến trúc, 380 mã bug check, khung source code `src/dumpanalyzer`, CLI `--version`, lệnh `check-env`, 12 test pytest *(Đã hoàn thành)*.
-- **Phase 1:** Module `dump_finder` (copy an toàn, hash SHA256 cache), `header_parser` (đọc header nhị phân), schema SQLite `crash`, lệnh CLI `scan`.
-- **Phase 1B (MỚI):** Lệnh CLI `check-dump-config` (kiểm tra khả năng ghi dump, pagefile, dung lượng, volmgr; hỗ trợ `--apply` có sao lưu và xác nhận an toàn).
-- **Phase 2:** Module `cdb_runner` (subprocess danh sách tham số, timeout 300s, đa luồng), `cdb_parser` (bóc tách stack, loại trừ module lõi Microsoft), warmup-symbols, fixture unit test từ output cdb mẫu.
-- **Phase 3:** Module `eventlog` (Event 41 hex, 1001, WHEA, Disk...), `hardware` (SMART, disk, CPU), `drivers_updates`, `correlator` (ghép cửa sổ 10 phút UTC, gộp 41 và 1001, xử lý crash `log_only`).
-- **Phase 4:** Module `rule_loader` (validate YAML), `scorer` & `verdict` (thuật toán chấm điểm, trần tin cậy theo UPDATE_01, gắn cờ mâu thuẫn, next steps từ dễ đến khó).
-- **Phase 5:** Giao diện PySide6 theo layout đã duyệt (Tổng quan, Chi tiết, Kết luận, Cài đặt & Khả năng ghi dump; xử lý đa luồng Worker không đơ UI).
-- **Phase 6:** Phân tích đa dump/đa máy (`patterns.yaml`), đóng gói PyInstaller `--onedir --uac-admin`, tài liệu `RULES_GUIDE.md` và `TESTING_WITH_NOTMYFAULT.md`.
+- **Phase 0:** Khảo sát, tài liệu kiến trúc, 380 mã bug check, khung source code `src/dumpanalyzer`, CLI `--version`, lệnh `check-env`, 12 test pytest *(Đã hoàn thành - v0.1)*.
+- **Phase 1:** Module `dump_finder` (copy an toàn, hash SHA256 cache), `header_parser` (đọc header nhị phân), schema SQLite `crash`, lệnh CLI `scan` *(Đã hoàn thành - v0.1.1)*.
+- **Phase 1B (MỚI):** Lệnh CLI `check-dump-config` (kiểm tra khả năng ghi dump, pagefile, dung lượng, volmgr; hỗ trợ `--apply` có sao lưu và xác nhận an toàn) *(Đã hoàn thành - v0.1.2)*.
+- **Phase 2:** Module `cdb_runner` (subprocess danh sách tham số, timeout 300s, đa luồng), `cdb_parser` (bóc tách stack, loại trừ module lõi Microsoft), warmup-symbols, fixture unit test từ output cdb mẫu *(Đã hoàn thành - v0.2.0)*.
+- **Phase 3:** Module `eventlog` (Event 41 hex, 1001, WHEA, Disk...), `hardware` (SMART, disk, CPU), `drivers_updates`, `correlator` (ghép cửa sổ 10 phút UTC, gộp 41 và 1001, xử lý crash `log_only`) *(Đã hoàn thành - v0.3.0)*.
+- **Phase 4:** Module `rule_loader` (validate YAML), `scorer` & `verdict` (thuật toán chấm điểm, trần tin cậy theo UPDATE_01, gắn cờ mâu thuẫn, next steps từ dễ đến khó) *(Đã hoàn thành - v0.4.0)*.
+- **Phase 5:** Giao diện PySide6 theo layout đã duyệt (Tổng quan, Chi tiết, Kết luận, Cài đặt & Khả năng ghi dump; xử lý đa luồng Worker không đơ UI; xuất báo cáo HTML/Excel) *(Đã hoàn thành - v0.5.0)*.
+- **Phase 6:** Phân tích đa dump/đa máy (`batch_analyzer.py`), dọn dẹp an toàn workspace, đóng gói PyInstaller `--onedir --uac-admin`, tài liệu `RULES_GUIDE.md` và `TESTING_WITH_NOTMYFAULT.md` *(Đã hoàn thành - v1.0.0)*.
+

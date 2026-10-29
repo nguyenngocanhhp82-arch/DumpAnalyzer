@@ -2,10 +2,10 @@
 
 Mọi thay đổi quan trọng của dự án DumpAnalyzer được ghi lại tại tài liệu này theo từng phiên bản và ngày tháng thực hiện.
 
-## [v0.6.0] - 2026-10-29
-
-### Hoàn thành Phase 6 (Phân tích Đa máy, Đóng gói PyInstaller & Bàn giao Tài liệu)
-- **Module Phân tích theo lô Đa máy & Fleet Analysis (`analyzer/batch.py`):**
+## [v1.0.0] - 2026-10-29
+ 
+### Phát hành chính thức: Hoàn thành Toàn diện Dự án DumpAnalyzer (Phases 0–6)
+- **Module Phân tích theo lô Đa máy & Fleet Analysis (`analyzer/batch.py` & `engine/batch_analyzer.py`):**
   - Tự động quét cấu trúc thư mục con: mỗi thư mục con tương ứng với một máy tính (hostname / PC Name) hoặc xử lý file dump tại thư mục gốc.
   - Phân tích và chấm điểm độc lập cho từng máy tính qua `score_machine_crashes` và `generate_machine_finding`.
   - Tổng hợp tương quan liên máy (Cross-machine correlation): phát hiện driver lỗi xuất hiện đồng loạt trên nhiều máy tính khác nhau trong công ty (`widespread_drivers`), cảnh báo mức độ nghiêm trọng.

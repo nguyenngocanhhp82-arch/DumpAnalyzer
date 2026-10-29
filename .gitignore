@@ -27,3 +27,8 @@ workspace/
 # Backups
 backup/
 *.bak
+
+# PyInstaller build artifacts
+build/
+dist/
+
