@@ -822,6 +822,76 @@ def cmd_events(args):
     return 0
 
 
+def cmd_batch(args):
+    """Lệnh phân tích theo lô đa dump / đa máy tính (Batch & Fleet Analysis)."""
+    import json
+    from dumpanalyzer.analyzer.batch import FleetBatchAnalyzer
+
+    target_dir = getattr(args, "dir", None) or "."
+    path_obj = Path(target_dir).resolve()
+    if not path_obj.exists() or not path_obj.is_dir():
+        print(f"[X] Thư mục không tồn tại: {target_dir}")
+        return 1
+
+    print(f"\n--- PHÂN TÍCH THEO LÔ ĐA MÁY TÍNH (Fleet Analysis) ---")
+    print(f"[*] Đang quét thư mục: {path_obj}")
+
+    analyzer = FleetBatchAnalyzer()
+    try:
+        fleet_data = analyzer.analyze_fleet(path_obj)
+    except Exception as e:
+        print(f"[X] Lỗi trong quá trình phân tích theo lô: {e}")
+        return 1
+
+    print(f"\n[+] KẾT QUẢ TỔNG QUAN:")
+    print(f"  * Tổng số máy tính nhận diện: {fleet_data['total_machines']}")
+    print(f"  * Tổng số file dump sập: {fleet_data['total_crashes']}")
+
+    # Cảnh báo driver diện rộng
+    widespread = fleet_data.get("widespread_drivers", [])
+    if widespread:
+        print(f"\n[!] CẢNH BÁO: Phát hiện {len(widespread)} driver gây lỗi hàng loạt trên nhiều máy:")
+        for item in widespread:
+            m_list = ", ".join(item["affected_machines"])
+            print(f"    - Driver '{item['driver']}': {item['total_crashes']} lần sập trên {item['affected_machines_count']} máy ({m_list})")
+            print(f"      Khuyến nghị: {item['note']}")
+    else:
+        print("\n[*] Không phát hiện driver lỗi xuất hiện đồng loạt trên nhiều máy.")
+
+    # Mã lỗi phổ biến
+    top_bcs = fleet_data.get("top_bugchecks", [])
+    if top_bcs:
+        print(f"\n[*] Các mã lỗi xuất hiện nhiều nhất:")
+        for bc, count in top_bcs[:5]:
+            print(f"    - {bc}: {count} lần")
+
+    # Danh sách máy
+    print(f"\n[*] Tóm tắt kết luận từng máy:")
+    for m in fleet_data.get("machines", []):
+        v = m.get("verdict", {})
+        print(f"    - Máy '{m['machine_name']}': {m['dump_count']} dump | Nghi ngờ: {v.get('primary_culprit', 'Chưa rõ')} ({v.get('top_score', 0)}%) | Tin cậy: {v.get('confidence', 'Chưa rõ')}")
+
+    # Xuất báo cáo nếu có yêu cầu
+    if getattr(args, "report_html", None):
+        out_h = analyzer.export_fleet_html(fleet_data, args.report_html)
+        print(f"\n[+] Đã xuất báo cáo HTML: {out_h}")
+
+    if getattr(args, "report_excel", None):
+        out_e = analyzer.export_fleet_excel(fleet_data, args.report_excel)
+        print(f"[+] Đã xuất báo cáo Excel: {out_e}")
+
+    if getattr(args, "json", None):
+        json_out = Path(args.json).resolve()
+        json_out.parent.mkdir(parents=True, exist_ok=True)
+        data_to_save = dict(fleet_data)
+        data_to_save["timestamp_utc"] = data_to_save["timestamp_utc"].isoformat()
+        with open(json_out, "w", encoding="utf-8") as f:
+            json.dump(data_to_save, f, ensure_ascii=False, indent=2, default=str)
+        print(f"[+] Đã xuất dữ liệu JSON: {json_out}")
+
+    return 0
+
+
 def build_parser() -> argparse.ArgumentParser:
     """Xây dựng bộ phân tích tham số dòng lệnh."""
     parser = argparse.ArgumentParser(
@@ -967,6 +1037,30 @@ def build_parser() -> argparse.ArgumentParser:
         help="Lọc vụ sập đến ngày này (định dạng: YYYY-MM-DD)",
     )
     parser_verdict.set_defaults(func=cmd_verdict)
+
+    # Subcommand: batch (Phase 6)
+    parser_batch = subparsers.add_parser(
+        "batch",
+        help="Phân tích theo lô đa dump / đa máy tính, phát hiện driver lỗi hàng loạt",
+    )
+    parser_batch.add_argument(
+        "--dir",
+        default=".",
+        help="Đường dẫn thư mục chứa dump của nhiều máy (mỗi thư mục con là một máy)",
+    )
+    parser_batch.add_argument(
+        "--report-html",
+        help="Đường dẫn xuất file báo cáo tổng hợp dạng HTML",
+    )
+    parser_batch.add_argument(
+        "--report-excel",
+        help="Đường dẫn xuất file báo cáo tổng hợp dạng Excel (.xlsx)",
+    )
+    parser_batch.add_argument(
+        "--json",
+        help="Đường dẫn xuất dữ liệu tổng hợp dạng file JSON",
+    )
+    parser_batch.set_defaults(func=cmd_batch)
 
     return parser
 

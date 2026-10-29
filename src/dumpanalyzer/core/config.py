@@ -70,7 +70,13 @@ COMMON_CDB_LOCATIONS = [
 
 
 def get_project_root() -> Path:
-    """Trả về thư mục gốc của dự án DumpAnalyzer."""
+    """Trả về thư mục gốc của dự án DumpAnalyzer.
+    Khi chạy ở dạng đóng gói PyInstaller (frozen), trả về thư mục chứa file .exe
+    để nạp thư mục config/ đặt bên cạnh .exe theo yêu cầu UPDATE_01.
+    """
+    import sys
+    if getattr(sys, "frozen", False):
+        return Path(sys.executable).resolve().parent
     return Path(__file__).resolve().parent.parent.parent.parent
 
 

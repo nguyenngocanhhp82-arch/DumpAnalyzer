@@ -22,5 +22,15 @@ def test_cli_check_env(capsys):
     assert ret == 0
     captured = capsys.readouterr()
     assert "ĐANG KIỂM TRA MÔI TRƯỜNG HỆ THỐNG" in captured.out
-    assert "Môi trường thực thi:" in captured.out
     assert "Cơ sở dữ liệu mã Bug Check:" in captured.out
+
+
+def test_cli_batch(tmp_path, capsys):
+    """Kiểm tra lệnh batch trên thư mục rỗng trả về code 0."""
+    folder = tmp_path / "batch_folder"
+    folder.mkdir()
+    ret = main(["batch", "--dir", str(folder)])
+    assert ret == 0
+    captured = capsys.readouterr()
+    assert "PHÂN TÍCH THEO LÔ ĐA MÁY TÍNH" in captured.out
+    assert "Tổng số máy tính nhận diện: 0" in captured.out

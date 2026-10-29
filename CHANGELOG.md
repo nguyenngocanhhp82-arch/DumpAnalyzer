@@ -2,6 +2,32 @@
 
 Mọi thay đổi quan trọng của dự án DumpAnalyzer được ghi lại tại tài liệu này theo từng phiên bản và ngày tháng thực hiện.
 
+## [v0.6.0] - 2026-10-29
+
+### Hoàn thành Phase 6 (Phân tích Đa máy, Đóng gói PyInstaller & Bàn giao Tài liệu)
+- **Module Phân tích theo lô Đa máy & Fleet Analysis (`analyzer/batch.py`):**
+  - Tự động quét cấu trúc thư mục con: mỗi thư mục con tương ứng với một máy tính (hostname / PC Name) hoặc xử lý file dump tại thư mục gốc.
+  - Phân tích và chấm điểm độc lập cho từng máy tính qua `score_machine_crashes` và `generate_machine_finding`.
+  - Tổng hợp tương quan liên máy (Cross-machine correlation): phát hiện driver lỗi xuất hiện đồng loạt trên nhiều máy tính khác nhau trong công ty (`widespread_drivers`), cảnh báo mức độ nghiêm trọng.
+  - Thống kê tỷ lệ lỗi theo dòng máy / model bo mạch chủ và bảng xếp hạng các mã Bug Check phổ biến nhất toàn công ty.
+  - Xuất báo cáo tổng hợp đội máy tính (Fleet Overview Report) dạng HTML độc lập (`export_fleet_html`) và Excel đa bảng tính 4 sheets (`export_fleet_excel`).
+- **Giao diện Dòng lệnh CLI Mở rộng:**
+  - Bổ sung lệnh `dumpanalyzer batch`: Hỗ trợ tham số `--dir`, `--report-html`, `--report-excel`, `--json`.
+  - Báo cáo tổng hợp số liệu trực quan trên console, cảnh báo driver diện rộng cho quản trị viên IT.
+- **Hệ thống Đóng gói PyInstaller Chuẩn hóa:**
+  - File cấu hình PyInstaller spec: `DumpAnalyzer.spec` hỗ trợ cấu hình `--onedir`, `--windowed`, `--uac-admin`.
+  - Cập nhật `dumpanalyzer.core.config.get_project_root()` nhận diện môi trường `sys.frozen` để tự động nạp thư mục `config/` đặt ngay cạnh file `.exe`.
+  - Giữ nguyên thư mục `config/` bên cạnh file `.exe`, không nhúng ngầm bên trong binary, cho phép nhân viên IT mở sửa các file YAML trực tiếp mà không cần build lại.
+  - Không nhúng `cdb.exe` (đảm bảo tính pháp lý phân phối và duy trì cơ chế fallback `header_only` / `log_only`).
+  - Viết script tự động hóa `scripts/build_exe.py` và batch script `build_exe.bat` đóng gói một cú nhấp đúp trên Windows.
+- **Bộ Tài liệu Bàn giao Chuyên nghiệp:**
+  - `docs/RULES_GUIDE.md`: Cẩm nang hướng dẫn chi tiết bằng tiếng Việt cách quản trị, thêm sửa quy tắc (Bugcheck, Driver map, Event rules, Patterns) và kiểm tra bằng `dumpanalyzer validate-rules`.
+  - `docs/TESTING_WITH_NOTMYFAULT.md`: Hướng dẫn kiểm thử an toàn các kịch bản crash bằng NotMyFault của Microsoft Sysinternals (High IRQL fault, Buffer overflow, Code overwrite, Hang, Event 41 không dump).
+  - Cập nhật hoàn chỉnh `README.md`: Hướng dẫn chạy nhanh một cú nhấp, danh mục lệnh CLI, hướng dẫn đóng gói và thiết lập ngoại lệ diệt virus Windows Defender.
+- **Kiểm thử tự động:**
+  - Thêm `tests/test_batch.py` và `test_cli_batch` trong `tests/test_cli.py`.
+  - Toàn bộ **85/85 tests PASSED (100%)**.
+
 ---
 
 ## [v0.5.0] - 2026-10-29
