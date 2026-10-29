@@ -4,7 +4,27 @@ Mọi thay đổi quan trọng của dự án DumpAnalyzer được ghi lại t�
 
 ---
 
-## [v0.1] - 2026-10-29
+## [v0.1.1] - 2026-10-29
+
+### Hoàn thành Phase 1 (MVP Dòng lệnh: Thu Dump & Đọc Header)
+- **Module thu thập (`dump_finder.py`):**
+  - Quét tìm file `.dmp` đệ quy theo thư mục hoặc file đơn lẻ; hỗ trợ lọc theo ngày (`from_date`, `to_date`).
+  - Hàm `copy_dump_safely()`: Sao chép an toàn sang thư mục làm việc `workspace/` trước khi phân tích; tuyệt đối không đụng vào file gốc.
+  - Hàm `calculate_sha256()`: Tính mã băm theo khối nhớ 64KB, chống tràn RAM trên các file dump dung lượng lớn.
+- **Module phân tích Header nhị phân (`header_parser.py`):**
+  - Đọc trực tiếp header `PAGEDU64` của Windows 64-bit Kernel/Complete dump: đọc chính xác `BugCheckCode` tại offset `0x38`, 4 tham số `p1..p4` tại `0x40, 0x48, 0x50, 0x58`, và `SystemTime` tại `0xA0`.
+  - Nhận diện Minidump `MDMP`, trích xuất Unix timestamp và stream Exception.
+  - Xử lý lỗi mềm khi gặp dump hỏng (`corrupted.dmp`) hoặc file không tồn tại mà không làm sập chương trình.
+- **Giao diện dòng lệnh (`cli.py`):**
+  - Bổ sung lệnh `dumpanalyzer scan --path <thư_mục> [--from] [--to] [--force]`.
+  - In bảng dạng lưới căn chỉnh đẹp mắt: Thời điểm (giờ địa phương), Mã lỗi, Tên lỗi BugCheck, Loại dump, Trạng thái cache (`[CACHE]` / `[MỚI]`), Đường dẫn file.
+- **Kiểm thử tự động:**
+  - Bổ sung 4 fixture dump mẫu trong `tests/fixtures/` (`kernel_sample_124.dmp`, `kernel_sample_1a.dmp`, `minidump_sample.dmp`, `corrupted.dmp`).
+  - Thêm 10 unit test mới, nâng tổng số test lên **22/22 PASSED** (100%).
+
+---
+
+## [v0.1.0] - 2026-10-29
 
 ### Khởi tạo & Hoàn thành Phase 0
 - **Khảo sát tài sản:** Định vị và lưu vết script công cụ cũ `EventLogAnalyzer.ps1` vào `legacy_tools/`.
