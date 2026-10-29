@@ -105,6 +105,14 @@ def load_settings(config_path: Optional[str] = None) -> Dict[str, Any]:
     return settings
 
 
+def save_settings(config_path: str | Path, settings: Dict[str, Any]) -> None:
+    """Lưu từ điển cấu hình ra file settings.yaml."""
+    target = Path(config_path).resolve()
+    target.parent.mkdir(parents=True, exist_ok=True)
+    with open(target, "w", encoding="utf-8") as f:
+        yaml.safe_dump(settings, f, default_flow_style=False, allow_unicode=True, sort_keys=False)
+
+
 def find_cdb_executable(configured_path: Optional[str] = None) -> Optional[str]:
     """
     Tự động tìm kiếm đường dẫn cdb.exe:

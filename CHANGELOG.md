@@ -4,6 +4,29 @@ Mọi thay đổi quan trọng của dự án DumpAnalyzer được ghi lại t�
 
 ---
 
+## [v0.5.0] - 2026-10-29
+
+### Hoàn thành Phase 5 (Giao diện đồ họa PySide6 & Xuất Báo cáo)
+- **Module xuất báo cáo chẩn đoán (`report/exporter.py`):**
+  - Xuất báo cáo HTML độc lập (`export_html_report`), nhúng sẵn CSS hiện đại, tương thích in ấn (`@media print`), hiển thị đầy đủ thông tin máy, thẻ KPI, thanh tiến độ xác suất, giải thích nguyên nhân, khuyến nghị phân tầng từ dễ đến khó và bảng bằng chứng.
+  - Xuất báo cáo Excel đa bảng tính (`export_excel_report`) với 3 sheet: "Tổng quan & Kết luận", "Danh sách Crash", "Bằng chứng thu thập".
+- **Hệ thống giao diện đồ họa chuyên nghiệp PySide6 (`gui/`):**
+  - Khung giao diện chuẩn mực (`main_window.py`): Tiêu đề "DumpAnalyzer – Phân tích màn hình xanh & khởi động lại", bộ chọn nguồn dữ liệu (máy cục bộ / thư mục dump), bộ lọc khoảng ngày (Từ - Đến), nút "Phân tích" nổi bật, nút "Huỷ" và nút "Xuất báo cáo".
+  - Chạy ngầm đa luồng (`worker.py` - `AnalysisWorker`): Sử dụng `QThread`, cập nhật tiến trình 0-100% kèm thông điệp tiếng Việt, hỗ trợ nút Huỷ an toàn mà không bao giờ làm treo đơ giao diện.
+  - **Tab 1: Tổng quan (`tab_overview.py`):** 4 thẻ KPI (Tổng số sự cố, Dump đã phân tích, Nghi ngờ chính, Độ tin cậy), ô tìm kiếm nhanh, bảng danh sách crash với nhãn chữ kèm màu sắc chuyên nghiệp, gắn nhãn rõ ràng **"Không có dump"** cho các phiên `log_only`, hỗ trợ nhấp đúp để xem chi tiết.
+  - **Tab 2: Chi tiết crash (`tab_detail.py`):** Bóc tách chuyên sâu từng lần sập: metadata dump, 4 tham số Bug Check (`P1..P4`), khung xem Call Stack (`STACK_TEXT`) với font monospaced dễ đọc, và bảng sự kiện Event Log trong cửa sổ 10 phút trước crash.
+  - **Tab 3: Kết luận (`tab_verdict.py`):** Xếp hạng xác suất nguyên nhân với thanh phần trăm trực quan, phân tích mức độ tin cậy, cảnh báo mâu thuẫn giữa Dump và Event Log, giải thích nguyên nhân bằng tiếng Việt trung thực, danh sách hành động khuyến nghị phân tầng độ khó (Tầng 1: Dễ -> Tầng 4: Phức tạp) và các nút xuất báo cáo trực tiếp.
+  - **Tab 4: Cài đặt & Khả năng ghi dump (`tab_settings.py`):**
+    - Mục "Khả năng ghi dump": Bảng kết quả kiểm tra `CrashControl`, RAM, dung lượng trống ổ C:, pagefile, sự kiện `volmgr` 161/162, huy hiệu trạng thái (SẴN SÀNG / CẦN CHÚ Ý / KHÔNG GHI ĐƯỢC DUMP).
+    - Nút "Bật tự động ghi dump (Automatic dump)": Có hộp thoại xác nhận cảnh báo sửa registry `CrashDumpEnabled = 7` và tự động lưu file backup `.reg`.
+    - Mục "Cấu hình phân tích": Đường dẫn `cdb.exe`, Microsoft Symbol Server, thư mục workspace, cửa sổ thời gian và số luồng song song.
+    - Mục "Quản lý quy tắc": Nút kiểm tra tính hợp lệ toàn diện (Validate Rules) và nút mở thư mục `config/rules/`.
+- **Bộ kiểm thử tự động toàn diện:**
+  - Bổ sung `tests/test_report.py` (3 tests) và `tests/test_gui.py` (6 tests).
+  - Toàn bộ **81/81 tests PASSED (100%)** trong 2.12s ở môi trường headless.
+
+---
+
 ## [v0.4.0] - 2026-10-29
 
 ### Hoàn thành Phase 4 (Rule Engine: Chấm điểm & Kết luận)
