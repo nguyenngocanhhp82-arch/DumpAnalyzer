@@ -21,6 +21,15 @@ from dumpanalyzer.analyzer.header_parser import parse_dump_header
 from dumpanalyzer.storage.db import Database
 from dumpanalyzer.core.models import Crash
 from dumpanalyzer.core.timeutil import utc_to_local_str
+from dumpanalyzer.collectors.dump_config import (
+    read_registry_crash_control,
+    check_pagefile_status,
+    check_disk_space_and_ram,
+    check_volmgr_events,
+    evaluate_readiness,
+    apply_automatic_dump,
+    CRASH_DUMP_MODES,
+)
 
 
 def print_banner():
@@ -224,6 +233,100 @@ def cmd_check_env(args):
     return 0
 
 
+def cmd_check_dump_config(args):
+    """Kiểm tra toàn diện khả năng sinh dump của hệ thống và tuỳ chọn bật CrashDumpEnabled = 7."""
+    print_banner()
+    print("\n--- KIỂM TRA KHẢ NĂNG GHI DUMP HỆ THỐNG (Crash Readiness) ---")
+
+    reg_data = read_registry_crash_control()
+    pf_data = check_pagefile_status()
+    disk_data = check_disk_space_and_ram()
+    volmgr_data = check_volmgr_events()
+
+    eval_result = evaluate_readiness(reg_data, pf_data, disk_data, volmgr_data)
+
+    # 1. Cấu hình Registry CrashControl
+    print(f"\n[1] Cấu hình Registry (CrashControl):")
+    dump_code = reg_data.get("CrashDumpEnabled")
+    mode_desc = CRASH_DUMP_MODES.get(dump_code, f"Mã không xác định ({dump_code})")
+    print(f"    - CrashDumpEnabled:  {dump_code} ({mode_desc})")
+    print(f"    - AutoReboot:        {reg_data.get('AutoReboot')} (Tự khởi động lại sau BSOD)")
+    print(f"    - Overwrite:         {reg_data.get('Overwrite')} (Ghi đè file dump cũ)")
+    print(f"    - MinidumpDir:       {reg_data.get('MinidumpDir')}")
+    print(f"    - DumpFile:          {reg_data.get('DumpFile')}")
+
+    # 2. Tình trạng Pagefile
+    print(f"\n[2] Tình trạng Bộ nhớ ảo (Pagefile):")
+    if pf_data["has_system_drive_pagefile"]:
+        print("    [OK] Đã phát hiện Pagefile trên ổ đĩa hệ thống.")
+    else:
+        print("    [!] CẢNH BÁO: Không có Pagefile trên ổ hệ thống (C:).")
+    if pf_data.get("details"):
+        for d in pf_data["details"]:
+            print(f"         + {d}")
+
+    # 3. Dung lượng trống ổ cứng và RAM
+    print(f"\n[3] Dung lượng ổ đĩa & Bộ nhớ RAM:")
+    print(f"    - Dung lượng RAM:    {disk_data['ram_gb']} GB")
+    print(f"    - Dung lượng trống:  {disk_data['free_disk_gb']} GB trên ổ {disk_data['system_drive']}")
+    print(f"    - Mức khuyến nghị:   >= {disk_data['recommended_free_gb']} GB (RAM + 5GB)")
+    if disk_data["sufficient_space"]:
+        print("    [OK] Đủ dung lượng trống để lưu Kernel / Automatic dump.")
+    else:
+        print("    [!] CẢNH BÁO: Dung lượng trống thấp hơn mức an toàn để ghi dump.")
+
+    # 4. Lịch sử dịch vụ volmgr
+    print(f"\n[4] Lịch sử dịch vụ ghi dump (volmgr):")
+    if volmgr_data["has_failure_161"]:
+        print(f"    [!] CẢNH BÁO: Đã từng có sự kiện tạo dump thất bại (Event 161 lúc {volmgr_data['last_failure_time']}).")
+    else:
+        print("    [OK] Không phát hiện lỗi tạo dump thất bại (Event 161) gần đây.")
+
+    # 5. ĐÁNH GIÁ TỔNG THỂ
+    status_tag = f"=== TRẠNG THÁI: [{eval_result['status']}] ==="
+    print(f"\n{'=' * len(status_tag)}")
+    print(status_tag)
+    print(f"{'=' * len(status_tag)}")
+    print(f">> {eval_result['summary']}")
+
+    if eval_result["reasons"]:
+        print("\nCác vấn đề phát hiện:")
+        for r in eval_result["reasons"]:
+            print(f"  * {r}")
+
+    if eval_result["recommendations"]:
+        print("\nKhuyến nghị hành động:")
+        for rec in eval_result["recommendations"]:
+            print(f"  -> {rec}")
+
+    print("\n----------------------------------------------------------------------")
+
+    # 6. Xử lý cờ --apply
+    if args.apply:
+        print("\n[!] BẠN ĐANG YÊU CẦU CẤU HÌNH BẬT GHI DUMP TỰ ĐỘNG (--apply)")
+        print("    Chương trình sẽ:")
+        print("    1. Sao lưu cấu hình Registry hiện tại ra file .reg trong thư mục 'backup/'.")
+        print("    2. Đặt giá trị 'CrashDumpEnabled' thành 7 (Automatic memory dump).")
+        print("    3. TUYỆT ĐỐI KHÔNG sửa pagefile và KHÔNG tự khởi động lại máy.\n")
+
+        confirm = input("Bạn có chắc chắn muốn thực hiện thay đổi này? (gõ 'y' để xác nhận): ").strip().lower()
+        if confirm == "y":
+            res = apply_automatic_dump(confirmed=True)
+            if res["success"]:
+                print(f"\n[THÀNH CÔNG] {res['message']}\n")
+                return 0
+            else:
+                print(f"\n[THẤT BÀI] {res['message']}\n")
+                return 1
+        else:
+            print("\n[HUỶ BỎ] Người dùng đã huỷ thao tác sửa đổi registry.\n")
+            return 0
+    else:
+        print("Ghi chú: Lệnh trên chỉ ĐỌC cấu hình. Để tự động bật ghi dump an toàn, hãy dùng:")
+        print("         dumpanalyzer check-dump-config --apply\n")
+        return 0
+
+
 def build_parser() -> argparse.ArgumentParser:
     """Xây dựng bộ phân tích tham số dòng lệnh."""
     parser = argparse.ArgumentParser(
@@ -278,6 +381,18 @@ def build_parser() -> argparse.ArgumentParser:
         help="Bỏ qua cache SHA256, bắt buộc đọc lại và cập nhật cơ sở dữ liệu",
     )
     parser_scan.set_defaults(func=cmd_scan)
+
+    # Subcommand: check-dump-config (Phase 1B)
+    parser_dump_cfg = subparsers.add_parser(
+        "check-dump-config",
+        help="Kiểm tra khả năng ghi dump của Windows (CrashControl, Pagefile, Dung lượng đĩa, volmgr)",
+    )
+    parser_dump_cfg.add_argument(
+        "--apply",
+        action="store_true",
+        help="Bật ghi dump tự động (CrashDumpEnabled = 7) có sao lưu và xác nhận an toàn",
+    )
+    parser_dump_cfg.set_defaults(func=cmd_check_dump_config)
 
     return parser
 

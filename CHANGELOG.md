@@ -4,6 +4,27 @@ Mọi thay đổi quan trọng của dự án DumpAnalyzer được ghi lại t�
 
 ---
 
+## [v0.1.2] - 2026-10-29
+
+### Hoàn thành Phase 1B (Kiểm tra & Cấu hình Khả năng ghi Dump)
+- **Module kiểm tra cấu hình (`dump_config.py`):**
+  - Đọc registry `CrashControl`: `CrashDumpEnabled`, `AutoReboot`, `Overwrite`, `MinidumpDir`, `DumpFile`.
+  - Kiểm tra tình trạng Pagefile trên ổ hệ thống (C:), cảnh báo nếu thiếu pagefile.
+  - Kiểm tra dung lượng trống ổ C: so với RAM vật lý (ngưỡng an toàn: RAM + 5GB).
+  - Quét sự kiện dịch vụ ghi dump `volmgr` Event 161 (thất bại) và 162 (thành công).
+  - Hàm `evaluate_readiness()`: Phân loại 3 mức trạng thái **SẴN SÀNG / CẦN CHÚ Ý / KHÔNG GHI ĐƯỢC DUMP** kèm nguyên nhân và khuyến nghị xử lý bằng tiếng Việt.
+  - Cơ chế áp dụng an toàn (`apply_automatic_dump`):
+    - Tự động xuất file sao lưu registry cũ ra `backup/CrashControl_<hostname>_<time>.reg`.
+    - Chỉ cho phép sửa khi có cờ `--apply` VÀ người dùng gõ xác nhận trực tiếp (`y`).
+    - Chỉ sửa duy nhất `CrashDumpEnabled = 7` (Automatic memory dump), không đụng pagefile hay các khoá khác, không tự khởi động lại máy.
+- **Cập nhật dòng lệnh (`cli.py`):**
+  - Bổ sung subcommand `dumpanalyzer check-dump-config [--apply]`.
+- **Kiểm thử tự động:**
+  - Tạo `tests/test_dump_config.py` với 6 test case kiểm tra đánh giá trạng thái, định dạng file sao lưu .reg, huỷ bỏ an toàn khi chưa xác nhận và lệnh CLI.
+  - Tổng số test tự động đạt **28/28 PASSED (100%)**.
+
+---
+
 ## [v0.1.1] - 2026-10-29
 
 ### Hoàn thành Phase 1 (MVP Dòng lệnh: Thu Dump & Đọc Header)
