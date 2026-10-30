@@ -78,14 +78,22 @@ dumpanalyzer validate-rules
 
 DumpAnalyzer được cấu hình đóng gói chuẩn dạng thư mục (`--onedir`), giao diện cửa sổ (`--windowed`) và tự yêu cầu quyền Administrator (`--uac-admin`):
 
-1. **Đóng gói một cú nhấp:** Nhấp đúp vào file `build_exe.bat`.
-2. **Hoặc chạy bằng lệnh:**
-   ```bash
-   python scripts/build_exe.py
-   ```
-3. Thư mục phân phối hoàn chỉnh sẽ được tạo tại `dist/DumpAnalyzer/`.
+1. **Đóng gói thủ công cục bộ (trên máy Windows):**
+   - Nhấp đúp vào file `build_exe.bat` hoặc chạy:
+     ```cmd
+     python build_exe.py
+     ```
+   - Thư mục phân phối hoàn chỉnh sẽ được tạo tại `dist/DumpAnalyzer/` và file nén `dist/DumpAnalyzer-windows-x64.zip`.
    - File thực thi: `dist/DumpAnalyzer/DumpAnalyzer.exe`
    - Thư mục cấu hình quy tắc nằm ngay bên cạnh: `dist/DumpAnalyzer/config/` (kỹ thuật viên có thể sửa trực tiếp các file YAML mà không cần build lại).
+
+2. **Tự động đóng gói trên GitHub Actions (Khuyến nghị):**
+   - Dự án đã tích hợp sẵn GitHub Actions workflow tại `.github/workflows/build.yml`.
+   - **Tự động kích hoạt:** Khi push code lên nhánh `main` hoặc gắn tag phiên bản `v*` (ví dụ `git tag v1.0.0 && git push origin v1.0.0`).
+   - **Kích hoạt thủ công:** Vào tab **Actions** trên GitHub $\rightarrow$ chọn workflow **"Build & Release DumpAnalyzer"** $\rightarrow$ nhấn **Run workflow**.
+   - **Tải file chạy:**
+     + **Artifacts:** Tải file `DumpAnalyzer-windows-x64.zip` từ trang kết quả chạy của workflow.
+     + **Releases:** Nếu gắn tag `v*` hoặc bật tuỳ chọn tạo release, file zip sẽ tự động được đính kèm vào mục **Releases** của repo.
 
 ---
 

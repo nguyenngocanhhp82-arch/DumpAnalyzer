@@ -100,8 +100,21 @@ def build():
         encoding="utf-8",
     )
 
+    # 5. Tự động đóng gói thành file .zip để phân phối hoặc tải lên GitHub Releases
+    zip_base_name = root / "dist" / "DumpAnalyzer-windows-x64"
+    print(f"[*] Đang nén file zip: {dist_dir} -> {zip_base_name}.zip")
+    shutil.make_archive(
+        base_name=str(zip_base_name),
+        format="zip",
+        root_dir=str(root / "dist"),
+        base_dir="DumpAnalyzer",
+    )
+    zip_file = root / "dist" / "DumpAnalyzer-windows-x64.zip"
+
     print("\n=================================================================")
     print(f"[+] ĐÓNG GÓI THÀNH CÔNG TẠI: {dist_dir}")
+    if zip_file.exists():
+        print(f"[+] FILE NÉN PHÂN PHỐI (ZIP): {zip_file} ({zip_file.stat().st_size / (1024*1024):.2f} MB)")
     print("=================================================================\n")
     return 0
 

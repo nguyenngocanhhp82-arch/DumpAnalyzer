@@ -1,0 +1,76 @@
+name: Build & Release DumpAnalyzer
+
+on:
+  push:
+    branches:
+      - main
+    tags:
+      - "v*"
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+    inputs:
+      publish_release:
+        description: "Tạo và xuất bản GitHub Release từ bản build này"
+        required: false
+        default: false
+        type: boolean
+
+permissions:
+  contents: write
+
+jobs:
+  build-windows:
+    name: Build Windows Executable (.exe)
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: "pip"
+
+      - name: Install Dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e .[gui,report,dev]
+
+      - name: Run Pytest Suite
+        env:
+          QT_QPA_PLATFORM: offscreen
+        run: |
+          pytest -v
+
+      - name: Build Executable Package with PyInstaller
+        run: |
+          python build_exe.py
+
+      - name: List Build Output
+        run: |
+          Get-ChildItem -Path dist\DumpAnalyzer
+          Get-ChildItem -Path dist\*.zip
+
+      - name: Upload Build Artifact to GitHub Actions
+        uses: actions/upload-artifact@v4
+        with:
+          name: DumpAnalyzer-windows-x64
+          path: dist/DumpAnalyzer-windows-x64.zip
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Publish to GitHub Releases
+        if: startsWith(github.ref, 'refs/tags/v') || (github.event_name == 'workflow_dispatch' && inputs.publish_release == true)
+        uses: softprops/action-gh-release@v2
+        with:
+          files: dist/DumpAnalyzer-windows-x64.zip
+          name: "DumpAnalyzer ${{ github.ref_name }}"
+          generate_release_notes: true
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
