@@ -2,6 +2,51 @@
 
 Mọi thay đổi quan trọng của dự án DumpAnalyzer được ghi lại tại tài liệu này theo từng phiên bản và ngày tháng thực hiện.
 
+## [v1.2.0] - 2026-11-03
+
+### Đợt Cập nhật 04 — Củng cố Sẵn sàng Ghi Dump & Quản lý Cấu hình Toàn đội
+- **Phần A — Củng cố Bộ kiểm tra Sẵn sàng ghi dump (`collectors/dump_config.py`):**
+  - Trả về có cấu trúc, tách bạch hoàn toàn lỗi đọc Registry (`read_ok=False`) và giá trị chưa cấu hình (`value_present=False`, sửa L1).
+  - Tách 3 trạng thái bộ nhớ ảo (Pagefile): `ok` (đủ), `missing` (thiếu hoàn toàn), `unknown` (lỗi đọc WMI/Registry), đồng thời công nhận `DedicatedDumpFile` độc lập (sửa L3, L6).
+  - Kiểm tra dung lượng đĩa hệ thống và RAM theo ngưỡng cấu hình động tương ứng từng chế độ mục tiêu 7/3 (sửa L5).
+  - Sắp xếp và đánh giá sự kiện `volmgr` (161/162/45/46/49) theo đúng thứ tự thời gian UTC; sự kiện ghi dump thành công (162) sau sự cố sẽ xóa cảnh báo lỗi (sửa L4).
+  - Theo dõi thời điểm khởi động máy gần nhất (`get_last_boot_time_utc`), gắn cờ `pending_reboot` và trạng thái `READY_PENDING_REBOOT` khi cấu hình mới chưa qua khởi động lại (sửa L7).
+  - Đánh giá khả năng sẵn sàng qua `evaluate_readiness_v2` với 5 trạng thái chuẩn (`READY`, `READY_PENDING_REBOOT`, `ATTENTION`, `BLOCKED`, `UNKNOWN`) và 3 mức chứng minh (`evidence_of_success`, `configured_only`, `none`).
+- **Phần B — Bật ghi dump Cục bộ An toàn & Hoàn tác 100%:**
+  - Quy tắc an toàn tối thượng P1-P11: Tuyệt đối KHÔNG tự ý khởi động lại máy tính (không gọi `shutdown`, `Restart-Computer`).
+  - Cơ chế sao lưu kép L2 (`backup_registry_crash_control_v2`): Lưu đồng thời file JSON (nguồn sự thật) và file `.reg` an toàn (sử dụng cú pháp `"CrashDumpEnabled"=-` cho giá trị vốn không tồn tại).
+  - Xác nhận bắt buộc: Yêu cầu xác nhận rõ ràng trước khi ghi (`confirmed=True` hoặc cờ `--yes`).
+  - Kiểm tra đọc lại sau ghi (Read-after-write): Nếu giá trị đọc lại không khớp, tự động kích hoạt hoàn tác tự động ngay lập tức và cảnh báo cho người dùng.
+  - Hoàn tác 100% (`rollback_crash_dump`): Phục hồi chính xác trạng thái ban đầu, tự động gọi `DeleteValue` nếu ban đầu giá trị chưa từng tồn tại.
+  - Ghi nhật ký kiểm toán (Audit Log): Tự động lưu vết mọi thay đổi vào file `logs/dump_config_changes.jsonl` và bảng SQLite `dump_config_change`.
+- **Phần C — Giao diện GUI & Công cụ dòng lệnh CLI:**
+  - Tab GUI số 6 "Sẵn sàng ghi dump" (`src/dumpanalyzer/gui/tab_dump_readiness.py`):
+    - Khu vực 1 (Máy cục bộ): Huy hiệu trạng thái lớn, mức chứng minh, 4 thẻ chi tiết (Registry, Pagefile, Ổ đĩa/RAM, volmgr), danh sách lý do và khuyến nghị, các nút chức năng an toàn ([Kiểm tra lại], [Bật ghi dump], [Hoàn tác...], [Xuất gói triển khai], [Mở thư mục sao lưu]).
+    - Khu vực 2 (Toàn đội máy): Nút chọn thư mục chia sẻ mạng, 4 thẻ KPI tổng quan, bảng danh sách máy có bộ lọc trạng thái và ô tìm kiếm, nút [Xuất Excel báo cáo đội máy].
+    - Tab Kết luận: Bổ sung thanh cảnh báo màu nổi bật khi máy chưa ở trạng thái `READY`, kèm nút liên kết chuyển nhanh sang Tab Sẵn sàng ghi dump.
+  - Bổ sung 6 lệnh CLI mới trong `src/dumpanalyzer/cli.py`:
+    - `dumpanalyzer dump-readiness`: Kiểm tra và in báo cáo định dạng bảng hoặc JSON (`--json`), xuất file JSON (`--out`).
+    - `dumpanalyzer dump-enable`: Bật ghi dump tự động (mặc định 7) hoặc minidump (3) kèm sao lưu kép, mã thoát 2 khi cấu hình đã có sẵn (idempotent).
+    - `dumpanalyzer dump-rollback`: Hoàn tác từ bản sao lưu JSON, yêu cầu xác nhận hoặc `--yes`.
+    - `dumpanalyzer dump-package`: Xuất gói triển khai gồm `Enable-CrashDump.ps1`, `Rollback-CrashDump.ps1`, và `README_TRIEN_KHAI.txt`.
+    - `dumpanalyzer dump-fleet`: Tổng hợp các báo cáo JSON từ thư mục chia sẻ mạng, tính toán KPI và xuất Excel 3 sheet.
+    - `dumpanalyzer selftest`: Tự kiểm tra CSDL, quy tắc chẩn đoán và module sẵn sàng ghi dump.
+- **Phần D — Triển khai Toàn đội & Báo cáo Tổng hợp (`engine/deployment_package.py`):**
+  - Gói triển khai PowerShell an toàn:
+    - `Enable-CrashDump.ps1`: Tuân thủ ma trận 3.3, hỗ trợ tham số `[switch]$WhatIf`, sao lưu kép vào `%ProgramData%\DumpAnalyzer\backup`, xuất báo cáo JSON về thư mục chia sẻ mạng nếu có `-ReportDir`, không chứa lệnh khởi động lại.
+    - `Rollback-CrashDump.ps1`: Tự động tìm bản sao lưu JSON gần nhất hoặc theo đường dẫn chỉ định để hoàn tác sạch.
+  - Bộ tổng hợp đội máy (`aggregate_fleet_reports`): Xử lý bền vững các file JSON bị lỗi/hỏng cấu trúc, tự động phát hiện báo cáo cũ/lỗi thời (> 14 ngày).
+  - Báo cáo Excel 3 sheet (`export_fleet_readiness_excel`): Sheet 1 "Tổng quan KPI & Lý do", Sheet 2 "Danh sách máy trạm & Trạng thái", Sheet 3 "Máy cần can thiệp gấp".
+- **Phần E — Phân tích Không có Dump (`log_only`) & Bù đắp Dump Gap:**
+  - Chuẩn hoá mã lỗi BugcheckCode của Kernel-Power Event 41: Chuyển đổi chính xác từ decimal sang hex chuẩn (`f"0x{val:X}"`, lưu `bugcheck_hex_8` trong `extra_json`), phân loại mã 0 thành `non_bsod_reset` ("Tắt máy/Mất nguồn đột ngột, không có BSOD").
+  - Tính toán độ hẫng dump (`compute_dump_gap`, sửa L9): Đối chiếu số lần sập BSOD thực tế từ Event Log với số file dump thu thập được, loại trừ các lần sập trước thời điểm bật cấu hình, cảnh báo khi phát hiện dump bị thất thoát.
+- **Phần F — Cơ sở dữ liệu & Cấu hình:**
+  - Bổ sung bảng `dump_readiness` và `dump_config_change` vào `schema.sql` và CSDL SQLite.
+  - Quy tắc chẩn đoán mới `config/rules/dump_readiness.yaml` và cấu hình mặc định `dump_readiness` trong `settings.yaml`.
+  - Bộ kiểm thử tự động toàn diện `tests/test_dump_readiness.py` bao phủ 15 kịch bản theo yêu cầu tài liệu, chạy pass 100% trên Linux và Windows.
+
+---
+
 ## [v1.1.1] - 2026-11-03
 
 ### Bản vá HOTFIX 01 — Sửa lỗi đóng gói thiếu schema.sql
