@@ -1,0 +1,53 @@
+# ==============================================================================
+# QUY TẮC ĐÁNH GIÁ VÀ NGƯỠNG SẴN SÀNG GHI DUMP (dump_readiness.yaml)
+# Hỗ trợ cấu hình ngưỡng dung lượng, sự kiện volmgr và khuyến nghị tiếng Việt
+# ==============================================================================
+
+# 1. Ngưỡng dung lượng đĩa trống tối thiểu (GB) theo từng chế độ CrashDumpEnabled
+disk_thresholds_gb:
+  mode_1: # Complete memory dump (Toàn bộ RAM + 5GB)
+    ram_plus_gb: 5.0
+    min_gb: 15.0
+  mode_2: # Kernel memory dump (RAM + 5GB hoặc tối thiểu 10GB)
+    ram_plus_gb: 5.0
+    min_gb: 10.0
+  mode_7: # Automatic memory dump (Khuyến nghị Win 8/10/11)
+    ram_plus_gb: 5.0
+    min_gb: 10.0
+  mode_3: # Small memory dump (Minidump 64KB/256KB, tối thiểu 2GB trống)
+    ram_plus_gb: 0.0
+    min_gb: 2.0
+
+# 2. Ngưỡng Pagefile tối thiểu (MB) theo từng chế độ ghi dump
+# [CẦN XÁC MINH] Chế độ 1 (Complete) yêu cầu Pagefile >= RAM vật lý + 257 MB theo tài liệu Microsoft
+pagefile_thresholds_mb:
+  mode_1:
+    ram_plus_mb: 257
+  mode_2:
+    ram_plus_mb: 0
+  mode_7:
+    ram_plus_mb: 0
+  mode_3:
+    ram_plus_mb: 0
+
+# 3. Danh sách Event ID từ Provider 'volmgr' trong System Event Log
+volmgr_events:
+  # Các mã sự kiện biểu thị việc chuẩn bị hoặc ghi dump bị thất bại
+  failure_ids: [45, 46, 49, 161]
+  # Các mã sự kiện biểu thị việc ghi dump thành công
+  success_ids: [162]
+
+# 4. Từ điển khuyến nghị hành động khắc phục theo từng mã lý do (reason_codes)
+reason_recommendations:
+  DUMP_DISABLED: "Chức năng ghi dump đang bị TẮT hoàn toàn trong Registry (CrashDumpEnabled = 0). Bấm nút 'Bật ghi dump' để thiết lập chế độ Automatic."
+  DUMP_VALUE_MISSING: "Giá trị CrashDumpEnabled không tồn tại trong Registry CrashControl. Hãy bật ghi dump để tạo cấu hình chuẩn."
+  REGISTRY_UNREADABLE: "Không thể đọc khoá Registry CrashControl (lỗi truy cập). Hãy kiểm tra quyền hệ thống hoặc chạy bằng quyền Administrator."
+  DUMP_MODE_SMALL: "Máy đang chỉ ghi Small memory dump (Minidump). Khuyến nghị nâng cấp lên Automatic memory dump (chế độ 7) để lưu trữ đầy đủ bộ nhớ kernel."
+  PAGEFILE_MISSING: "Không phát hiện Pagefile trên ổ đĩa hệ thống (C:) và không có DedicatedDumpFile. Hãy vào Virtual Memory và bật 'Automatically manage paging file size for all drives'."
+  PAGEFILE_UNKNOWN: "Không thể xác định trạng thái Pagefile từ hệ thống (lỗi lệnh hoặc giới hạn quyền). Hãy kiểm tra thủ công trong System Properties."
+  PAGEFILE_TOO_SMALL: "Dung lượng Pagefile nhỏ hơn ngưỡng khuyến nghị cho chế độ dump hiện tại. Hãy cấu hình Pagefile tự động tăng trưởng."
+  DISK_LOW: "Dung lượng trống ổ hệ thống (C:) thấp hơn ngưỡng an toàn. Hãy dọn dẹp dung lượng bằng Disk Cleanup hoặc Storage Sense."
+  VOLMGR_FAILURE_RECENT: "Phát hiện sự kiện volmgr báo lỗi ghi dump gần đây. Hãy kiểm tra sức khoẻ ổ đĩa (SMART), cáp kết nối và driver bộ điều khiển lưu trữ."
+  DUMP_FILES_MISSING: "Số lần sập BSOD trong Event Log nhiều hơn số file dump tìm thấy. Có thể do công cụ dọn dẹp (Storage Sense, phần mềm tối ưu) đã xoá file, hoặc ổ đĩa bị đầy lúc sập."
+  PENDING_REBOOT: "Đã cập nhật cấu hình ghi dump trong Registry nhưng máy tính chưa khởi động lại. Cần khởi động lại máy để cấu hình có hiệu lực."
+  NOT_ADMIN: "Công cụ đang chạy không có quyền Administrator. Một số tính năng kiểm tra nâng cao và bật ghi dump bị giới hạn."

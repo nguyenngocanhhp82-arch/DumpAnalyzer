@@ -607,5 +607,197 @@ class Database:
             )
         return [dict(r) for r in cursor.fetchall()]
 
+    def insert_dump_readiness(self, record: Dict[str, Any]) -> int:
+        """Lưu hoặc cập nhật trạng thái sẵn sàng ghi dump của một máy (Đợt 04)."""
+        import datetime
+        conn = self._get_connection()
+        hostname = record.get("hostname", "UNKNOWN")
+        c_at = record.get("collected_at_utc") or datetime.datetime.now(datetime.timezone.utc).isoformat()
+        source = record.get("source", "local")
+        status = record.get("status", "UNKNOWN")
+        proof_level = record.get("proof_level", "none")
+        cde = record.get("crash_dump_enabled")
+        reg_ok = 1 if record.get("registry_read_ok", True) else 0
+        pf_state = record.get("pagefile_state", "unknown")
+        free_disk = record.get("free_disk_gb")
+        ram = record.get("ram_gb")
+        last_boot = record.get("last_boot_time_utc")
+        pending = 1 if record.get("pending_reboot") else 0
+
+        rc_json = record.get("reason_codes_json")
+        if rc_json is None and "reason_codes" in record:
+            rc_json = json.dumps(record["reason_codes"], ensure_ascii=False)
+        elif rc_json is None:
+            rc_json = "[]"
+
+        raw_j = record.get("raw_json")
+        if raw_j is None:
+            raw_j = json.dumps(record, ensure_ascii=False)
+
+        sql = """
+        INSERT INTO dump_readiness (
+            hostname, collected_at_utc, source, status, proof_level,
+            crash_dump_enabled, registry_read_ok, pagefile_state, free_disk_gb,
+            ram_gb, last_boot_time_utc, pending_reboot, reason_codes_json, raw_json
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ON CONFLICT(hostname, collected_at_utc) DO UPDATE SET
+            source=excluded.source,
+            status=excluded.status,
+            proof_level=excluded.proof_level,
+            crash_dump_enabled=excluded.crash_dump_enabled,
+            registry_read_ok=excluded.registry_read_ok,
+            pagefile_state=excluded.pagefile_state,
+            free_disk_gb=excluded.free_disk_gb,
+            ram_gb=excluded.ram_gb,
+            last_boot_time_utc=excluded.last_boot_time_utc,
+            pending_reboot=excluded.pending_reboot,
+            reason_codes_json=excluded.reason_codes_json,
+            raw_json=excluded.raw_json
+        """
+        with conn:
+            cursor = conn.execute(
+                sql,
+                (
+                    hostname, c_at, source, status, proof_level,
+                    cde, reg_ok, pf_state, free_disk, ram,
+                    last_boot, pending, rc_json, raw_j
+                )
+            )
+            return cursor.lastrowid
+
+    def get_latest_dump_readiness(self, hostname: Optional[str] = None) -> Optional[Dict[str, Any]]:
+        """Lấy bản ghi trạng thái sẵn sàng ghi dump gần nhất của một máy (hoặc toàn bộ)."""
+        conn = self._get_connection()
+        if hostname:
+            cursor = conn.execute(
+                "SELECT * FROM dump_readiness WHERE hostname = ? ORDER BY collected_at_utc DESC LIMIT 1",
+                (hostname,)
+            )
+        else:
+            cursor = conn.execute(
+                "SELECT * FROM dump_readiness ORDER BY collected_at_utc DESC LIMIT 1"
+            )
+        row = cursor.fetchone()
+        return dict(row) if row else None
+
+    def list_dump_readiness(self, limit: int = 100) -> List[Dict[str, Any]]:
+        """Lấy danh sách trạng thái sẵn sàng gần nhất cho từng máy tính."""
+        conn = self._get_connection()
+        sql = """
+        SELECT dr.* FROM dump_readiness dr
+        INNER JOIN (
+            SELECT hostname, MAX(collected_at_utc) as max_time
+            FROM dump_readiness
+            GROUP BY hostname
+        ) latest ON dr.hostname = latest.hostname AND dr.collected_at_utc = latest.max_time
+        ORDER BY dr.hostname ASC
+        LIMIT ?
+        """
+        cursor = conn.execute(sql, (limit,))
+        return [dict(r) for r in cursor.fetchall()]
+
+    def insert_dump_config_change(self, change: Dict[str, Any]) -> int:
+        """Ghi nhận nhật ký thay đổi cấu hình ghi dump (audit log)."""
+        import datetime
+        conn = self._get_connection()
+        hostname = change.get("hostname", "UNKNOWN")
+        c_at = change.get("changed_at_utc") or datetime.datetime.now(datetime.timezone.utc).isoformat()
+        actor = change.get("actor", "")
+        method = change.get("method", "local")
+        action = change.get("action", "enable")
+
+        old_val = change.get("old_values_json")
+        if old_val is None and "old_values" in change:
+            old_val = json.dumps(change["old_values"], ensure_ascii=False)
+        elif old_val is None and "previous_mode" in change:
+            old_val = json.dumps({"CrashDumpEnabled": change["previous_mode"], "previous_mode": change["previous_mode"]}, ensure_ascii=False)
+        elif old_val is None:
+            old_val = "{}"
+
+        new_val = change.get("new_values_json")
+        if new_val is None and "new_values" in change:
+            new_val = json.dumps(change["new_values"], ensure_ascii=False)
+        elif new_val is None and "new_mode" in change:
+            new_val = json.dumps({"CrashDumpEnabled": change["new_mode"], "new_mode": change["new_mode"]}, ensure_ascii=False)
+        elif new_val is None:
+            new_val = "{}"
+
+        backup_p = change.get("backup_path", "")
+        result = change.get("result", "success")
+        msg = change.get("message", change.get("notes", ""))
+        reboot = 1 if change.get("reboot_required") else 0
+
+        sql = """
+        INSERT INTO dump_config_change (
+            hostname, changed_at_utc, actor, method, action,
+            old_values_json, new_values_json, backup_path, result,
+            message, reboot_required
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """
+        with conn:
+            cursor = conn.execute(
+                sql,
+                (
+                    hostname, c_at, actor, method, action,
+                    old_val, new_val, backup_p, result, msg, reboot
+                )
+            )
+            return cursor.lastrowid
+
+    def _enrich_config_change(self, row_dict: Dict[str, Any]) -> Dict[str, Any]:
+        res = dict(row_dict)
+        if res.get("new_values_json"):
+            try:
+                nv = json.loads(res["new_values_json"])
+                if "new_mode" in nv:
+                    res["new_mode"] = nv["new_mode"]
+                elif "CrashDumpEnabled" in nv:
+                    res["new_mode"] = nv["CrashDumpEnabled"]
+            except Exception:
+                pass
+        if res.get("old_values_json"):
+            try:
+                ov = json.loads(res["old_values_json"])
+                if "previous_mode" in ov:
+                    res["previous_mode"] = ov["previous_mode"]
+                elif "CrashDumpEnabled" in ov:
+                    res["previous_mode"] = ov["CrashDumpEnabled"]
+            except Exception:
+                pass
+        return res
+
+    def get_latest_dump_config_change(self, hostname: Optional[str] = None) -> Optional[Dict[str, Any]]:
+        """Lấy bản ghi thay đổi cấu hình gần nhất của máy tính (hoặc toàn bộ)."""
+        conn = self._get_connection()
+        if hostname:
+            cursor = conn.execute(
+                "SELECT * FROM dump_config_change WHERE hostname = ? ORDER BY changed_at_utc DESC LIMIT 1",
+                (hostname,)
+            )
+        else:
+            cursor = conn.execute(
+                "SELECT * FROM dump_config_change ORDER BY changed_at_utc DESC LIMIT 1"
+            )
+        row = cursor.fetchone()
+        return self._enrich_config_change(dict(row)) if row else None
+
+    def list_dump_config_changes(
+        self, hostname: Optional[str] = None, limit: int = 100
+    ) -> List[Dict[str, Any]]:
+        """Lấy danh sách nhật ký thay đổi cấu hình ghi dump."""
+        conn = self._get_connection()
+        if hostname:
+            cursor = conn.execute(
+                "SELECT * FROM dump_config_change WHERE hostname = ? ORDER BY changed_at_utc DESC LIMIT ?",
+                (hostname, limit),
+            )
+        else:
+            cursor = conn.execute(
+                "SELECT * FROM dump_config_change ORDER BY changed_at_utc DESC LIMIT ?",
+                (limit,),
+            )
+        return [self._enrich_config_change(dict(r)) for r in cursor.fetchall()]
+
+
 
 

@@ -5,7 +5,6 @@ Kiểm tra:
 3. Lọc Provider cho Event 1001 (chỉ nhận WER-SystemErrorReporting hoặc BugCheck).
 """
 
-import pytest
 from dumpanalyzer.collectors.eventlog import parse_bugcheck_1001_message
 
 

@@ -2,7 +2,6 @@
 Unit tests cho module phân tích theo lô đa máy (FleetBatchAnalyzer).
 """
 
-import shutil
 from pathlib import Path
 import pytest
 from dumpanalyzer.analyzer.batch import FleetBatchAnalyzer

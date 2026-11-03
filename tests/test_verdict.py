@@ -8,7 +8,7 @@ import pytest
 from dumpanalyzer.core.models import Crash, Evidence, Finding, MachineInfo
 from dumpanalyzer.engine.rule_loader import load_all_rules
 from dumpanalyzer.core.config import load_settings
-from dumpanalyzer.engine.scorer import score_single_crash, score_machine_crashes
+from dumpanalyzer.engine.scorer import score_single_crash
 from dumpanalyzer.engine.verdict import (
     sort_next_steps_easy_to_hard,
     generate_crash_finding,

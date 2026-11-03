@@ -231,6 +231,19 @@ Nằm tại `config/rules/test_rules.yaml`, định nghĩa:
 
 ---
 
+### 2.9. `dump_readiness.yaml` — Quy tắc & Ngưỡng Sẵn sàng Ghi Dump (Đợt 04)
+Nằm tại `config/rules/dump_readiness.yaml`, quy định toàn diện các tham số chẩn đoán và triển khai an toàn:
+- `modes`: Mô tả và phân loại các chế độ ghi dump của Windows (0: Tắt, 1: Complete, 2: Kernel, 3: Small/Minidump, 7: Automatic).
+- `disk_thresholds`: Ngưỡng dung lượng trống ổ đĩa tối thiểu cho từng chế độ:
+  - `mode_7` (Automatic): Khuyến nghị RAM + 5 GB, tối thiểu 10 GB.
+  - `mode_3` (Small dump): Tối thiểu 2.0 GB.
+- `volmgr_rules`: Thời gian quét sự kiện volmgr (`lookback_days: 180`), danh sách mã lỗi (`161, 45, 46, 49`) và mã thành công (`162`).
+- `dump_gap_rules`: Cửa sổ đối chiếu giữa Kernel-Power Event 41 và file dump (`lookback_days: 90`, `match_window_minutes: 15`).
+- `fleet_rules`: Ngưỡng đánh dấu báo cáo đội máy cũ (`stale_days: 14`), số lượng máy xử lý song song (`remote_max_parallel: 5`).
+- `reason_codes`: Bảng mã lý do chuẩn hóa (`DUMP_DISABLED`, `DUMP_VALUE_MISSING`, `REGISTRY_UNREADABLE`, `DUMP_MODE_SMALL`, `PAGEFILE_MISSING`, `PAGEFILE_UNKNOWN`, `DISK_LOW`, `VOLMGR_FAILURE_RECENT`, `DUMP_FILES_MISSING`, `PENDING_REBOOT`, `NOT_ADMIN`).
+
+---
+
 ## 3. THAO TÁC KIỂM TRA TỰ ĐỘNG (VALIDATE RULES)
 
 Sau khi chỉnh sửa bất kỳ file YAML nào:

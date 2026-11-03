@@ -22,6 +22,7 @@ def export_html_report(
     machine_info: Optional[MachineInfo] = None,
     evidences: Optional[List[Evidence]] = None,
     suspect_ranking: Optional[List[Dict[str, Any]]] = None,
+    dump_readiness: Optional[Dict[str, Any]] = None,
 ) -> Path:
     """Xuất báo cáo định dạng HTML độc lập (standalone), có CSS nhúng đẹp mắt.
 
@@ -32,6 +33,7 @@ def export_html_report(
         machine_info: Thông tin máy tính (nếu có).
         evidences: Danh sách bằng chứng (nếu có).
         suspect_ranking: Danh sách xếp hạng nghi vấn (nếu có riêng).
+        dump_readiness: Dữ liệu trạng thái sẵn sàng ghi dump (Đợt 04).
 
     Returns:
         Path của file HTML đã ghi.
@@ -45,6 +47,24 @@ def export_html_report(
     cpu_info = machine_info.cpu if machine_info and machine_info.cpu else "Chưa rõ"
     ram_info = f"{getattr(machine_info, 'ram_total_gb', 0):.1f} GB" if machine_info and hasattr(machine_info, "ram_total_gb") and getattr(machine_info, "ram_total_gb") else getattr(machine_info, "model", "Chưa rõ")
     bios_info = getattr(machine_info, "bios", getattr(machine_info, "bios_version", "Chưa rõ")) if machine_info else "Chưa rõ"
+
+    # Thông tin sẵn sàng ghi dump (Đợt 04)
+    readiness_data = dump_readiness
+    if readiness_data is None:
+        try:
+            from dumpanalyzer.storage.db import Database
+            import json
+            db = Database()
+            row = db.get_latest_dump_readiness()
+            db.close()
+            if row:
+                readiness_data = json.loads(row["report_json"])
+        except Exception:
+            pass
+
+    readiness_status = readiness_data.get("result", {}).get("status", "UNKNOWN") if readiness_data else "Chưa kiểm tra"
+    readiness_summary = readiness_data.get("result", {}).get("summary", "") if readiness_data else ""
+    gap_count = readiness_data.get("dump_gap", {}).get("missing", 0) if readiness_data else 0
 
     # Xếp hạng nghi vấn
     suspect_ranks: List[Dict[str, Any]] = []
@@ -372,6 +392,17 @@ def export_html_report(
             <p>Thời điểm xuất báo cáo: <strong>{generated_time}</strong> | Hệ thống: <strong>{hostname}</strong></p>
         </div>
 
+        {f'''
+        <div style="background-color: #fef2f2; border: 2px solid #ef4444; border-radius: 8px; padding: 14px 18px; margin-bottom: 24px;">
+            <h3 style="margin: 0 0 6px 0; color: #991b1b; font-size: 15px;">⚠️ CẢNH BÁO KHẢ NĂNG GHI DUMP [{readiness_status}]</h3>
+            <p style="margin: 0; color: #7f1d1d; font-size: 13px;">
+                Máy tính này hiện chưa đạt trạng thái sẵn sàng ghi dump tối ưu ({readiness_summary}).
+                {f"Phát hiện thiếu {gap_count} file dump so với các lần tắt máy đột ngột BSOD Event 41." if gap_count > 0 else ""}
+                Vui lòng kiểm tra dung lượng ổ đĩa, bộ nhớ ảo (Pagefile) hoặc mở DumpAnalyzer để bật cấu hình ghi dump an toàn.
+            </p>
+        </div>
+        ''' if readiness_status not in ("READY", "Chưa kiểm tra") else ""}
+
         <!-- KPI GRID -->
         <div class="grid-2">
             <!-- CỘT 1: THÔNG TIN MÁY & KẾT LUẬN CHÍNH -->
@@ -386,6 +417,7 @@ def export_html_report(
                     <li><span class="label">Bộ xử lý (CPU):</span><span class="val">{cpu_info}</span></li>
                     <li><span class="label">Bộ nhớ RAM:</span><span class="val">{ram_info}</span></li>
                     <li><span class="label">Phiên bản BIOS:</span><span class="val">{bios_info}</span></li>
+                    <li><span class="label">Sẵn sàng ghi dump:</span><span class="val" style="color: {'#15803d' if readiness_status == 'READY' else '#dc2626'};">[{readiness_status}]</span></li>
                     <li><span class="label">Tổng số lần sập:</span><span class="val">{len(crashes)} sự cố</span></li>
                     <li><span class="label">Nguyên nhân hàng đầu:</span><span class="val" style="color: var(--primary);">{top_suspect}</span></li>
                 </ul>
@@ -497,6 +529,7 @@ def export_excel_report(
     evidences: Optional[List[Evidence]] = None,
     suspect_ranking: Optional[List[Dict[str, Any]]] = None,
     db: Optional[Any] = None,
+    dump_readiness: Optional[Dict[str, Any]] = None,
 ) -> Path:
     """Xuất báo cáo định dạng Microsoft Excel (.xlsx) với nhiều sheet trình bày rõ ràng.
 
@@ -511,6 +544,8 @@ def export_excel_report(
         machine_info: Thông tin máy tính.
         evidences: Danh sách bằng chứng.
         suspect_ranking: Danh sách xếp hạng xác suất nghi vấn.
+        db: Kết nối CSDL SQLite (nếu có).
+        dump_readiness: Dữ liệu trạng thái sẵn sàng ghi dump (Đợt 04).
 
     Returns:
         Path của file .xlsx đã ghi.
@@ -548,6 +583,23 @@ def export_excel_report(
     ws1["A2"] = f"Ngày xuất báo cáo: {datetime.now().strftime('%d/%m/%Y %H:%M:%S')}"
     ws1["A2"].font = font_regular
 
+    # Thông tin sẵn sàng ghi dump (Đợt 04)
+    readiness_data = dump_readiness
+    if readiness_data is None and db:
+        try:
+            import json
+            row = db.get_latest_dump_readiness()
+            if row:
+                readiness_data = json.loads(row["report_json"])
+        except Exception:
+            pass
+
+    st_str = "Chưa kiểm tra"
+    if readiness_data:
+        st_val = readiness_data.get("result", {}).get("status", "UNKNOWN")
+        sm_val = readiness_data.get("result", {}).get("summary", "")
+        st_str = f"[{st_val}] {sm_val}"
+
     # Thông tin máy
     row = 4
     ws1.cell(row=row, column=1, value="THÔNG TIN THIẾT BỊ").font = font_bold
@@ -558,6 +610,7 @@ def export_excel_report(
         ("Bộ xử lý (CPU)", machine_info.cpu if machine_info and machine_info.cpu else "Chưa rõ"),
         ("Bộ nhớ RAM", f"{getattr(machine_info, 'ram_total_gb', 0):.1f} GB" if machine_info and hasattr(machine_info, "ram_total_gb") and getattr(machine_info, "ram_total_gb") else getattr(machine_info, "model", "Chưa rõ")),
         ("Phiên bản BIOS", getattr(machine_info, "bios", getattr(machine_info, "bios_version", "Chưa rõ")) if machine_info else "Chưa rõ"),
+        ("Trạng thái sẵn sàng ghi dump", st_str),
         ("Tổng số lần sập phân tích", f"{len(crashes)} sự cố"),
     ]
     for label, val in meta:

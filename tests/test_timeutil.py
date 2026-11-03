@@ -2,7 +2,7 @@
 Kiểm thử chuẩn hoá múi giờ và thời gian UTC.
 """
 
-from datetime import datetime, timezone
+from datetime import timezone
 from dumpanalyzer.core.timeutil import (
     parse_to_utc,
     to_utc_iso,

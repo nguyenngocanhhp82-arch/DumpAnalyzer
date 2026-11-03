@@ -3,7 +3,6 @@ Kiểm thử module cấu hình và các file dữ liệu quy tắc.
 """
 
 import json
-from pathlib import Path
 import yaml
 from dumpanalyzer.core.config import (
     load_settings,

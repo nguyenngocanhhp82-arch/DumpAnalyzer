@@ -68,6 +68,7 @@ class VerdictTab(QWidget):
     """Tab Kết luận & Khuyến nghị hành động tiếp theo."""
 
     export_requested = Signal(str)  # Phát ra khi yêu cầu xuất ('html' hoặc 'excel')
+    open_readiness_tab_requested = Signal()  # Phát ra khi người dùng bấm xem chi tiết sẵn sàng ghi dump
 
     def __init__(self, parent: Optional[QWidget] = None):
         super().__init__(parent)
@@ -88,6 +89,34 @@ class VerdictTab(QWidget):
         main_layout = QVBoxLayout(self)
         main_layout.setContentsMargins(20, 20, 20, 20)
         main_layout.setSpacing(16)
+
+        # 0. Khung cảnh báo Sẵn sàng ghi dump (Warning Callout Box - Phần 6.3)
+        self.readiness_warning_frame = QFrame()
+        self.readiness_warning_frame.setStyleSheet(
+            "background-color: #450a0a; border: 1px solid #ef4444; border-radius: 8px; padding: 10px 14px;"
+        )
+        warn_layout = QHBoxLayout(self.readiness_warning_frame)
+        warn_layout.setContentsMargins(0, 0, 0, 0)
+        warn_layout.setSpacing(10)
+
+        lbl_warn_icon = QLabel("⚠️")
+        lbl_warn_icon.setStyleSheet("font-size: 20px;")
+        warn_layout.addWidget(lbl_warn_icon)
+
+        self.lbl_readiness_warning = QLabel("")
+        self.lbl_readiness_warning.setStyleSheet("color: #fca5a5; font-size: 13px; font-weight: 500;")
+        self.lbl_readiness_warning.setWordWrap(True)
+        warn_layout.addWidget(self.lbl_readiness_warning, 1)
+
+        btn_go_readiness = QPushButton("Kiểm tra tab Sẵn sàng ghi dump ➜")
+        btn_go_readiness.setStyleSheet(
+            "background-color: #7f1d1d; color: #ffffff; font-weight: bold; padding: 6px 12px; border-radius: 4px; border: 1px solid #ef4444;"
+        )
+        btn_go_readiness.clicked.connect(self.open_readiness_tab_requested.emit)
+        warn_layout.addWidget(btn_go_readiness)
+
+        self.readiness_warning_frame.setVisible(False)
+        main_layout.addWidget(self.readiness_warning_frame)
 
         # QSplitter chia 2 cột: Cột trái (Xếp hạng & Bằng chứng), Cột phải (Rationale & Các bước kiểm tra)
         splitter = QSplitter(Qt.Horizontal)
@@ -337,6 +366,7 @@ class VerdictTab(QWidget):
         evidences: Optional[List[Evidence]] = None,
         suspect_ranking: Optional[List[Dict[str, Any]]] = None,
         conflict_detected: bool = False,
+        dump_readiness: Optional[Dict[str, Any]] = None,
     ) -> None:
         """Cập nhật dữ liệu chẩn đoán và khuyến nghị lên giao diện."""
         self._crashes = list(crashes)
@@ -344,6 +374,36 @@ class VerdictTab(QWidget):
         self._machine_info = machine_info
         self._evidences = list(evidences or [])
         self._suspect_ranking = list(suspect_ranking or [])
+
+        # Kiểm tra và hiển thị Cảnh báo Sẵn sàng ghi dump (Phần 6.3)
+        readiness_report = dump_readiness
+        if readiness_report is None:
+            try:
+                db = self._get_db()
+                row = db.get_latest_dump_readiness()
+                if row:
+                    import json
+                    readiness_report = json.loads(row["report_json"])
+            except Exception:
+                pass
+
+        if readiness_report:
+            st = readiness_report.get("result", {}).get("status", "UNKNOWN")
+            if st != "READY":
+                summary_txt = readiness_report.get("result", {}).get("summary", "")
+                gap_info = readiness_report.get("dump_gap") or {}
+                missing_cnt = gap_info.get("missing", 0)
+                gap_str = f" (Dump Gap = {missing_cnt} dump bị thiếu)" if missing_cnt > 0 else ""
+                self.lbl_readiness_warning.setText(
+                    f"CẢNH BÁO KHẢ NĂNG GHI DUMP: Máy tính này hiện có trạng thái [{st}] ({summary_txt})."
+                    f"{gap_str}\nCác lần sập gần đây có thể không ghi được dump đầy đủ. "
+                    f"Vui lòng mở tab 'Sẵn sàng ghi dump' để kiểm tra và khắc phục."
+                )
+                self.readiness_warning_frame.setVisible(True)
+            else:
+                self.readiness_warning_frame.setVisible(False)
+        else:
+            self.readiness_warning_frame.setVisible(False)
 
         # 1. Cập nhật Thẻ kết luận chính & Độ tin cậy
         if finding:

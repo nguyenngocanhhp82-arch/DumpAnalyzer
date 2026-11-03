@@ -11,7 +11,6 @@ import pytest
 # Thiết lập nền tảng offscreen để chạy kiểm thử Qt không cần màn hình đồ họa
 os.environ["QT_QPA_PLATFORM"] = "offscreen"
 
-from PySide6.QtCore import Qt
 from PySide6.QtWidgets import QApplication, QLabel, QMessageBox
 
 from dumpanalyzer.core.models import Crash, Evidence, Finding, MachineInfo
@@ -135,12 +134,13 @@ def test_main_window_structure(qapp, mock_msgbox):
     win.show()
 
     assert win.windowTitle() == "DumpAnalyzer – Phân tích màn hình xanh & khởi động lại"
-    assert win.tabs.count() == 5
+    assert win.tabs.count() == 6
     assert win.tabs.tabText(0) == "Tổng quan"
     assert win.tabs.tabText(1) == "Chi tiết crash"
     assert win.tabs.tabText(2) == "Kết luận"
-    assert win.tabs.tabText(3) == "Kiểm tra phần cứng"
-    assert win.tabs.tabText(4) == "Cài đặt"
+    assert win.tabs.tabText(3) == "Sẵn sàng ghi dump"
+    assert win.tabs.tabText(4) == "Kiểm tra phần cứng"
+    assert win.tabs.tabText(5) == "Cài đặt"
 
 
 def test_overview_tab_kpi_and_badges(qapp, mock_msgbox, sample_gui_data):

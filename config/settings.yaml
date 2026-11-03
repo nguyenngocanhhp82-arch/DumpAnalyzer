@@ -95,3 +95,20 @@ asset_csv_mapping:
   ram: ["ram", "bộ nhớ", "dung lượng ram"]
   notes: ["ghi chú", "notes", "lịch sử sửa chữa", "tình trạng"]
 
+# ==============================================================================
+# CẤU HÌNH ĐÁNH GIÁ VÀ QUẢN LÝ SẴN SÀNG GHI DUMP (Đợt 04 - v1.2.0)
+# ==============================================================================
+dump_readiness:
+  target_mode: 7
+  set_log_event: false
+  allow_pagefile_fix: false
+  backup_dir: "backup"
+  share_dir: ""            # Thư mục chia sẻ chứa báo cáo JSON của đội máy
+  stale_days: 14
+  volmgr_lookback_days: 180
+  dump_gap_days: 90
+  dump_gap_match_minutes: 15
+  remote_enabled: false
+  remote_max_parallel: 5
+
+
