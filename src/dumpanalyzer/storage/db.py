@@ -5,10 +5,28 @@ Quản lý kết nối và thao tác với Cơ sở dữ liệu SQLite cho DumpA
 
 import json
 import sqlite3
+import sys
 from pathlib import Path
 from typing import Optional, List, Dict, Any, Union
 from dumpanalyzer.core.config import get_project_root
 from dumpanalyzer.core.models import MachineInfo, Crash, Evidence, Finding
+
+
+def _find_schema_file() -> Path:
+    """Xác định đường dẫn file schema.sql tin cậy cho cả môi trường dev lẫn đóng gói PyInstaller."""
+    tried = []
+    base = getattr(sys, "_MEIPASS", None)
+    if base:
+        tried.append(Path(base) / "dumpanalyzer" / "storage" / "schema.sql")
+        tried.append(Path(base) / "storage" / "schema.sql")
+    tried.append(Path(__file__).resolve().parent / "schema.sql")
+    for p in tried:
+        if p.is_file():
+            return p
+    raise FileNotFoundError(
+        "Không tìm thấy schema.sql. Đã thử:\n  " + "\n  ".join(str(p) for p in tried)
+        + "\nGợi ý: bản đóng gói thiếu file dữ liệu, hãy build lại bằng DumpAnalyzer.spec mới."
+    )
 
 
 def get_default_db_path() -> Path:
@@ -40,9 +58,7 @@ class Database:
 
     def _init_db(self) -> None:
         """Tạo các bảng CSDL từ schema.sql nếu chưa tồn tại."""
-        schema_file = Path(__file__).resolve().parent / "schema.sql"
-        if not schema_file.exists():
-            raise FileNotFoundError(f"Không tìm thấy file schema SQL tại {schema_file}")
+        schema_file = _find_schema_file()
 
         with open(schema_file, "r", encoding="utf-8") as f:
             schema_sql = f.read()
