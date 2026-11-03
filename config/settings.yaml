@@ -34,6 +34,9 @@ auto_cleanup_copied_dumps: false
 # Khoảng thời gian (phút) trước khi sập để quét các sự kiện nghi ngờ trong Event Log
 event_window_minutes: 10
 
+# Thời gian tối đa cho lệnh PowerShell đọc Event Log (giây)
+eventlog_timeout_seconds: 120
+
 # Số ngày trước lần sập đầu tiên để kiểm tra các bản cập nhật / phần mềm mới cài đặt
 update_history_days: 7
 

@@ -753,7 +753,11 @@ def cmd_events(args):
     print("\n--- THU THẬP & TƯƠNG QUAN SỰ KIỆN EVENT LOG (System Log) ---")
 
     db = Database()
-    events = read_system_events(from_date=args.from_date, to_date=args.to_date)
+    events = read_system_events(
+        from_date=args.from_date,
+        to_date=args.to_date,
+        debug_ps=getattr(args, "debug_ps", False),
+    )
 
     if not events:
         print("[!] Không tìm thấy sự kiện nghi vấn nào trong khoảng thời gian đã chọn (hoặc đang chạy trên Linux).")
@@ -1018,6 +1022,12 @@ def build_parser() -> argparse.ArgumentParser:
         "--to",
         dest="to_date",
         help="Lọc sự kiện đến ngày này (định dạng: YYYY-MM-DD)",
+    )
+    parser_events.add_argument(
+        "--debug-ps",
+        dest="debug_ps",
+        action="store_true",
+        help="In ra chi tiết script PowerShell và output thô để kiểm tra lỗi",
     )
     parser_events.set_defaults(func=cmd_events)
 

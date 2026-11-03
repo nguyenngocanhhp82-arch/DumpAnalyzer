@@ -184,10 +184,84 @@ def parse_bugcheck_1001_message(message: str) -> Dict[str, Any]:
     return res
 
 
+from dumpanalyzer.core.config import load_settings
+
+
+def build_eventlog_script(
+    from_date: Optional[Union[str, datetime]] = None,
+    to_date: Optional[Union[str, datetime]] = None,
+    providers: Optional[List[str]] = None,
+    ids: Optional[List[int]] = None,
+) -> str:
+    """
+    Xây dựng câu lệnh PowerShell sử dụng Get-WinEvent -FilterHashtable và ForEach-Object.
+    - Đặt [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
+    - Lọc trực tiếp ProviderName và Id bằng FilterHashtable
+    - Sử dụng try/catch để bắt trường hợp không có sự kiện và trả về mảng rỗng []
+    """
+    from_dt = parse_to_utc(from_date) if from_date else None
+    to_dt = parse_to_utc(to_date) if to_date else None
+
+    # Lấy danh sách provider và ID mặc định nếu không truyền
+    if providers is None:
+        prov_list = list(CURATED_EVENT_PROVIDERS.keys())
+    else:
+        prov_list = providers
+
+    if ids is None:
+        all_ids = set()
+        for p_ids in CURATED_EVENT_PROVIDERS.values():
+            all_ids.update(p_ids)
+        id_list = sorted(all_ids)
+    else:
+        id_list = ids
+
+    prov_str = ", ".join(f"'{p}'" for p in prov_list)
+    id_str = ", ".join(str(i) for i in id_list)
+
+    filter_lines = [
+        "    LogName = 'System'",
+        f"    ProviderName = @({prov_str})",
+        f"    Id = @({id_str})",
+    ]
+    if from_dt:
+        filter_lines.append(f"    StartTime = [datetime]'{from_dt.strftime('%Y-%m-%dT%H:%M:%SZ')}'")
+    if to_dt:
+        filter_lines.append(f"    EndTime = [datetime]'{to_dt.strftime('%Y-%m-%dT%H:%M:%SZ')}'")
+
+    filter_body = "\n".join(filter_lines)
+
+    ps_script = f"""[Console]::OutputEncoding = [System.Text.Encoding]::UTF8
+$filter = @{{
+{filter_body}
+}}
+
+try {{
+    $events = Get-WinEvent -FilterHashtable $filter -ErrorAction Stop
+    $events | ForEach-Object {{
+        [PSCustomObject]@{{
+            Xml = $_.ToXml()
+            Message = $_.Message
+        }}
+    }} | ConvertTo-Json -Depth 4 -Compress
+}} catch {{
+    if ($_.FullyQualifiedErrorId -match 'NoMatchingEventsFound' -or $_.Exception.Message -match 'No events were found') {{
+        Write-Output '[]'
+        exit 0
+    }} else {{
+        [Console]::Error.WriteLine($_.Exception.Message)
+        exit 1
+    }}
+}}
+"""
+    return ps_script
+
+
 def read_system_events(
     from_date: Optional[Union[str, datetime]] = None,
     to_date: Optional[Union[str, datetime]] = None,
     mock_events: Optional[List[Dict[str, Any]]] = None,
+    debug_ps: bool = False,
 ) -> List[Dict[str, Any]]:
     """
     Thu thập các sự kiện trọng yếu từ Windows System Log trong khoảng thời gian chỉ định.
@@ -196,47 +270,19 @@ def read_system_events(
     if mock_events is not None:
         return mock_events
 
+    ps_script = build_eventlog_script(from_date=from_date, to_date=to_date)
+
     if sys.platform != "win32":
+        if debug_ps:
+            print("\n=== DEBUG POWERSHELL ===")
+            print(f"Script:\n{ps_script.strip()}")
+            print("Môi trường: non-Windows (chỉ hiển thị script, không thực thi).")
+            print("========================\n")
         logger.info("Môi trường non-Windows: Không thể gọi trực tiếp Windows Event Log.")
         return []
 
-    from_dt = parse_to_utc(from_date) if from_date else None
-    to_dt = parse_to_utc(to_date) if to_date else None
-
-    # Xây dựng lệnh PowerShell truy vấn Get-WinEvent xuất XML
-    ps_filter = "@{LogName='System';"
-    if from_dt:
-        ps_filter += f" StartTime=[datetime]'{from_dt.strftime('%Y-%m-%dT%H:%M:%SZ')}';"
-    if to_dt:
-        ps_filter += f" EndTime=[datetime]'{to_dt.strftime('%Y-%m-%dT%H:%M:%SZ')}';"
-    ps_filter += "}"
-
-    ps_script = f"""
-    $events = Get-WinEvent -FilterHashtable {ps_filter} -ErrorAction SilentlyContinue |
-        Where-Object {{
-            $id = $_.Id
-            $prov = $_.ProviderName
-            ($id -eq 41 -and $prov -match 'Kernel-Power') -or
-            ($id -eq 6008) -or
-            ($id -eq 1001) -or
-            ($prov -match 'WHEA-Logger') -or
-            ($prov -eq 'Disk') -or
-            ($prov -eq 'stornvme' -or $prov -eq 'storahci') -or
-            ($prov -eq 'Display' -or $prov -eq 'nvlddmkm') -or
-            ($prov -eq 'Ntfs') -or
-            ($prov -eq 'volmgr') -or
-            ($prov -match 'WindowsUpdateClient') -or
-            ($prov -eq 'MsiInstaller') -or
-            ($id -eq 1074)
-        }}
-    
-    foreach ($e in $events) {{
-        [PSCustomObject]@{{
-            Xml = $e.ToXml()
-            Message = $e.Message
-        }}
-    }} | ConvertTo-Json -Depth 4
-    """
+    settings = load_settings()
+    timeout = int(settings.get("eventlog_timeout_seconds", 120))
 
     try:
         proc = subprocess.run(
@@ -245,13 +291,26 @@ def read_system_events(
             text=True,
             encoding="utf-8",
             errors="replace",
-            timeout=60,
+            timeout=timeout,
         )
-        if proc.returncode != 0 or not proc.stdout.strip():
-            logger.debug(f"PowerShell Get-WinEvent kết thúc với mã {proc.returncode}")
+
+        if debug_ps:
+            print("\n=== DEBUG POWERSHELL ===")
+            print(f"Script:\n{ps_script.strip()}")
+            print(f"ReturnCode: {proc.returncode}")
+            print(f"Stderr: {proc.stderr.strip()}")
+            print(f"Output (500 chars):\n{proc.stdout[:500]}")
+            print("========================\n")
+
+        if proc.returncode != 0:
+            err_msg = proc.stderr.strip() or f"Mã lỗi {proc.returncode}"
+            logger.warning(f"Lỗi khi thực thi PowerShell đọc Event Log: {err_msg}")
             return []
 
         raw_json = proc.stdout.strip()
+        if not raw_json or raw_json == "[]":
+            return []
+
         data_list = json.loads(raw_json) if raw_json.startswith("[") or raw_json.startswith("{") else []
         if isinstance(data_list, dict):
             data_list = [data_list]
@@ -276,6 +335,14 @@ def read_system_events(
         parsed_events.sort(key=lambda x: x["time_created_utc"] or "")
         return parsed_events
 
+    except subprocess.TimeoutExpired:
+        logger.warning(f"Lệnh PowerShell đọc Event Log bị quá thời gian ({timeout}s).")
+        if debug_ps:
+            print("\n=== DEBUG POWERSHELL ===")
+            print(f"Script:\n{ps_script.strip()}")
+            print(f"Lỗi: Quá thời gian chờ ({timeout} giây)")
+            print("========================\n")
+        return []
     except Exception as e:
         logger.error(f"Lỗi khi đọc Windows Event Log: {e}")
         return []
