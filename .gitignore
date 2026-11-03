@@ -32,4 +32,6 @@ backup/
 # PyInstaller build artifacts
 build/
 dist/
+*.egg-info/
+
 

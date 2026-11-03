@@ -34,7 +34,16 @@ Mọi thay đổi quan trọng của dự án DumpAnalyzer được ghi lại t�
   - Bổ sung thuật toán `calculate_fast_hash` (kích thước + mtime + sha256 1MB đầu + 1MB cuối) làm khoá cache cho file dump lớn.
   - Đảm bảo `.gitignore` và `DumpAnalyzer.spec` / `build_exe.py` loại trừ hoàn toàn `data/*.db`, `workspace/`, `logs/`.
 
+### Sửa lỗi CI (Đợt Cập nhật 03)
+- **Cấu hình phụ thuộc dev (`pyproject.toml`):**
+  - Thêm `ruff>=0.5.0` vào nhóm `dev` trong `pyproject.toml` để runner CI tự động cài đặt công cụ lint.
+  - Thiết lập cấu hình `[tool.ruff]` và `[tool.ruff.lint]` (`select = ["F"]`, `line-length = 120`, `target-version = "py311"`) đảm bảo kết quả lint đồng nhất tuyệt đối giữa môi trường dev và CI.
+- **Quy trình GitHub Actions (`.github/workflows/build.yml`):**
+  - Gọi công cụ lint qua `python -m ruff check src` thay vì `ruff` trực tiếp để loại bỏ hoàn toàn lỗi `"The term 'ruff' is not recognized"` trên runner Windows PowerShell.
+  - Duy trì biến môi trường `PYTHONIOENCODING: "utf-8"` và `PYTHONUTF8: "1"` để xử lý triệt để bảng mã cp1252.
+
 ---
+
 
 ## [v1.0.0] - 2026-10-29
  

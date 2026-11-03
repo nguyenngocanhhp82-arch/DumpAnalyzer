@@ -44,9 +44,10 @@ jobs:
           python -m pip install --upgrade pip
           pip install -e .[gui,report,dev]
 
-      - name: Run Ruff Lint Check
+      - name: Lint (ruff - kiem tra ten chua dinh nghia, import thua)
         run: |
-          ruff check src --select F
+          python -m ruff check src
+
 
       - name: Run Pytest Suite
 
