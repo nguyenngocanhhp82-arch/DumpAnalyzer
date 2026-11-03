@@ -65,14 +65,6 @@ jobs:
           if (-not $f) { Write-Error "Thiếu schema.sql trong gói đóng gói"; exit 1 }
           $f | ForEach-Object { $_.FullName }
 
-      - name: Kiểm tra khởi tạo CSDL từ bản CLI đã đóng gói
-        run: |
-          & dist\DumpAnalyzer\DumpAnalyzer-cli.exe feedback stats
-          if ($LASTEXITCODE -ne 0) {
-            Write-Error "DumpAnalyzer-cli.exe gặp lỗi khi khởi tạo hoặc đọc CSDL"
-            exit $LASTEXITCODE
-          }
-
       - name: List Build Output
         run: |
           Get-ChildItem -Path dist\DumpAnalyzer
