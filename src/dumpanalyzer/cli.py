@@ -30,6 +30,19 @@ from dumpanalyzer.collectors.dump_config import (
     evaluate_readiness,
     apply_automatic_dump,
     CRASH_DUMP_MODES,
+    collect_dump_readiness,
+    enable_crash_dump,
+    rollback_crash_dump,
+    STATUS_READY,
+    STATUS_READY_PENDING_REBOOT,
+    STATUS_ATTENTION,
+    STATUS_BLOCKED,
+    STATUS_UNKNOWN,
+)
+from dumpanalyzer.engine.deployment_package import (
+    generate_deployment_package,
+    aggregate_fleet_reports,
+    export_fleet_readiness_excel,
 )
 from dumpanalyzer.analyzer.cdb_runner import (
     analyze_dump_file,
@@ -1063,6 +1076,329 @@ def cmd_asset(args):
     return 0
 
 
+def cmd_dump_readiness(args):
+    """Báo cáo khả năng sẵn sàng ghi dump của máy cục bộ (Đợt 04)."""
+    db = Database()
+    try:
+        report = collect_dump_readiness(db=db)
+    finally:
+        db.close()
+
+    if getattr(args, "json", False):
+        json_str = json.dumps(report, indent=2, ensure_ascii=False)
+        if getattr(args, "out", None):
+            Path(args.out).write_text(json_str, encoding="utf-8")
+            print(f"[OK] Đã ghi báo cáo JSON ra: {args.out}")
+        else:
+            print(json_str)
+        return 0
+
+    print_banner()
+    print("\n======================================================================")
+    print("      BÁO CÁO KHẢ NĂNG SẴN SÀNG GHI DUMP (DUMP READINESS)")
+    print("======================================================================")
+    print(f"Máy tính:           {report.get('hostname')} ({report.get('os', {}).get('caption')})")
+    print(f"Thời điểm thu thập: {report.get('collected_at_utc')}")
+    print(f"Quyền chạy:         {'Administrator' if report.get('is_admin') else 'User thường (NOT_ADMIN)'}")
+
+    res = report.get("result", {})
+    status = res.get("status", "UNKNOWN")
+    proof = res.get("proof_level", "none")
+    proof_str = "Đã có bằng chứng ghi dump thành công" if proof == "evidence_of_success" else "Chưa có bằng chứng thực tế"
+
+    print("\n----------------------------------------------------------------------")
+    print(f"TRẠNG THÁI TỔNG:    [{status}]")
+    print(f"Mức chứng minh:     {proof_str}")
+    print(f"Tóm tắt:            {res.get('summary')}")
+    print("----------------------------------------------------------------------")
+
+    reg = report.get("registry", {})
+    cde = reg.get("crash_dump_enabled")
+    mode_desc = CRASH_DUMP_MODES.get(cde, "Không xác định") if cde is not None else "Không tồn tại"
+    print(f"\n1. Cấu hình Registry:     CrashDumpEnabled = {cde} ({mode_desc})")
+    print(f"   Đọc thành công:        {'Có' if reg.get('read_ok') else 'Không'}")
+
+    pf = report.get("pagefile", {})
+    print(f"\n2. Bộ nhớ ảo (Pagefile):  Trạng thái: {pf.get('state', 'unknown').upper()}")
+    print(f"   Dung lượng ổ C:        {pf.get('system_drive_size_mb', 0)} MB")
+    print(f"   Tự động quản lý:       {'Có' if pf.get('automatic_managed') else 'Không'}")
+
+    disk = report.get("disk", {})
+    print(f"\n3. Ổ đĩa & RAM:           Ổ hệ thống {disk.get('system_drive')}: Trống {disk.get('free_gb', 0)} GB")
+    print(f"   Dung lượng RAM:        {report.get('ram_gb', 0)} GB")
+
+    vm = report.get("volmgr", {})
+    if vm.get("last_failure_utc"):
+        print(f"\n4. Lỗi ghi dump (volmgr): Lỗi gần nhất lúc {vm.get('last_failure_utc')}")
+    if vm.get("last_success_utc"):
+        print(f"   Ghi thành công:        Lần gần nhất lúc {vm.get('last_success_utc')}")
+
+    gap = report.get("dump_gap")
+    if gap and gap.get("missing", 0) > 0:
+        print(f"\n5. Đối chiếu sự cố (Gap): Thiếu {gap.get('missing')} file dump so với {gap.get('expected_bsod')} lần BSOD Event 41")
+
+    rcs = res.get("reason_codes", [])
+    if rcs:
+        print("\nDANH SÁCH LÝ DO VÀ CẢNH BÁO:")
+        for idx, rc in enumerate(rcs, 1):
+            print(f"  {idx}. [{rc.get('level', '').upper()}] {rc.get('code')}: {rc.get('detail')}")
+
+    recs = res.get("recommendations", [])
+    if recs:
+        print("\nKHUYẾN NGHỊ HÀNH ĐỘNG:")
+        for idx, rec in enumerate(recs, 1):
+            print(f"  * {rec}")
+
+    act = report.get("enable_action", {})
+    print(f"\nKhả năng bật ghi dump:  {'CHO PHÉP' if act.get('allowed') else 'BỊ CHẶN'}")
+    if not act.get("allowed") and act.get("blocked_by"):
+        print(f"Lý do chặn:             {', '.join(act.get('blocked_by'))}")
+
+    print("======================================================================\n")
+
+    if getattr(args, "out", None):
+        json_str = json.dumps(report, indent=2, ensure_ascii=False)
+        Path(args.out).write_text(json_str, encoding="utf-8")
+        print(f"[OK] Đã xuất báo cáo ra file: {args.out}")
+
+    return 0
+
+
+def cmd_dump_enable(args):
+    """Thực hiện bật ghi dump an toàn cho máy cục bộ (Đợt 04)."""
+    print_banner()
+    mode = getattr(args, "mode", 7) or 7
+
+    # 1. Kiểm tra quyền Admin (Exit code 3)
+    from dumpanalyzer.core.config import is_running_as_admin
+    if not is_running_as_admin():
+        print("\n[!] LỖI: Cần quyền Administrator để thay đổi cấu hình Registry hệ thống.")
+        print("    Vui lòng nhấp chuột phải vào Terminal / Command Prompt và chọn 'Run as administrator'.")
+        return 3
+
+    # 2. Đánh giá khả năng bật
+    db = Database()
+    try:
+        readiness = collect_dump_readiness(target_mode=mode, db=db)
+    finally:
+        db.close()
+
+    act = readiness.get("enable_action", {})
+    if not act.get("allowed", False):
+        print("\n[X] KHÔNG THỂ BẬT GHI DUMP THEO MA TRẬN QUYẾT ĐỊNH:")
+        for blk in act.get("blocked_by", []):
+            print(f"  - {blk}")
+        print("\nVui lòng khắc phục các điều kiện trên trước khi bật ghi dump.")
+        return 5
+
+    # 3. Xác nhận tương tác nếu không có --yes
+    if not getattr(args, "yes", False):
+        hostname = readiness.get("hostname", "Cục bộ")
+        cur_cde = readiness.get("registry", {}).get("crash_dump_enabled")
+        cur_desc = CRASH_DUMP_MODES.get(cur_cde, "Không xác định") if cur_cde is not None else "Chưa có cấu hình"
+        target_desc = CRASH_DUMP_MODES.get(mode, f"Chế độ {mode}")
+
+        print("\n======================================================================")
+        print(f"          XÁC NHẬN BẬT GHI DUMP CHO MÁY: {hostname}")
+        print("======================================================================")
+        print(f"Hiện trạng:  CrashDumpEnabled = {cur_cde} ({cur_desc})")
+        print(f"Sẽ đổi thành: CrashDumpEnabled = {mode} ({target_desc})")
+        print("Sao lưu:     Tự động tạo bản sao lưu .json và .reg đầy đủ trước khi sửa.")
+        print("LƯU Ý:       Cần KHỞI ĐỘNG LẠI MÁY để cấu hình có hiệu lực.")
+        print("             Phần mềm TUYỆT ĐỐI KHÔNG tự khởi động lại máy.")
+        if act.get("needs_confirm_notes"):
+            print("Cảnh báo:   " + "\n             ".join(act.get("needs_confirm_notes")))
+        print("======================================================================")
+
+        try:
+            ans = input("\nBạn có chắc chắn muốn thực hiện thay đổi này? (y/N): ").strip().lower()
+        except EOFError:
+            ans = "n"
+
+        if ans not in ("y", "yes"):
+            print("\n[!] Đã huỷ thao tác. Không có thay đổi nào được thực hiện.")
+            return 4
+
+    # 4. Thực thi bật dump
+    db = Database()
+    try:
+        res = enable_crash_dump(target_mode=mode, confirmed=True, actor="cli_admin", db=db)
+    finally:
+        db.close()
+
+    if res.get("success"):
+        print(f"\n[OK] {res.get('message')}\n")
+        if not res.get("changed", True):
+            return 2
+        return 0
+    else:
+        print(f"\n[X] LỖI: {res.get('message')}\n")
+        return 1
+
+
+def cmd_dump_rollback(args):
+    """Hoàn tác cấu hình ghi dump từ bản sao lưu JSON (Đợt 04)."""
+    print_banner()
+    from dumpanalyzer.core.config import is_running_as_admin
+    if not is_running_as_admin():
+        print("\n[!] LỖI: Cần quyền Administrator để hoàn tác cấu hình Registry.")
+        return 3
+
+    backup_path = args.backup
+    if not Path(backup_path).is_file():
+        print(f"\n[!] LỖI: Không tìm thấy file sao lưu JSON tại: {backup_path}")
+        return 1
+
+    if not getattr(args, "yes", False):
+        print("\n======================================================================")
+        print("          XÁC NHẬN HOÀN TÁC CẤU HÌNH CRASHCONTROL")
+        print("======================================================================")
+        print(f"File sao lưu: {backup_path}")
+        print("LƯU Ý:        Cần KHỞI ĐỘNG LẠI MÁY để Windows áp dụng lại cấu hình cũ.")
+        print("======================================================================")
+        try:
+            ans = input("\nBạn có chắc chắn muốn hoàn tác về trạng thái trong file này? (y/N): ").strip().lower()
+        except EOFError:
+            ans = "n"
+
+        if ans not in ("y", "yes"):
+            print("\n[!] Đã huỷ thao tác hoàn tác.")
+            return 4
+
+    db = Database()
+    try:
+        res = rollback_crash_dump(backup_path, confirmed=True, actor="cli_admin", db=db)
+    finally:
+        db.close()
+
+    if res.get("success"):
+        print(f"\n[OK] {res.get('message')}\n")
+        return 0
+    else:
+        print(f"\n[X] LỖI: {res.get('message')}\n")
+        return 1
+
+
+def cmd_dump_package(args):
+    """Tạo gói triển khai bật ghi dump hàng loạt cho đội máy (Đợt 04)."""
+    print_banner()
+    out_dir = args.out
+    print("\n--- TẠO GÓI TRIỂN KHAI BẬT GHI DUMP (DEPLOYMENT PACKAGE) ---")
+    print(f"[*] Thư mục đích: {out_dir}")
+
+    try:
+        pkg_path = generate_deployment_package(out_dir)
+        print("\n[OK] ĐÃ TẠO GÓI TRIỂN KHAI THÀNH CÔNG:")
+        print(f"  - Script bật:     {pkg_path / 'Enable-CrashDump.ps1'}")
+        print(f"  - Script hoàn tác: {pkg_path / 'Rollback-CrashDump.ps1'}")
+        print(f"  - Tài liệu HD:    {pkg_path / 'README_TRIEN_KHAI.txt'}")
+        print("\nBạn có thể copy thư mục này vào mạng chia sẻ hoặc cấu hình GPO Startup Script.")
+        return 0
+    except Exception as e:
+        print(f"\n[X] Lỗi khi tạo gói triển khai: {e}")
+        return 1
+
+
+def cmd_dump_fleet(args):
+    """Tổng hợp trạng thái sẵn sàng ghi dump của toàn bộ đội máy tính (Đợt 04)."""
+    print_banner()
+    share_dir = args.dir
+    print("\n--- TỔNG HỢP TRẠNG THÁI SẴN SÀNG ĐỘI MÁY (DUMP FLEET) ---")
+    print(f"[*] Thư mục báo cáo chia sẻ: {share_dir}")
+
+    db = Database()
+    try:
+        res = aggregate_fleet_reports(share_dir=share_dir, db=db)
+    finally:
+        db.close()
+
+    summary = res.get("summary", {})
+    print(f"\n[OK] Đã quét {res.get('total_files', 0)} tệp báo cáo:")
+    print(f"  * Báo cáo hợp lệ:          {res.get('valid_reports', 0)}")
+    print(f"  * Tổng số máy tính:        {summary.get('total_machines', 0)}")
+    print(f"  * Tỷ lệ SẴN SÀNG (READY):  {summary.get('ready_rate', 0.0)}%")
+    print(f"  * Đã bật, chờ reboot:      {summary.get('ready_pending_reboot_count', 0)}")
+    print(f"  * Cần chú ý (ATTENTION):   {summary.get('attention_count', 0)}")
+    print(f"  * Bị chặn (BLOCKED):       {summary.get('blocked_count', 0)}")
+    print(f"  * Không xác định (UNKNOWN): {summary.get('unknown_count', 0)}")
+    print(f"  * Báo cáo cũ (> 14 ngày):  {summary.get('stale_count', 0)}")
+
+    top_reasons = summary.get("top_reasons", {})
+    if top_reasons:
+        print("\nTop các nguyên nhân phổ biến trong đội máy:")
+        for r_code, count in list(top_reasons.items())[:5]:
+            print(f"  - {r_code:<25}: {count} máy")
+
+    if getattr(args, "export", None):
+        try:
+            excel_path = export_fleet_readiness_excel(res, args.export)
+            print(f"\n[OK] Đã xuất báo cáo Excel đội máy ra: {excel_path}")
+        except Exception as e:
+            print(f"\n[!] Lỗi khi xuất Excel: {e}")
+
+    return 0
+
+
+def cmd_selftest(args):
+    """Tự kiểm tra toàn diện phần mềm (quy tắc, CSDL, dump_config, gói đóng gói)."""
+    print_banner()
+    print("\n--- CHẠY TỰ KIỂM TRA HỆ THỐNG (SELFTEST) ---")
+    all_ok = True
+
+    # 1. Kiểm tra CSDL
+    try:
+        db = Database()
+        conn = db._get_connection()
+        cur = conn.execute("SELECT name FROM sqlite_master WHERE type='table';")
+        tables = {row[0] for row in cur.fetchall()}
+        required_tables = {"crash", "evidence", "finding", "feedback", "dump_readiness", "dump_config_change"}
+        missing = required_tables - tables
+        if not missing:
+            print("[OK] CSDL SQLite & Migrations: Hoàn hảo (đủ các bảng cần thiết)")
+        else:
+            print(f"[X] CSDL SQLite thiếu bảng: {missing}")
+            all_ok = False
+        db.close()
+    except Exception as e:
+        print(f"[X] Lỗi kiểm tra CSDL SQLite: {e}")
+        all_ok = False
+
+    # 2. Kiểm tra bộ quy tắc YAML
+    try:
+        is_valid, errs, summary = validate_rules_and_settings()
+        if is_valid:
+            print(f"[OK] Quy tắc chẩn đoán & Cấu hình: Hợp lệ ({summary.get('bugcheck_rules_count', 0)} bugchecks, dump_readiness.yaml)")
+        else:
+            print(f"[X] Phát hiện {len(errs)} lỗi trong file quy tắc:")
+            for err in errs:
+                print(f"  - {err}")
+            all_ok = False
+    except Exception as e:
+        print(f"[X] Lỗi kiểm tra quy tắc: {e}")
+        all_ok = False
+
+    # 3. Kiểm tra module dump_readiness
+    try:
+        report = collect_dump_readiness()
+        st = report.get("result", {}).get("status")
+        if st in (STATUS_READY, STATUS_READY_PENDING_REBOOT, STATUS_ATTENTION, STATUS_BLOCKED, STATUS_UNKNOWN):
+            print(f"[OK] Module Sẵn sàng ghi dump (dump_config): Trạng thái máy [{st}]")
+        else:
+            print(f"[X] Module dump_config trả về trạng thái lạ: {st}")
+            all_ok = False
+    except Exception as e:
+        print(f"[X] Lỗi kiểm tra dump_config: {e}")
+        all_ok = False
+
+    print("\n----------------------------------------------------------------------")
+    if all_ok:
+        print("[OK] TOÀN BỘ CÁC BÀI TỰ KIỂM TRA ĐỀU THÀNH CÔNG (100% PASSED)!")
+        return 0
+    else:
+        print("[X] PHÁT HIỆN SỰ CỐ TRONG BÀI TỰ KIỂM TRA. VUI LÒNG KIỂM TRA LẠI.")
+        return 1
+
+
 def build_parser() -> argparse.ArgumentParser:
 
     """Xây dựng bộ phân tích tham số dòng lệnh."""
@@ -1304,6 +1640,95 @@ def build_parser() -> argparse.ArgumentParser:
     ast_import = ast_subparsers.add_parser("import", help="Nhập file CSV danh sách thiết bị xuất từ AppSheet/Google Sheets")
     ast_import.add_argument("csv_file", help="Đường dẫn tới file CSV danh sách thiết bị")
     parser_ast.set_defaults(func=cmd_asset)
+
+    # ==================== ĐỢT 04: DUMP READINESS & SAFE ACTIONS ====================
+
+    # Subcommand: dump-readiness (Phần 6.1)
+    parser_readiness = subparsers.add_parser(
+        "dump-readiness",
+        help="Kiểm tra khả năng sẵn sàng ghi dump của máy cục bộ (trạng thái, bằng chứng, khuyến nghị)",
+    )
+    parser_readiness.add_argument(
+        "--json",
+        action="store_true",
+        help="Xuất báo cáo định dạng chuẩn JSON ra màn hình",
+    )
+    parser_readiness.add_argument(
+        "--out",
+        help="Đường dẫn file lưu báo cáo JSON",
+    )
+    parser_readiness.set_defaults(func=cmd_dump_readiness)
+
+    # Subcommand: dump-enable (Phần 6.1)
+    parser_enable = subparsers.add_parser(
+        "dump-enable",
+        help="Bật ghi dump an toàn cục bộ có sao lưu đầy đủ và kiểm tra ma trận quyết định",
+    )
+    parser_enable.add_argument(
+        "--yes",
+        action="store_true",
+        help="Tự động đồng ý xác nhận, không hỏi lại [y/N]",
+    )
+    parser_enable.add_argument(
+        "--mode",
+        type=int,
+        choices=[3, 7],
+        default=7,
+        help="Chế độ dump mục tiêu: 7 (Automatic - khuyến nghị) hoặc 3 (Small dump 256KB)",
+    )
+    parser_enable.set_defaults(func=cmd_dump_enable)
+
+    # Subcommand: dump-rollback (Phần 6.1)
+    parser_rollback = subparsers.add_parser(
+        "dump-rollback",
+        help="Hoàn tác 100% cấu hình CrashControl từ file sao lưu JSON",
+    )
+    parser_rollback.add_argument(
+        "--backup",
+        required=True,
+        help="Đường dẫn file sao lưu JSON được tạo khi bật ghi dump",
+    )
+    parser_rollback.add_argument(
+        "--yes",
+        action="store_true",
+        help="Tự động đồng ý hoàn tác, không hỏi lại [y/N]",
+    )
+    parser_rollback.set_defaults(func=cmd_dump_rollback)
+
+    # Subcommand: dump-package (Phần 6.1)
+    parser_package = subparsers.add_parser(
+        "dump-package",
+        help="Tạo gói triển khai script PowerShell để bật/hoàn tác ghi dump trên đội máy",
+    )
+    parser_package.add_argument(
+        "--out",
+        required=True,
+        help="Thư mục xuất gói triển khai (chứa Enable-CrashDump.ps1, Rollback-CrashDump.ps1, README)",
+    )
+    parser_package.set_defaults(func=cmd_dump_package)
+
+    # Subcommand: dump-fleet (Phần 6.1)
+    parser_fleet = subparsers.add_parser(
+        "dump-fleet",
+        help="Quét và tổng hợp báo cáo trạng thái sẵn sàng ghi dump của toàn bộ đội máy tính",
+    )
+    parser_fleet.add_argument(
+        "--dir",
+        required=True,
+        help="Đường dẫn thư mục chia sẻ mạng chứa các file JSON báo cáo thu thập từ các máy trạm",
+    )
+    parser_fleet.add_argument(
+        "--export",
+        help="Đường dẫn xuất file Excel báo cáo tổng hợp đội máy (.xlsx)",
+    )
+    parser_fleet.set_defaults(func=cmd_dump_fleet)
+
+    # Subcommand: selftest (Phần 6.1)
+    parser_selftest = subparsers.add_parser(
+        "selftest",
+        help="Tự kiểm tra toàn diện phần mềm (CSDL, Quy tắc YAML, Collector dump_config)",
+    )
+    parser_selftest.set_defaults(func=cmd_selftest)
 
     return parser
 
