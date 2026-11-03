@@ -1,6 +1,5 @@
 """Unit tests cho module phân tích đa máy engine (batch_analyzer.py)."""
 
-from pathlib import Path
 import pytest
 from dumpanalyzer.engine.batch_analyzer import (
     discover_machines_and_dumps,

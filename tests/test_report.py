@@ -1,6 +1,5 @@
 """Bộ kiểm thử cho module xuất báo cáo HTML và Excel (report/exporter.py)."""
 
-from pathlib import Path
 import openpyxl
 import pytest
 

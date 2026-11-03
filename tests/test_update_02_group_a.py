@@ -3,7 +3,6 @@ Các test này PHẢI FAIL trên code cũ và PASS sau khi sửa.
 """
 
 import pytest
-from datetime import datetime, timezone, timedelta
 from dumpanalyzer.core.models import Crash, Evidence
 from dumpanalyzer.engine.correlator import Correlator
 from dumpanalyzer.engine.scorer import score_single_crash, score_machine_crashes

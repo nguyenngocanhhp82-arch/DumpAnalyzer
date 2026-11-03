@@ -8,9 +8,7 @@ Kiểm tra:
 """
 
 import struct
-from pathlib import Path
-import pytest
-from dumpanalyzer.analyzer.header_parser import parse_dump_header, DumpHeaderInfo
+from dumpanalyzer.analyzer.header_parser import parse_dump_header
 from dumpanalyzer.core.models import Crash
 from dumpanalyzer.storage.db import Database
 

@@ -11,7 +11,6 @@ Kiểm tra:
 3. Đảm bảo .gitignore loại trừ data/*.db, workspace/, logs/.
 """
 
-import pytest
 from pathlib import Path
 from unittest.mock import patch, MagicMock
 

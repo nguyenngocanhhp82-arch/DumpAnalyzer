@@ -10,8 +10,6 @@ Kiểm tra:
 3. Khi không có sự kiện trước sập -> crash_time_source = 'kp41'.
 """
 
-import pytest
-from dumpanalyzer.core.models import Crash
 from dumpanalyzer.engine.correlator import Correlator
 
 

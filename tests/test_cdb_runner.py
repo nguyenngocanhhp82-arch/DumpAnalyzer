@@ -8,10 +8,8 @@ from dumpanalyzer.analyzer.cdb_runner import (
     build_cdb_command_args,
     get_extra_cdb_commands,
     analyze_dump_file,
-    warmup_symbols,
 )
 from dumpanalyzer.cli import main
-from dumpanalyzer.storage.db import Database
 
 FIXTURES_DIR = Path(__file__).resolve().parent / "fixtures"
 

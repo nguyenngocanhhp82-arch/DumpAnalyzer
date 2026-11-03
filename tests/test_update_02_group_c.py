@@ -10,7 +10,6 @@ Kiểm tra:
 
 import subprocess
 from unittest.mock import patch, MagicMock
-import pytest
 from dumpanalyzer.collectors.eventlog import build_eventlog_script, read_system_events
 
 

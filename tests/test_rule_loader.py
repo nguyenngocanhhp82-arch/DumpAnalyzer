@@ -2,8 +2,6 @@
 Kiểm thử toàn diện module nạp quy tắc (Rule Loader) và kiểm tra cú pháp YAML.
 """
 
-from pathlib import Path
-import pytest
 from dumpanalyzer.engine.rule_loader import (
     load_yaml_with_line_numbers,
     validate_rules_and_settings,
@@ -12,8 +10,6 @@ from dumpanalyzer.engine.rule_loader import (
     validate_bugcheck_rules,
     validate_driver_map,
     validate_event_rules,
-    validate_patterns,
-    validate_settings,
 )
 from dumpanalyzer.cli import cmd_validate_rules
 from argparse import Namespace

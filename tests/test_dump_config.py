@@ -3,7 +3,6 @@ Kiểm thử module dump_config (Phase 1B): kiểm tra khả năng ghi dump,
 đánh giá trạng thái readiness, format backup registry và lệnh CLI check-dump-config.
 """
 
-from pathlib import Path
 from dumpanalyzer.collectors.dump_config import (
     read_registry_crash_control,
     evaluate_readiness,
