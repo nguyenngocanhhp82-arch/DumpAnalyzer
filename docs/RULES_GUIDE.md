@@ -182,6 +182,55 @@ Khi một máy tính gặp từ 2 vụ sập trở lên, file này giúp phát h
 
 ---
 
+### 2.5. Các trường mới cho Bằng chứng: `strength`, `group_id`, `polarity`, `cap` (Đợt 03)
+
+Từ phiên bản v1.1.0, mỗi luật trong `event_rules.yaml`, `system_rules.yaml`, `patterns.yaml` hỗ trợ các trường nâng cao:
+- **`strength`** (`strong` | `medium` | `weak`):
+  - `strong`: Bằng chứng mang tính xác quyết cao (ví dụ WHEA Event 18, SMART ổ đĩa báo hỏng, test phần cứng failed, driver lặp lại nhiều dump).
+  - `medium`: Bằng chứng gián tiếp hoặc hỗ trợ (TDR màn hình, sập ngẫu nhiên nhiều ứng dụng, sự cố đội máy).
+  - `weak`: Gợi ý yếu, một dump đơn lẻ, cờ ép xung RAM, mã BugCheck đơn lẻ.
+- **`group_id`**: Định danh nhóm nguồn gốc độc lập (ví dụ `whea_error`, `disk_io_failure`, `fleet_cross_machine`).
+  - Để đạt độ tin cậy **CAO**, hệ thống yêu cầu tối thiểu 2 bằng chứng `strong` từ **2 `group_id` khác nhau**.
+- **`polarity`** (`support` | `refute`, mặc định `support`):
+  - `support`: Ủng hộ kết luận, cộng điểm nghi ngờ.
+  - `refute`: Phản bác kết luận, trừ điểm nghi ngờ (sàn 0.0) và ngăn chặn nhãn "CAO" nếu là phản bác mạnh.
+- **`cap`**: Điểm trần tối đa mà một sự kiện hoặc nhóm quy tắc có thể đóng góp, ngăn chặn sự kiện lặp lại làm méo mó xác suất.
+
+---
+
+### 2.6. `system_rules.yaml` — Ngưỡng phần cứng & Phân tích Đội máy
+Nằm tại `config/rules/system_rules.yaml`, quy định:
+- Ngưỡng phần cứng Sysinfo:
+  - `storage.wear_critical`: Tỷ lệ hao mòn đĩa (mặc định 90%).
+  - `bios.old_years_threshold`: Tuổi BIOS cũ hơn N năm (mặc định 3).
+  - `gpu_driver.old_months_threshold`: Driver card màn hình cũ hơn N tháng (mặc định 12).
+- Phân tích Đội máy (`fleet_rules`):
+  - `min_machines`: Số lượng máy tối thiểu xuất hiện cùng lỗi để xem là sự cố diện rộng (mặc định 3).
+  - `window_days`: Cửa sổ thời gian gom sự cố toàn đội máy (mặc định 30 ngày).
+
+---
+
+### 2.7. `test_rules.yaml` — Quy tắc Kiểm tra Phần cứng
+Nằm tại `config/rules/test_rules.yaml`, định nghĩa:
+- **`evidence_conversion`**: Quy đổi kết quả kiểm tra phần cứng (`failed`, `passed`) thành Bằng chứng `Evidence`.
+  - Lỗi RAM `passed` sinh `weak refute` vì lỗi RAM thường chập chờn.
+  - Kiểm tra ổ đĩa `passed` sinh `medium refute`.
+- **`memory_diagnostic_event_map`**: Ánh xạ Event ID từ provider `Microsoft-Windows-MemoryDiagnostics-Results` sang trạng thái (`1101/1201` -> passed, `1102/1202` -> failed). Nếu gặp Event ID lạ chưa có trong bảng, hệ thống gán trạng thái `inconclusive`.
+- **`external_test_rules`**: Quy định số lượt chạy tối thiểu (`min_passes`, mặc định 4) cho MemTest86/OCCT để được xem là đạt.
+
+---
+
+### 2.8. `next_steps.yaml` & `confidence_policy` — Gợi ý Bước Tiếp Theo & Độ Tin Cậy
+- `next_steps.yaml`:
+  - `suspect_steps`: Danh sách hành động khuyến nghị cho từng nhóm (`ram`, `storage`, `gpu`, `cpu`, `driver`, `psu`, `thermal`, `software`).
+  - `missing_data_hints`: Tự động nhận diện dữ liệu còn thiếu (chưa có WinDbg/cdb, dump loại minidump, chỉ có 1 crash, chưa chạy test phần cứng tương ứng) và xuất gợi ý khắc phục.
+- `confidence_policy` (trong `settings.yaml`):
+  - `high_min_strong_evidence`: Tối thiểu 2 bằng chứng strong từ >= 2 `group_id` độc lập để đạt mức "CAO".
+  - `medium_min_strong`: 1 bằng chứng strong hoặc >= 2 medium để đạt mức "TRUNG BÌNH".
+  - Các trường hợp khác đánh giá mức "THẤP".
+
+---
+
 ## 3. THAO TÁC KIỂM TRA TỰ ĐỘNG (VALIDATE RULES)
 
 Sau khi chỉnh sửa bất kỳ file YAML nào:

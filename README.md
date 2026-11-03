@@ -20,10 +20,21 @@ Công cụ kết hợp giữa **phân tích nhị phân Dump (hoặc WinDbg `cdb
   + Tự động phát hiện driver lỗi xuất hiện đồng loạt trên nhiều máy tính (Cross-machine correlation).
 - **Giao diện đồ họa PySide6 hiện đại:**
   + Giao diện Dark/Slate sang trọng theo bảng màu công nghiệp, xử lý đa luồng ngầm không gây đơ ứng dụng.
-  + 4 Tab nghiệp vụ: **Tổng quan | Chi tiết crash | Kết luận | Cài đặt & Khả năng ghi dump**.
+  + 5 Tab nghiệp vụ: **Tổng quan | Chi tiết crash | Kết luận (kèm Feedback) | Kiểm tra phần cứng (Hardware Tests) | Cài đặt**.
+- **Khung Kiểm tra phần cứng an toàn (v1.1.0):**
+  + Quét ổ đĩa chỉ đọc (`chkdsk /scan`), chặn tuyệt đối các cờ phá hủy `/f`, `/r`, `/spotfix`.
+  + Tích hợp Windows Memory Diagnostic (`mdsched.exe`) và tự động đọc kết quả Event Log sau reboot.
+  + Nhập kết quả kiểm tra ngoài (MemTest86, OCCT, Prime95) và xuất phiếu hướng dẫn test RAM chuẩn USB boot.
+- **Tách Độ tin cậy & Gợi ý bước tiếp theo:**
+  + Tách bạch tỷ trọng nghi ngờ `suspicion_share` (%) và mức độ tin cậy `confidence` (cao/trung bình/thấp).
+  + Tự động phát hiện dữ liệu còn thiếu và đề xuất lộ trình xử lý từ Tầng 1 (Dễ) đến Tầng 4 (Phức tạp).
+- **Vòng phản hồi & Phân tích Đội máy:**
+  + Ghi nhận đánh giá đúng/sai từ kỹ thuật viên để thống kê tỷ lệ chính xác.
+  + Phân tích đội máy diện rộng theo `FAILURE_BUCKET_ID` và driver lặp lại trên nhiều máy.
+  + Nhập dữ liệu danh mục máy tính từ file CSV AppSheet / Google Sheets.
 - **Xuất báo cáo chuyên nghiệp:**
   + **Báo cáo HTML độc lập:** Nhúng toàn bộ CSS, biểu đồ thanh tiến độ, sẵn sàng in ấn hoặc lưu PDF.
-  + **Báo cáo Excel đa bảng tính (.xlsx):** Tự động định dạng viền, màu sắc và tự co giãn độ rộng cột.
+  + **Báo cáo Excel đa bảng tính (.xlsx):** Bổ sung sheet "Thống kê phản hồi" và sheet "Tổng quan đội máy".
 - **Quy tắc mở hoàn toàn bằng YAML:**
   + Kỹ thuật viên IT có thể tự thêm mã lỗi, ánh xạ driver, quy tắc sự kiện mà không cần sửa code.
 
@@ -70,6 +81,17 @@ dumpanalyzer batch --dir C:\DumpsCongTy --report-html baocao_fleet.html --report
 
 # 9. Kiểm tra tính hợp lệ của tất cả file quy tắc YAML:
 dumpanalyzer validate-rules
+
+# 10. Quản lý phản hồi đánh giá kết luận chẩn đoán:
+dumpanalyzer feedback list
+dumpanalyzer feedback stats
+dumpanalyzer feedback add --verdict dung --predicted-group ram --actual-cause ram --note "Thay RAM hết lỗi"
+
+# 11. Xem tổng quan sự cố diện rộng toàn đội máy:
+dumpanalyzer fleet --days 30 --min-machines 3
+
+# 12. Nhập dữ liệu danh mục thiết bị từ file CSV AppSheet:
+dumpanalyzer asset import DanhSachThietBi.csv
 ```
 
 ---

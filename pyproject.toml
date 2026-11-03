@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "dumpanalyzer"
-version = "1.0.1"
+version = "1.1.0"
 description = "Công cụ phân tích Dump (BSOD) kết hợp Windows Event Log dành cho kỹ thuật viên IT"
 
 authors = [

@@ -2,6 +2,38 @@
 
 Mọi thay đổi quan trọng của dự án DumpAnalyzer được ghi lại tại tài liệu này theo từng phiên bản và ngày tháng thực hiện.
 
+## [v1.1.0] - 2026-11-03
+
+### Đợt Cập nhật 03 — Nâng Độ Chính Xác Kết Luận + Khung Test Phần Cứng
+- **Phần 0 — Sửa lỗi CI GitHub Actions:**
+  - Bổ sung `ruff>=0.5.0` vào nhóm `dev` trong `pyproject.toml` và cấu hình `tool.ruff`.
+  - Sửa `.github/workflows/build.yml` gọi lint qua `python -m ruff check src` độc lập PATH.
+- **Phần 1 — Thu thập thêm Dữ liệu Tăng Bằng chứng:**
+  - Mở rộng WinDbg CDB runner/parser: trích xuất `FAILURE_BUCKET_ID`, phân tích lỗi vi kiến trúc `!errrec` cho Bug Check 0x124, kiểm tra tính toàn vẹn nhân `!chkimg -d nt`, tính tuổi driver bằng `lmvm`. Thêm cờ `--save-cdb-samples` lưu mẫu thô vào `workspace/cdb_samples/`.
+  - Mở rộng Event Log collector: tích hợp Kernel-PnP 219, Code Integrity 3033/3063, Application Error 1000 đa ứng dụng, Display 4101 TDR, Kernel-Processor-Power 37, và EventData mở rộng cho Kernel-Power 41.
+  - Collector mới `sysinfo.py`: thu thập thông số phần cứng chỉ đọc (RAM speed/overclock, đĩa SMART/HealthStatus/PowerOnHours, BIOS age, GPU driver age), lưu bảng `system_info`.
+  - Collector mới `asset_info.py`: nhập danh mục thiết bị từ file CSV xuất từ Google Sheets / AppSheet qua CLI `dumpanalyzer asset import` và giao diện, lưu bảng `asset_info`.
+- **Phần 2 — Vòng Phản hồi, Lịch sử Máy & Đội máy:**
+  - Cơ sở dữ liệu và CLI Feedback: thêm bảng `feedback`, lệnh CLI `dumpanalyzer feedback add|list|stats`. Thống kê tỷ lệ chính xác chỉ hiển thị khi có >= 10 ca đánh giá.
+  - Lịch sử theo máy: tích hợp `history_lookback_days` (mặc định 180 ngày) truy vấn toàn bộ lịch sử crash đã lưu trong SQLite của máy trước khi chấm điểm. Tab Chi tiết hiển thị bảng Crash Timeline.
+  - Phân tích Đội máy (`fleet.py`): gom crash theo `FAILURE_BUCKET_ID` và `suspect_driver` trên >= N máy trong D ngày, sinh bằng chứng medium cho driver/phần mềm diện rộng.
+- **Phần 3 — Tách Độ tin cậy khỏi Điểm nghi ngờ & Gợi ý bước tiếp theo:**
+  - Mô hình bằng chứng nâng cao: thêm `strength` (`strong|medium|weak`), `group_id` độc lập, `polarity` (`support|refute`). Bằng chứng phản bác làm giảm điểm nhóm tương ứng (sàn 0.0).
+  - Tách bạch 2 chỉ số: `suspicion_share` (0–100%) và `confidence` (`cao`, `trung bình`, `thấp`) theo chính sách `confidence_policy`. Mã Bug Check đơn lẻ chỉ đạt độ tin cậy thấp.
+  - Bộ gợi ý `next_steps.yaml`: sinh khuyến nghị theo từng nhóm nghi ngờ và tự động nhận diện dữ liệu còn thiếu.
+- **Phần 4 — Khung Plugin Kiểm tra Phần cứng (`hwtests`):**
+  - Khung plugin `HardwareTest`, `TestResult`, quy đổi kết quả sang Evidence qua `test_rules.yaml`.
+  - Plugin `storage_health`: chạy `chkdsk /scan` chỉ đọc an toàn, chặn tuyệt đối các cờ phá hủy `/f`, `/r`, `/spotfix`.
+  - Plugin `windows_memory_diagnostic`: gọi `mdsched.exe` hẹn giờ test RAM, thu thập kết quả Event Log sau reboot, ID lạ chưa biết gán `inconclusive`.
+  - Plugin `external_test_import`: nhập kết quả từ MemTest86, OCCT, Prime95; quy tắc >= 4 passes 0 lỗi là `passed`.
+  - Xuất phiếu hướng dẫn kiểm tra RAM chuẩn mực bằng USB boot MemTest86 tiếng Việt.
+  - Tab mới "Kiểm tra phần cứng" trên PySide6 GUI với quản lý lịch sử kiểm tra.
+- **Phần 5 — Báo cáo & Tài liệu:**
+  - Xuất Excel tích hợp thêm Sheet "Thống kê phản hồi" và Sheet "Tổng quan đội máy", bổ sung cột Độ mạnh và Chiều hướng trong Sheet Bằng chứng.
+  - Cập nhật `RULES_GUIDE.md` và `README.md`.
+
+---
+
 ## [v1.0.1] - 2026-11-03
 
 ### Đợt Cập nhật 02 — Sửa lỗi toàn diện & Ổn định hóa hệ thống
