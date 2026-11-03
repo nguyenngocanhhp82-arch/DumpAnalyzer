@@ -35,6 +35,8 @@ def test_parse_kernel_dump_124():
     assert info.p4 == "0x175"
     assert info.crash_time_utc is not None
     assert info.crash_time_utc.endswith("Z")
+    assert info.crash_time_source == "header"
+    assert info.uptime_seconds == 188130
 
 
 def test_parse_kernel_dump_1a():
@@ -47,6 +49,8 @@ def test_parse_kernel_dump_1a():
     assert info.bugcheck_code == "0x1A"
     assert info.bugcheck_name == "MEMORY_MANAGEMENT"
     assert info.p1 == "0x41792"
+    assert info.crash_time_source == "header"
+    assert info.uptime_seconds == 3600
 
 
 def test_parse_minidump():
@@ -58,6 +62,7 @@ def test_parse_minidump():
     assert info.signature == "MDMP"
     assert info.dump_type == "mini"
     assert info.crash_time_utc is not None
+    assert info.crash_time_source == "header"
 
 
 def test_parse_corrupted_dump():

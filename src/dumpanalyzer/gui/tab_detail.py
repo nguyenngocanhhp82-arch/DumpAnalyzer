@@ -91,6 +91,7 @@ class DetailTab(QWidget):
         # Định nghĩa các trường thông tin
         fields = [
             ("Thời điểm:", "lbl_time"),
+            ("Nguồn thời điểm:", "lbl_time_source"),
             ("Mã lỗi BugCheck:", "lbl_bugcheck_code"),
             ("Tên lỗi chuẩn:", "lbl_bugcheck_name"),
             ("Driver thủ phạm:", "lbl_image_name"),
@@ -265,6 +266,16 @@ class DetailTab(QWidget):
 
         # Cập nhật thông tin cột trái
         self.meta_labels["lbl_time"].setText(t_str)
+        time_src = getattr(c, "crash_time_source", "unknown") or "unknown"
+        src_labels = {
+            "header": "Header file dump (chính xác)",
+            "cdb": "WinDbg cdb (chính xác)",
+            "mtime": "Giờ sửa file mtime (ước tính)",
+            "eventlog_6008": "EventLog 6008 (tắt bất thường)",
+            "estimated": "Ước tính từ chuỗi sự kiện",
+            "kp41": "Kernel-Power Event 41",
+        }
+        self.meta_labels["lbl_time_source"].setText(src_labels.get(time_src, time_src))
         self.meta_labels["lbl_bugcheck_code"].setText(getattr(c, "bugcheck_code", "N/A") or "N/A")
         self.meta_labels["lbl_bugcheck_name"].setText(getattr(c, "bugcheck_name", "Chưa rõ") or "Chưa rõ")
         self.meta_labels["lbl_image_name"].setText(getattr(c, "image_name", "-") or "-")

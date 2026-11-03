@@ -34,6 +34,8 @@ class DumpHeaderInfo:
     p3: str = "0x0"
     p4: str = "0x0"
     crash_time_utc: Optional[str] = None  # Chuỗi thời gian UTC ISO-8601
+    crash_time_source: str = "unknown"    # 'header' hoặc 'mtime'
+    uptime_seconds: int = 0               # Uptime tính bằng giây
     valid: bool = False
     signature: str = ""
     error_message: str = ""
@@ -116,7 +118,7 @@ def parse_dump_header(file_path: Union[str, Path]) -> DumpHeaderInfo:
 
     try:
         with open(path_obj, "rb") as f:
-            header_bytes = f.read(min(file_size, 4096))
+            header_bytes = f.read(min(file_size, 8192))
     except Exception as e:
         return DumpHeaderInfo(error_message=f"Lỗi đọc file: {e}")
 
@@ -134,12 +136,15 @@ def parse_dump_header(file_path: Union[str, Path]) -> DumpHeaderInfo:
                 error_message="Header PAGEDU64 bị cắt cụt (không đủ 96 bytes)",
             )
 
-        # Offset theo struct _DMP_HEADER64 của Microsoft:
+        # Offset theo struct _DUMP_HEADER64 của Microsoft (ntdddump.h / ReactOS / Volatility):
         # 0x38: BugCheckCode (uint32)
         # 0x40: BugCheckCodeParameter[0] (uint64)
         # 0x48: BugCheckCodeParameter[1] (uint64)
         # 0x50: BugCheckCodeParameter[2] (uint64)
         # 0x58: BugCheckCodeParameter[3] (uint64)
+        # 0xF98: DumpType (uint32: 1=full, 2/3/5=kernel, 4=mini)
+        # 0xFA8: SystemTime (uint64 FILETIME UTC)
+        # 0xFF8: SystemUpTime (uint64 100ns ticks)
         try:
             bc_code = struct.unpack_from("<I", header_bytes, 0x38)[0]
             p1 = struct.unpack_from("<Q", header_bytes, 0x40)[0]
@@ -150,18 +155,51 @@ def parse_dump_header(file_path: Union[str, Path]) -> DumpHeaderInfo:
             code_hex = f"0x{bc_code:X}"
             name = lookup_bugcheck_name(code_hex)
 
-            # Đọc SystemTime tại offset 0xA0 hoặc lân cận nếu có
-            crash_time_utc = None
-            if len(header_bytes) >= 0xB0:
-                ft = struct.unpack_from("<Q", header_bytes, 0xA0)[0]
-                crash_time_utc = filetime_to_utc_iso(ft)
+            # Đọc DumpType tại 0xF98
+            dump_type = "kernel"
+            if len(header_bytes) >= 0xF9C:
+                dt_code = struct.unpack_from("<I", header_bytes, 0xF98)[0]
+                if dt_code == 1:
+                    dump_type = "full"
+                elif dt_code == 4:
+                    dump_type = "mini"
+                elif dt_code in (2, 3, 5):
+                    dump_type = "kernel"
 
-            # Nếu không có SystemTime trong header, lấy tạm mtime của file
+            # Đọc SystemTime tại offset chuẩn 0xFA8
+            crash_time_utc = None
+            crash_time_source = "mtime"
+            if len(header_bytes) >= 0xFB0:
+                ft = struct.unpack_from("<Q", header_bytes, 0xFA8)[0]
+                if ft > 0:
+                    converted = filetime_to_utc_iso(ft)
+                    if converted:
+                        crash_time_utc = converted
+                        crash_time_source = "header"
+
+            # Fallback về 0xA0 nếu 0xFA8 chưa có (tương thích ngược fixture cũ)
+            if not crash_time_utc and len(header_bytes) >= 0xB0:
+                ft_old = struct.unpack_from("<Q", header_bytes, 0xA0)[0]
+                if ft_old > 0:
+                    converted = filetime_to_utc_iso(ft_old)
+                    if converted:
+                        crash_time_utc = converted
+                        crash_time_source = "header"
+
+            # Nếu không có SystemTime hợp lệ trong header, lấy mtime của file
             if not crash_time_utc:
                 crash_time_utc = to_utc_iso(path_obj.stat().st_mtime)
+                crash_time_source = "mtime"
+
+            # Đọc SystemUpTime tại offset 0xFF8 (uint64, 100ns ticks)
+            uptime_seconds = 0
+            if len(header_bytes) >= 0x1000:
+                uptime_ticks = struct.unpack_from("<Q", header_bytes, 0xFF8)[0]
+                if uptime_ticks > 0:
+                    uptime_seconds = int(uptime_ticks / 10_000_000)
 
             return DumpHeaderInfo(
-                dump_type="kernel",
+                dump_type=dump_type,
                 bugcheck_code=code_hex,
                 bugcheck_name=name,
                 p1=f"0x{p1:X}",
@@ -169,6 +207,8 @@ def parse_dump_header(file_path: Union[str, Path]) -> DumpHeaderInfo:
                 p3=f"0x{p3:X}",
                 p4=f"0x{p4:X}",
                 crash_time_utc=crash_time_utc,
+                crash_time_source=crash_time_source,
+                uptime_seconds=uptime_seconds,
                 valid=True,
                 signature="PAGEDU64",
             )
@@ -190,17 +230,20 @@ def parse_dump_header(file_path: Union[str, Path]) -> DumpHeaderInfo:
         # 0x0C: StreamDirectoryRva (uint32)
         # 0x14: TimeDateStamp (uint32 Unix timestamp)
         try:
-            num_streams, stream_rva, time_date_stamp = struct.unpack_from("<III", header_bytes, 0x08)
+            num_streams, stream_rva, checksum, time_date_stamp = struct.unpack_from("<IIII", header_bytes, 0x08)
             crash_time_utc = None
+            crash_time_source = "mtime"
             if time_date_stamp > 0:
                 try:
                     dt = datetime.fromtimestamp(time_date_stamp, tz=timezone.utc)
                     crash_time_utc = to_utc_iso(dt)
+                    crash_time_source = "header"
                 except Exception:
                     pass
 
             if not crash_time_utc:
                 crash_time_utc = to_utc_iso(path_obj.stat().st_mtime)
+                crash_time_source = "mtime"
 
             # Quét danh sách stream tìm ExceptionStream (StreamType = 6)
             bc_code_found = None
@@ -245,6 +288,7 @@ def parse_dump_header(file_path: Union[str, Path]) -> DumpHeaderInfo:
                 p3=f"0x{p_params[2]:X}",
                 p4=f"0x{p_params[3]:X}",
                 crash_time_utc=crash_time_utc,
+                crash_time_source=crash_time_source,
                 valid=True,
                 signature="MDMP",
             )

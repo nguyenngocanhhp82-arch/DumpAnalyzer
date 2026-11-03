@@ -31,7 +31,9 @@ CREATE TABLE IF NOT EXISTS crash (
     failure_bucket_id TEXT,
     uptime_seconds INTEGER DEFAULT 0,
     cdb_raw_output TEXT,         -- LUÔN lưu output thô để phân tích lại khi đổi luật
-    analyzed_by TEXT             -- 'cdb', 'header_only', hoặc 'none'
+    analyzed_by TEXT,            -- 'cdb', 'header_only', hoặc 'none'
+    crash_time_source TEXT DEFAULT 'unknown', -- 'header', 'mtime', 'cdb', 'eventlog_6008', 'estimated', 'kp41'
+    suspect_driver TEXT DEFAULT ''            -- Driver nghi vấn phát hiện trong stack trace
 );
 
 CREATE TABLE IF NOT EXISTS evidence (

@@ -50,6 +50,13 @@ class Database:
         conn = self._get_connection()
         with conn:
             conn.executescript(schema_sql)
+            # Migration tự động bổ sung cột cho DB đã tồn tại
+            cursor = conn.execute("PRAGMA table_info(crash)")
+            existing_cols = {row[1] for row in cursor.fetchall()}
+            if "crash_time_source" not in existing_cols:
+                conn.execute("ALTER TABLE crash ADD COLUMN crash_time_source TEXT DEFAULT 'unknown';")
+            if "suspect_driver" not in existing_cols:
+                conn.execute("ALTER TABLE crash ADD COLUMN suspect_driver TEXT DEFAULT '';")
 
     def close(self) -> None:
         """Đóng kết nối CSDL."""
@@ -80,8 +87,9 @@ class Database:
             machine_id, dump_path, dump_sha256, dump_type, crash_time_utc,
             bugcheck_code, bugcheck_name, p1, p2, p3, p4,
             image_name, module_name, process_name, failure_bucket_id,
-            uptime_seconds, cdb_raw_output, analyzed_by
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            uptime_seconds, cdb_raw_output, analyzed_by,
+            crash_time_source, suspect_driver
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """
         params = (
             crash.machine_id,
@@ -102,6 +110,8 @@ class Database:
             crash.uptime_seconds,
             crash.cdb_raw_output,
             crash.analyzed_by,
+            getattr(crash, "crash_time_source", "unknown") or "unknown",
+            getattr(crash, "suspect_driver", "") or "",
         )
         with conn:
             cursor = conn.execute(sql, params)
@@ -133,6 +143,7 @@ class Database:
         uptime_seconds: int,
         cdb_raw_output: str,
         analyzed_by: str = "cdb",
+        suspect_driver: str = "",
     ) -> bool:
         """Cập nhật thông tin chi tiết và output thô từ cdb vào bản ghi crash."""
         conn = self._get_connection()
@@ -144,7 +155,8 @@ class Database:
             failure_bucket_id = ?,
             uptime_seconds = ?,
             cdb_raw_output = ?,
-            analyzed_by = ?
+            analyzed_by = ?,
+            suspect_driver = CASE WHEN ? != '' THEN ? ELSE suspect_driver END
         WHERE id = ?
         """
         with conn:
@@ -158,6 +170,8 @@ class Database:
                     uptime_seconds,
                     cdb_raw_output,
                     analyzed_by,
+                    suspect_driver,
+                    suspect_driver,
                     crash_id,
                 ),
             )

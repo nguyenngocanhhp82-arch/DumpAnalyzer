@@ -43,6 +43,8 @@ class Crash:
     uptime_seconds: int = 0          # Thời gian máy chạy trước khi sập (giây)
     cdb_raw_output: str = ""         # Toàn bộ nội dung text xuất ra từ cdb !analyze -v
     analyzed_by: str = "none"        # 'cdb', 'header_only', hoặc 'none'
+    crash_time_source: str = "unknown"  # 'header', 'mtime', 'cdb', 'eventlog_6008', 'estimated', 'kp41'
+    suspect_driver: str = ""         # Driver nghi vấn tìm thấy trong stack trace (từ cdb)
 
 
 @dataclass

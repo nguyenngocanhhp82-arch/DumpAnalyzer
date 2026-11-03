@@ -371,12 +371,21 @@ def build_crash_from_dump(
 
     calculated_sha = sha256 or (calculate_sha256(path_obj) if path_obj.exists() else None)
 
+    crash_time_utc = getattr(cdb_res, "crash_time_utc", None) or (getattr(h_info, "crash_time_utc", None) if h_info else None)
+    if getattr(cdb_res, "crash_time_utc", None):
+        crash_time_source = "cdb"
+    elif h_info:
+        crash_time_source = getattr(h_info, "crash_time_source", "header")
+    else:
+        crash_time_source = "unknown"
+
     return Crash(
         machine_id=machine_id,
         dump_path=str(path_obj),
         dump_sha256=calculated_sha,
         dump_type=getattr(h_info, "dump_type", "unknown") if h_info else "unknown",
-        crash_time_utc=getattr(cdb_res, "crash_time_utc", None) or (getattr(h_info, "crash_time_utc", None) if h_info else None),
+        crash_time_utc=crash_time_utc,
+        crash_time_source=crash_time_source,
         bugcheck_code=getattr(cdb_res, "bugcheck_code", None) or (getattr(h_info, "bugcheck_code", "0x0") if h_info else "0x0"),
         bugcheck_name=getattr(cdb_res, "bugcheck_name", None) or (getattr(h_info, "bugcheck_name", "UNKNOWN") if h_info else "UNKNOWN"),
         p1=getattr(cdb_res, "p1", None) or (getattr(h_info, "p1", "0x0") if h_info else "0x0"),
@@ -387,7 +396,7 @@ def build_crash_from_dump(
         module_name=getattr(cdb_res, "module_name", "") or "",
         process_name=getattr(cdb_res, "process_name", "") or "",
         failure_bucket_id=getattr(cdb_res, "failure_bucket_id", "") or "",
-        uptime_seconds=getattr(cdb_res, "uptime_seconds", None),
+        uptime_seconds=getattr(cdb_res, "uptime_seconds", None) or getattr(h_info, "uptime_seconds", 0) or 0,
         cdb_raw_output=res.get("raw_output"),
         analyzed_by=analyzed_by,
     )
