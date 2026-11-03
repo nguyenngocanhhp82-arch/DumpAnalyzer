@@ -1,0 +1,76 @@
+# ==============================================================================
+# QUY TẮC PHÂN TÍCH THÔNG TIN HỆ THỐNG & ĐỘI MÁY (system_rules.yaml)
+# Đợt Cập nhật 03 (v1.1.0)
+# Cung cấp các ngưỡng đánh giá cho phần cứng (RAM, Ổ đĩa, BIOS), thiết bị và đội máy.
+# ==============================================================================
+
+storage_rules:
+  # Cảnh báo khi độ mòn SSD vượt ngưỡng (phần trăm)
+  wear_threshold_pct: 80
+  wear_adds:
+    storage: 30
+  wear_strength: "strong"
+  wear_group_id: "sysinfo_disk_wear"
+
+  # Cảnh báo khi ổ đĩa báo trạng thái không khỏe mạnh (Warning / Unhealthy)
+  unhealthy_adds:
+    storage: 35
+  unhealthy_strength: "strong"
+  unhealthy_group_id: "sysinfo_disk_health"
+
+  # Cảnh báo khi bộ đếm lỗi đọc/ghi tăng cao
+  io_error_threshold: 10
+  io_error_adds:
+    storage: 25
+  io_error_strength: "strong"
+  io_error_group_id: "sysinfo_disk_io_errors"
+
+ram_rules:
+  # Gợi ý ép xung khi configured_speed > speed (XMP/DOCP)
+  overclock_hint_adds:
+    ram: 15
+  overclock_hint_strength: "weak"
+  overclock_hint_group_id: "sysinfo_ram_oc"
+
+bios_rules:
+  # Ngưỡng tuổi BIOS quá cũ (số năm)
+  age_years_threshold: 4.0
+  age_adds:
+    cpu: 10
+    ram: 10
+  age_strength: "weak"
+  age_group_id: "sysinfo_bios_age"
+
+driver_rules:
+  # Ngưỡng driver GPU quá cũ (số tháng)
+  gpu_driver_age_months_threshold: 36
+  gpu_driver_age_adds:
+    driver: 15
+    gpu: 10
+  gpu_driver_age_strength: "weak"
+  gpu_driver_age_group_id: "sysinfo_gpu_driver_age"
+
+asset_rules:
+  # Ngưỡng tuổi máy từ ngày mua (năm)
+  machine_age_years_threshold: 4.0
+  machine_age_adds:
+    hardware: 15
+  machine_age_strength: "weak"
+  machine_age_group_id: "asset_machine_age"
+
+  # Ngưỡng số lần sửa chữa trước đây
+  repair_count_threshold: 3
+  repair_count_adds:
+    hardware: 20
+  repair_count_strength: "medium"
+  repair_count_group_id: "asset_repair_count"
+
+fleet_rules:
+  # Khi cùng một driver/bucket xuất hiện trên >= N máy trong D ngày
+  min_machines: 3
+  window_days: 30
+  fleet_adds:
+    driver: 25
+    software: 20
+  fleet_strength: "medium"
+  fleet_group_id: "fleet_cross_machine"

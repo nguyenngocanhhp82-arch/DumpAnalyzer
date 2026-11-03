@@ -309,10 +309,29 @@ def load_all_rules(config_dir: Optional[Path] = None) -> Dict[str, Any]:
         pt_raw = {}
     patterns = pt_raw.get("patterns", []) if isinstance(pt_raw, dict) else []
 
+    # Nạp system_rules (Phần 1.3 & 2.3)
+    sys_file = rules_path / "system_rules.yaml"
+    sys_raw, _ = load_yaml_with_line_numbers(sys_file)
+    system_rules = sys_raw if isinstance(sys_raw, dict) else {}
+
+    # Nạp next_steps (Phần 3.4)
+    ns_file = rules_path / "next_steps.yaml"
+    ns_raw, _ = load_yaml_with_line_numbers(ns_file)
+    next_steps_rules = ns_raw if isinstance(ns_raw, dict) else {}
+
+    # Nạp test_rules (Phần 4.1)
+    tr_file = rules_path / "test_rules.yaml"
+    tr_raw, _ = load_yaml_with_line_numbers(tr_file)
+    test_rules = tr_raw if isinstance(tr_raw, dict) else {}
+
     return {
         "bugchecks": normalized_bc,
         "drivers": drivers,
         "ms_core_modules": ms_core,
         "event_rules": events,
         "patterns": patterns,
+        "system_rules": system_rules,
+        "next_steps": next_steps_rules,
+        "test_rules": test_rules,
     }
+

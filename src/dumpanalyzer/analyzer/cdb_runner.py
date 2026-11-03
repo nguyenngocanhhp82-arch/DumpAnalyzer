@@ -88,10 +88,11 @@ def build_cdb_command_args(
     logo_file: Optional[Union[str, Path]] = None,
 ) -> List[str]:
     """Xây dựng danh sách tham số dòng lệnh an toàn cho cdb.exe."""
-    base_script = ["!analyze -v", ".bugcheck", "vertarget", ".time", "kv", "lm t n"]
+    base_script = ["!analyze -v", ".bugcheck", "vertarget", ".time", "kv", "lm t n", "!chkimg -d nt"]
     if extra_commands:
         base_script.extend(extra_commands)
     base_script.append("q")  # Luôn kết thúc bằng lệnh thoát quit
+
 
     script_cmd = "; ".join(base_script)
 
@@ -184,14 +185,18 @@ def analyze_dump_file(
     cdb_path: Optional[str] = None,
     symbol_path: Optional[str] = None,
     timeout_seconds: Optional[int] = None,
+    save_cdb_samples: bool = False,
+    cdb_samples_dir: Optional[Union[str, Path]] = None,
 ) -> Dict[str, Any]:
     """
     Quy trình phân tích toàn diện 1 file dump:
     1. Đọc nhanh header để lấy BugCheckCode và 4 tham số.
-    2. Lấy extra_cdb phù hợp với mã lỗi.
+    2. Lấy extra_cdb phù hợp với mã lỗi (bao gồm !errrec {p2} cho 0x124, !chkimg -d nt).
     3. Chạy cdb.exe ngầm có timeout.
     4. Nếu cdb thành công: phân tích output bằng CdbParser.
-    5. Nếu cdb thiếu/lỗi/timeout: fallback về header_only.
+    5. Với driver bên thứ ba nghi vấn: chạy lmvm <module> để xác định tuổi driver.
+    6. Lưu mẫu cdb vào workspace/cdb_samples nếu bật save_cdb_samples.
+    7. Nếu cdb thiếu/lỗi/timeout: fallback về header_only.
     """
     path_obj = Path(dump_path).resolve()
 
@@ -205,6 +210,12 @@ def analyze_dump_file(
         "p4": header_info.p4,
     }
     extra_cmds = get_extra_cdb_commands(header_info.bugcheck_code, params_dict)
+
+    # Đảm bảo lệnh !errrec {p2} cho BugCheck 0x124
+    if header_info.bugcheck_code.lower() == "0x124" and header_info.p2 and header_info.p2 != "0x0":
+        errrec_cmd = f"!errrec {header_info.p2}"
+        if errrec_cmd not in extra_cmds:
+            extra_cmds.append(errrec_cmd)
 
     # Bước 2: Chạy cdb
     exec_res = execute_cdb(
@@ -226,6 +237,30 @@ def analyze_dump_file(
                 cdb_result.bugcheck_code = header_info.bugcheck_code
                 cdb_result.bugcheck_name = header_info.bugcheck_name
 
+        # Bước bổ sung: Nếu phát hiện suspect driver bên thứ ba mà chưa có driver_age_info, chạy lmvm
+        if cdb_result.suspect_driver and not cdb_result.is_ms_culprit and not cdb_result.driver_age_info:
+            try:
+                lmvm_res = execute_cdb(
+                    dump_path=path_obj,
+                    cdb_path=cdb_path,
+                    symbol_path=symbol_path,
+                    timeout_seconds=min(30, timeout_seconds or 30),
+                    extra_commands=[f"lmvm {cdb_result.suspect_driver}"],
+                )
+                if lmvm_res.success and lmvm_res.raw_output:
+                    cdb_result.driver_age_info = parser._parse_lmvm(
+                        lmvm_res.raw_output,
+                        suspect_driver=cdb_result.suspect_driver,
+                        crash_time_utc=cdb_result.crash_time_utc,
+                    )
+                    exec_res.raw_output += "\n\n" + lmvm_res.raw_output
+            except Exception as e:
+                logger.debug(f"Không thể chạy lmvm bổ sung cho {cdb_result.suspect_driver}: {e}")
+
+        # Lưu cdb raw sample nếu có tùy chọn --save-cdb-samples
+        if save_cdb_samples:
+            _save_raw_cdb_sample(path_obj, exec_res.raw_output, cdb_samples_dir)
+
         return {
             "analyzed_by": "cdb",
             "cdb_result": cdb_result,
@@ -246,6 +281,9 @@ def analyze_dump_file(
             crash_time_utc=header_info.crash_time_utc,
             raw_output=exec_res.raw_output,
         )
+        if save_cdb_samples and exec_res.raw_output:
+            _save_raw_cdb_sample(path_obj, exec_res.raw_output, cdb_samples_dir)
+
         return {
             "analyzed_by": "header_only",
             "cdb_result": fallback_res,
@@ -253,6 +291,27 @@ def analyze_dump_file(
             "header_info": header_info,
             "error": exec_res.error_message,
         }
+
+
+def _save_raw_cdb_sample(
+    dump_path: Path,
+    raw_output: str,
+    target_dir: Optional[Union[str, Path]] = None,
+) -> Optional[Path]:
+    """Lưu text output thô của cdb vào workspace/cdb_samples để người dùng gửi lại kiểm tra."""
+    try:
+        import time
+        save_dir = Path(target_dir) if target_dir else (get_project_root() / "workspace" / "cdb_samples")
+        save_dir.mkdir(parents=True, exist_ok=True)
+        ts_str = int(time.time())
+        sample_file = save_dir / f"{dump_path.stem}_{ts_str}.txt"
+        sample_file.write_text(raw_output or "", encoding="utf-8", errors="replace")
+        logger.info(f"Đã lưu mẫu cdb thô vào: {sample_file}")
+        return sample_file
+    except Exception as e:
+        logger.warning(f"Lỗi khi lưu cdb sample: {e}")
+        return None
+
 
 
 def analyze_dumps_parallel(
@@ -347,8 +406,10 @@ def build_crash_from_dump(
     settings: Optional[Dict[str, Any]] = None,
     machine_id: Optional[int] = None,
     sha256: Optional[str] = None,
+    save_cdb_samples: bool = False,
 ) -> Any:
     """Phân tích dump file và trả về đối tượng Crash hoàn chỉnh."""
+    import json
     from dumpanalyzer.core.models import Crash
     from dumpanalyzer.collectors.dump_finder import calculate_sha256
 
@@ -364,6 +425,7 @@ def build_crash_from_dump(
         cdb_path=cdb_p,
         symbol_path=sym_p,
         timeout_seconds=timeout_s,
+        save_cdb_samples=save_cdb_samples,
     )
 
     cdb_res = res["cdb_result"]
@@ -379,6 +441,15 @@ def build_crash_from_dump(
         crash_time_source = getattr(h_info, "crash_time_source", "header")
     else:
         crash_time_source = "unknown"
+
+    extra_data = {}
+    if getattr(cdb_res, "errrec_info", None):
+        extra_data["errrec"] = cdb_res.errrec_info
+    if getattr(cdb_res, "chkimg_info", None):
+        extra_data["chkimg"] = cdb_res.chkimg_info
+    if getattr(cdb_res, "driver_age_info", None):
+        extra_data["driver_age"] = cdb_res.driver_age_info
+    extra_json = json.dumps(extra_data, ensure_ascii=False) if extra_data else "{}"
 
     return Crash(
         machine_id=machine_id,
@@ -401,6 +472,8 @@ def build_crash_from_dump(
         cdb_raw_output=res.get("raw_output"),
         analyzed_by=analyzed_by,
         suspect_driver=getattr(cdb_res, "suspect_driver", "") or "",
+        extra_json=extra_json,
     )
+
 
 

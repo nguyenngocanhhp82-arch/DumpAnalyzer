@@ -45,6 +45,7 @@ class Crash:
     analyzed_by: str = "none"        # 'cdb', 'header_only', hoặc 'none'
     crash_time_source: str = "unknown"  # 'header', 'mtime', 'cdb', 'eventlog_6008', 'estimated', 'kp41'
     suspect_driver: str = ""         # Driver nghi vấn tìm thấy trong stack trace (từ cdb)
+    extra_json: str = "{}"           # Dữ liệu mở rộng JSON (errrec, chkimg, driver_age)
 
 
 @dataclass
@@ -55,12 +56,15 @@ class Evidence:
     """
     id: Optional[int] = None
     crash_id: Optional[int] = None
-    kind: str = "eventlog"           # 'dump', 'eventlog', 'smart', 'update', 'driver', 'thermal'
+    kind: str = "eventlog"           # 'dump', 'eventlog', 'smart', 'update', 'driver', 'thermal', 'sysinfo', 'hwtest'
     source: str = ""                 # Ví dụ: 'Microsoft-Windows-WHEA-Logger', 'Disk', 'cdb'
     event_id: Optional[int] = None   # Event ID trong Event Log (ví dụ: 41, 1001, 7)
     time_utc: str = ""               # Thời điểm diễn ra sự kiện (UTC)
     summary: str = ""                # Tóm tắt ngắn gọn sự kiện bằng tiếng Việt
     detail: str = ""                 # Chi tiết kỹ thuật hoặc nội dung mô tả đầy đủ
+    strength: str = "weak"           # 'strong', 'medium', 'weak'
+    polarity: str = "support"        # 'support' (ủng hộ), 'refute' (phản bác)
+    group_id: str = ""               # Nhóm bằng chứng độc lập (ví dụ: 'cdb_stack', 'eventlog_disk', ...)
 
 
 @dataclass
@@ -75,7 +79,10 @@ class Finding:
     machine_id: Optional[int] = None
     suspect: str = "unknown"         # 'ram', 'storage', 'gpu', 'psu', 'thermal', 'cpu', 'driver:<tên>', 'update', 'unknown'
     score: float = 0.0               # Thang điểm 0 - 100
-    confidence: str = "thấp"         # 'thấp' (<40), 'trung bình' (40-69), 'cao' (>=70)
+    confidence: str = "thấp"         # 'thấp', 'trung bình', 'cao'
     rationale: str = ""              # Lời giải thích nguyên nhân rõ ràng bằng tiếng Việt
     evidence_ids: List[int] = field(default_factory=list)  # Danh sách ID các Evidence dẫn chứng
     next_steps: List[str] = field(default_factory=list)    # Các bước kiểm tra theo thứ tự từ dễ đến khó
+    suspicion_share: float = 0.0     # Tỷ trọng nghi ngờ (%)
+    confidence_rationale: str = ""   # Giải thích vì sao gắn nhãn độ tin cậy này
+

@@ -75,22 +75,37 @@ class Correlator:
         self.update_days = update_days or settings.get("update_history_days", 7)
         self.event_rules = load_event_rules()
 
-    def get_event_summary(self, provider: str, event_id: int) -> str:
-        """Tra cứu mô tả ngắn gọn bằng tiếng Việt cho sự kiện từ event_rules.yaml."""
+    def get_event_rule_info(self, provider: str, event_id: int) -> Dict[str, Any]:
+        """Tra cứu cấu hình quy tắc (mô tả, strength, polarity, group_id) từ event_rules.yaml."""
         for r in self.event_rules:
             if r.get("source", "").lower() in provider.lower():
                 if event_id in r.get("ids", []):
-                    return r.get("description", f"Sự kiện {provider} ID {event_id}")
-        return f"Sự kiện từ {provider} (ID {event_id})"
+                    return {
+                        "description": r.get("description", f"Sự kiện {provider} ID {event_id}"),
+                        "strength": r.get("strength", "weak"),
+                        "polarity": r.get("polarity", "support"),
+                        "group_id": r.get("group_id", f"eventlog_{event_id}"),
+                    }
+        return {
+            "description": f"Sự kiện từ {provider} (ID {event_id})",
+            "strength": "weak",
+            "polarity": "support",
+            "group_id": f"eventlog_{event_id}",
+        }
+
+    def get_event_summary(self, provider: str, event_id: int) -> str:
+        """Tra cứu mô tả ngắn gọn bằng tiếng Việt cho sự kiện từ event_rules.yaml."""
+        return self.get_event_rule_info(provider, event_id)["description"]
 
     def correlate_events_to_crash(
         self,
         crash: Crash,
         all_events: List[Dict[str, Any]],
+        app_events: Optional[List[Dict[str, Any]]] = None,
     ) -> List[Evidence]:
         """
         Tìm các sự kiện xảy ra trong cửa sổ [crash_time - window_minutes, crash_time + 2 phút].
-        Tạo danh sách đối tượng Evidence gắn với crash.id.
+        Tạo danh sách đối tượng Evidence gắn với crash.id (bao gồm strength, polarity, group_id).
         """
         if not crash.crash_time_utc:
             return []
@@ -116,7 +131,6 @@ class Correlator:
                 kp_dt = min(candidate_kps, key=lambda t: (t - crash_dt).total_seconds())
                 end_dt = max(end_dt, kp_dt + timedelta(minutes=2))
 
-
         evidences: List[Evidence] = []
 
         for ev in all_events:
@@ -137,25 +151,73 @@ class Correlator:
                 if eid == 1074:
                     continue
 
-                summary = self.get_event_summary(prov, eid)
+                rule_info = self.get_event_rule_info(prov, eid)
+                summary = rule_info["description"]
+                strength = rule_info["strength"]
+                polarity = rule_info["polarity"]
+                group_id = rule_info["group_id"]
+
                 detail = ev.get("raw_message", "")
                 if not detail and ev.get("event_data"):
                     detail = json.dumps(ev.get("event_data"), ensure_ascii=False)
 
-                kind = "eventlog"
+                # Làm giàu chi tiết cho Kernel-Power 41 (SleepInProgress, PowerButtonTimestamp)
+                if eid == 41 and "kp41_info" in ev:
+                    kp = ev["kp41_info"]
+                    detail = (
+                        f"Kernel-Power 41: BugcheckCode={kp.get('bugcheck_code', '0x0')}, "
+                        f"SleepInProgress={kp.get('sleep_in_progress', '0')}, "
+                        f"PowerButtonTimestamp={kp.get('power_button_timestamp', '0')}. "
+                        + detail
+                    )
 
                 evidence = Evidence(
                     crash_id=crash.id,
-                    kind=kind,
+                    kind="eventlog",
                     source=prov,
                     event_id=eid,
                     time_utc=ev_time_str,
                     summary=summary,
                     detail=detail[:500],  # Cắt ngắn để lưu gọn
+                    strength=strength,
+                    polarity=polarity,
+                    group_id=group_id,
                 )
                 evidences.append(evidence)
 
+        # Xử lý Application Log (Application Error 1000) trong cửa sổ 24h quanh crash
+        if app_events:
+            app_start = crash_dt - timedelta(hours=24)
+            window_apps = set()
+            for aev in app_events:
+                at_str = aev.get("time_created_utc")
+                if at_str:
+                    adt = parse_to_utc(at_str)
+                    if adt and app_start <= adt <= end_dt:
+                        info = aev.get("app_crash_info") or {}
+                        aname = info.get("app_name") or aev.get("event_data", {}).get("AppName") or aev.get("event_data", {}).get("param1")
+                        if aname:
+                            window_apps.add(str(aname).strip().lower())
+
+            if len(window_apps) >= 3:
+                app_list_str = ", ".join(sorted(window_apps)[:5])
+                evidences.append(
+                    Evidence(
+                        crash_id=crash.id,
+                        kind="eventlog",
+                        source="Application Error",
+                        event_id=1000,
+                        time_utc=crash.crash_time_utc or "",
+                        summary=f"Phát hiện {len(window_apps)} ứng dụng khác nhau ({app_list_str}) bị sập ngẫu nhiên",
+                        detail=f"Có {len(window_apps)} ứng dụng khác nhau sập trong cửa sổ sự cố: {app_list_str}. Dấu hiệu này thường chỉ ra bộ nhớ RAM bị lỗi hoặc chập chờn.",
+                        strength="medium",
+                        polarity="support",
+                        group_id="eventlog_app_crash",
+                    )
+                )
+
         return evidences
+
 
     def detect_log_only_crashes(
         self,
@@ -360,7 +422,11 @@ class Correlator:
                         time_utc=up_time_str,
                         summary=f"Cài đặt bản cập nhật {hotfix_id} trong 7 ngày trước lần sập đầu tiên",
                         detail=f"{desc} ({hotfix_id}) cài đặt lúc {up_time_str}",
+                        strength="medium",
+                        polarity="support",
+                        group_id="windows_update",
                     )
                 )
+
 
         return evidences

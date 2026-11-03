@@ -67,3 +67,31 @@ logging:
   log_file: "./logs/dumpanalyzer.log"
   max_bytes: 10485760          # 10 MB mỗi file
   backup_count: 5              # Lưu tối đa 5 file xoay vòng
+
+# ==============================================================================
+# CẤU HÌNH BỔ SUNG CHO ĐỢT CẬP NHẬT 03 (v1.1.0)
+# ==============================================================================
+
+# Số ngày nhìn lại lịch sử crash của máy (Phần 2.2)
+history_lookback_days: 180
+
+# Cấu hình phân tích đội máy (Phần 2.3)
+fleet_min_machines: 3          # Tối thiểu N máy gặp cùng bucket/driver
+fleet_window_days: 30          # Trong khoảng thời gian D ngày
+
+# Chính sách đánh giá độ tin cậy tách rời khỏi điểm % (Phần 3.2)
+confidence_policy:
+  high_min_strong_evidence: 2  # Cần >= 2 bằng chứng STRONG từ >= 2 group_id độc lập
+  high_max_refute_strong: 0    # Không có bằng chứng phản bác STRONG
+  medium_min_strong: 1         # 1 bằng chứng STRONG hoặc >= 2 MEDIUM độc lập
+  medium_min_medium_groups: 2
+
+# Ánh xạ tên cột khi nhập danh sách thiết bị từ file CSV AppSheet (Phần 1.4)
+asset_csv_mapping:
+  hostname: ["tên máy", "device name", "hostname", "computer name", "máy"]
+  purchase_date: ["ngày mua", "purchase date", "ngày nhập", "date purchased"]
+  warranty_expiry: ["ngày hết hạn bảo hành", "hết bảo hành", "warranty expiry", "warranty end"]
+  repair_count: ["số lần sửa", "lần sửa", "repair count", "repairs"]
+  ram: ["ram", "bộ nhớ", "dung lượng ram"]
+  notes: ["ghi chú", "notes", "lịch sử sửa chữa", "tình trạng"]
+

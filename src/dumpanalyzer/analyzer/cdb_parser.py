@@ -83,6 +83,9 @@ class CdbAnalysisResult:
     loaded_modules: Dict[str, Dict[str, Any]] = field(default_factory=dict)
     raw_output: str = ""
     symbol_error: bool = False
+    errrec_info: Optional[Dict[str, Any]] = None
+    chkimg_info: Optional[Dict[str, Any]] = None
+    driver_age_info: Optional[Dict[str, Any]] = None
 
 
 class CdbParser:
@@ -216,7 +219,17 @@ class CdbParser:
         # 9. Bóc tách danh sách module từ `lm t n`
         res.loaded_modules = self._extract_loaded_modules(raw_text)
 
+        # 10. Bóc tách bản ghi lỗi WHEA (!errrec) nếu có
+        res.errrec_info = self._parse_errrec(raw_text)
+
+        # 11. Bóc tách kiểm tra toàn vẹn mã nhân Windows (!chkimg -d nt)
+        res.chkimg_info = self._parse_chkimg(raw_text)
+
+        # 12. Bóc tách tuổi driver từ lmvm
+        res.driver_age_info = self._parse_lmvm(raw_text, res.suspect_driver, res.crash_time_utc)
+
         return res
+
 
     def _is_ms_module(self, name: str) -> bool:
         """Kiểm tra xem tên module có thuộc danh sách lõi Microsoft không."""
@@ -305,3 +318,157 @@ class CdbParser:
                     }
 
         return modules
+
+    def _parse_errrec(self, raw_text: str) -> Optional[Dict[str, Any]]:
+        """
+        Bóc tách thông tin bản ghi lỗi phần cứng WHEA từ lệnh !errrec <addr>.
+        Chịu lỗi toàn diện: nếu thiếu hoặc lỗi symbol -> trả về None, không văng exception.
+        """
+        try:
+            if "Common Platform Error Record" not in raw_text and "!errrec" not in raw_text and "WHEA" not in raw_text:
+                return None
+
+            # Bóc tách Section Type
+            m_sec = re.search(r"Section\s+\d+\s*:\s*([^\r\n]+)", raw_text, re.IGNORECASE)
+            section_type = m_sec.group(1).strip() if m_sec else ""
+            if not section_type:
+                m_sec_guid = re.search(r"Section Type\s*:\s*(?:\{[0-9a-fA-F\-]+\}\s*)?\(?([^\r\n\)]+)\)?", raw_text, re.IGNORECASE)
+                if m_sec_guid:
+                    section_type = m_sec_guid.group(1).strip()
+
+            # Bóc tách Error Type
+            m_err = re.search(r"Error Type\s*:\s*([^\r\n]+)", raw_text, re.IGNORECASE)
+            error_type = m_err.group(1).strip() if m_err else ""
+            if not error_type:
+                m_err2 = re.search(r"Error\s*:\s*([^\r\n]+)", raw_text, re.IGNORECASE)
+                if m_err2 and not m_err2.group(1).strip().startswith("Code"):
+                    error_type = m_err2.group(1).strip()
+
+            # Bóc tách Severity
+            m_sev = re.search(r"Severity\s*:\s*([^\r\n]+)", raw_text, re.IGNORECASE)
+            severity = m_sev.group(1).strip() if m_sev else ""
+
+            if not section_type and not error_type:
+                return None
+
+            # Xác định thành phần nghi ngờ
+            sec_lower = section_type.lower()
+            err_lower = error_type.lower()
+            if "processor" in sec_lower or "cpu" in err_lower or "micro-architectural" in err_lower:
+                component = "cpu"
+            elif "memory" in sec_lower or "ecc" in err_lower:
+                component = "ram"
+            elif "pci" in sec_lower:
+                component = "pcie"
+            else:
+                component = "hardware"
+
+            summary = f"{section_type} ({error_type})" if error_type else section_type
+            return {
+                "section_type": section_type,
+                "error_type": error_type,
+                "severity": severity,
+                "component": component,
+                "summary": summary,
+            }
+        except Exception as e:
+            logger.debug(f"Lỗi khi bóc tách !errrec (bỏ qua an toàn): {e}")
+            return None
+
+    def _parse_chkimg(self, raw_text: str) -> Optional[Dict[str, Any]]:
+        """
+        Bóc tách kết quả kiểm tra toàn vẹn mã nhân Windows từ lệnh !chkimg -d nt.
+        Phát hiện số byte/khối sai khác (dấu hiệu RAM lỗi hoặc bit-flip).
+        """
+        try:
+            has_chkimg = "!chkimg" in raw_text or "patterns tested" in raw_text or "errors : !nt" in raw_text
+            if not has_chkimg:
+                return None
+
+            patterns_tested = 0
+            m_pat = re.search(r"(\d+)\s+patterns?\s+tested", raw_text, re.IGNORECASE)
+            if m_pat:
+                patterns_tested = int(m_pat.group(1))
+
+            error_count = 0
+            m_err = re.search(r"(\d+)\s+errors?\s*:\s*!nt", raw_text, re.IGNORECASE)
+            if m_err:
+                error_count = int(m_err.group(1))
+            else:
+                m_diff = re.search(r"(\d+)\s+different\s+bytes?", raw_text, re.IGNORECASE)
+                if m_diff:
+                    error_count = int(m_diff.group(1))
+                elif "0 errors" in raw_text or "No errors found" in raw_text:
+                    error_count = 0
+
+            is_corrupted = error_count > 0
+            summary = (
+                f"Phát hiện {error_count} lỗi sai khác trong mã nhân Windows (nt) - nguy cơ RAM lỗi / bit flip"
+                if is_corrupted
+                else "Mã nhân Windows (nt) hoàn toàn nguyên vẹn"
+            )
+
+            return {
+                "patterns_tested": patterns_tested,
+                "error_count": error_count,
+                "is_corrupted": is_corrupted,
+                "summary": summary,
+            }
+        except Exception as e:
+            logger.debug(f"Lỗi khi bóc tách !chkimg (bỏ qua an toàn): {e}")
+            return None
+
+    def _parse_lmvm(
+        self,
+        raw_text: str,
+        suspect_driver: Optional[str] = None,
+        crash_time_utc: Optional[str] = None,
+    ) -> Optional[Dict[str, Any]]:
+        """
+        Bóc tách thông tin chi tiết và ngày phát hành của driver từ lệnh lmvm <module>.
+        Tính toán tuổi của driver (số tháng).
+        """
+        try:
+            if "Loaded symbol image file:" not in raw_text and "Image name:" not in raw_text:
+                return None
+
+            m_img = re.search(r"Image name:\s*([^\r\n]+)", raw_text, re.IGNORECASE)
+            img_name = m_img.group(1).strip() if m_img else (suspect_driver or "")
+
+            m_ts = re.search(r"Timestamp:\s*([^\r\n\(]+)", raw_text, re.IGNORECASE)
+            ts_raw = m_ts.group(1).strip() if m_ts else ""
+
+            m_ver = re.search(r"(?:File|Product) version:\s*([^\r\n]+)", raw_text, re.IGNORECASE)
+            file_ver = m_ver.group(1).strip() if m_ver else ""
+
+            ts_iso = None
+            age_months = None
+
+            if ts_raw:
+                try:
+                    dt = parse_to_utc(ts_raw)
+                    if dt:
+                        ts_iso = to_utc_iso(dt)
+                        ref_dt = parse_to_utc(crash_time_utc) if crash_time_utc else None
+                        if not ref_dt:
+                            import datetime
+                            ref_dt = datetime.datetime.now(datetime.timezone.utc)
+                        age_months = max(0, (ref_dt.year - dt.year) * 12 + (ref_dt.month - dt.month))
+                except Exception:
+                    pass
+
+            if not img_name and not ts_raw:
+                return None
+
+            return {
+                "module_name": suspect_driver or img_name,
+                "image_name": img_name,
+                "timestamp_raw": ts_raw,
+                "timestamp_utc": ts_iso,
+                "age_months": age_months,
+                "file_version": file_ver,
+            }
+        except Exception as e:
+            logger.debug(f"Lỗi khi bóc tách lmvm (bỏ qua an toàn): {e}")
+            return None
+

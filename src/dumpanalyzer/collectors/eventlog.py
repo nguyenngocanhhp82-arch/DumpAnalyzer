@@ -38,7 +38,14 @@ CURATED_EVENT_PROVIDERS = {
     "WindowsUpdateClient": [19, 20],
     "MsiInstaller": [11707, 1033],
     "User32": [1074],
+    "Microsoft-Windows-Kernel-PnP": [219],
+    "Kernel-PnP": [219],
+    "Microsoft-Windows-CodeIntegrity": [3033, 3063],
+    "CodeIntegrity": [3033, 3063],
+    "Microsoft-Windows-Kernel-Processor-Power": [37],
+    "Kernel-Processor-Power": [37],
 }
+
 
 
 def parse_event_xml(xml_string: str) -> Dict[str, Any]:
@@ -418,3 +425,133 @@ def read_system_events(
     except Exception as e:
         logger.error(f"Lỗi khi đọc Windows Event Log: {e}")
         return []
+
+
+def read_application_crashes(
+    from_date: Optional[Union[str, datetime]] = None,
+    to_date: Optional[Union[str, datetime]] = None,
+    mock_events: Optional[List[Dict[str, Any]]] = None,
+    debug_ps: bool = False,
+) -> List[Dict[str, Any]]:
+    """
+    Thu thập các sự kiện Application Error ID 1000 từ Application log (Phần 1.2).
+    Dùng để phát hiện các ứng dụng sập ngẫu nhiên (chỉ báo lỗi bộ nhớ/RAM).
+    """
+    if mock_events is not None:
+        return mock_events
+
+    from_dt = parse_to_utc(from_date) if from_date else None
+    to_dt = parse_to_utc(to_date) if to_date else None
+
+    filter_lines = [
+        "    LogName = 'Application'",
+        "    ProviderName = 'Application Error'",
+        "    Id = 1000",
+    ]
+    if from_dt:
+        filter_lines.append(f"    StartTime = [datetime]'{from_dt.strftime('%Y-%m-%dT%H:%M:%SZ')}'")
+    if to_dt:
+        filter_lines.append(f"    EndTime = [datetime]'{to_dt.strftime('%Y-%m-%dT%H:%M:%SZ')}'")
+
+    filter_body = "\n".join(filter_lines)
+    ps_script = f"""[Console]::OutputEncoding = [System.Text.Encoding]::UTF8
+$filter = @{{
+{filter_body}
+}}
+
+try {{
+    $events = Get-WinEvent -FilterHashtable $filter -ErrorAction Stop
+    $events | ForEach-Object {{
+        [PSCustomObject]@{{
+            Xml = $_.ToXml()
+            Message = $_.Message
+        }}
+    }} | ConvertTo-Json -Depth 4 -Compress
+}} catch {{
+    if ($_.FullyQualifiedErrorId -match 'NoMatchingEventsFound' -or $_.Exception.Message -match 'No events were found') {{
+        Write-Output '[]'
+        exit 0
+    }} else {{
+        [Console]::Error.WriteLine($_.Exception.Message)
+        exit 1
+    }}
+}}
+"""
+    if sys.platform != "win32":
+        if debug_ps:
+            print("\n=== DEBUG POWERSHELL APPLICATION LOG ===")
+            print(f"Script:\n{ps_script.strip()}")
+            print("========================================\n")
+        return []
+
+    settings = load_settings()
+    timeout = int(settings.get("eventlog_timeout_seconds", 120))
+
+    try:
+        proc = subprocess.run(
+            ["powershell.exe", "-NoProfile", "-ExecutionPolicy", "Bypass", "-Command", ps_script],
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            errors="replace",
+            timeout=timeout,
+        )
+        raw_json = proc.stdout.strip()
+        if not raw_json or raw_json == "[]":
+            return []
+
+        data_list = json.loads(raw_json) if raw_json.startswith("[") or raw_json.startswith("{") else []
+        if isinstance(data_list, dict):
+            data_list = [data_list]
+
+        parsed = []
+        for item in data_list:
+            ev = parse_event_xml(item.get("Xml", ""))
+            ev["raw_message"] = item.get("Message", "")
+            # Trích xuất tên ứng dụng gây lỗi từ EventData (AppName hoặc param1)
+            ed = ev.get("event_data", {})
+            app_name = ed.get("AppName") or ed.get("param1") or ""
+            fault_mod = ed.get("FaultModuleName") or ed.get("param4") or ""
+            exc_code = ed.get("ExceptionCode") or ed.get("param7") or ""
+            ev["app_crash_info"] = {
+                "app_name": str(app_name).strip(),
+                "fault_module": str(fault_mod).strip(),
+                "exception_code": str(exc_code).strip(),
+            }
+            parsed.append(ev)
+
+        parsed.sort(key=lambda x: x["time_created_utc"] or "")
+        return parsed
+    except Exception as e:
+        logger.warning(f"Lỗi khi đọc Application Error log: {e}")
+        return []
+
+
+def summarize_app_crashes(app_events: List[Dict[str, Any]]) -> Dict[str, Any]:
+    """
+    Thống kê các vụ sập ứng dụng: đếm số ứng dụng khác nhau bị sập.
+    Nếu >= 3 ứng dụng khác nhau bị sập -> gợi ý RAM lỗi (Phần 1.2).
+    """
+    unique_apps = set()
+    crash_records = []
+    for ev in app_events:
+        info = ev.get("app_crash_info") or {}
+        app_name = info.get("app_name", "").strip().lower()
+        if not app_name:
+            ed = ev.get("event_data", {})
+            app_name = str(ed.get("AppName") or ed.get("param1") or "").strip().lower()
+        if app_name:
+            unique_apps.add(app_name)
+            crash_records.append({
+                "app": app_name,
+                "time_utc": ev.get("time_created_utc"),
+                "module": info.get("fault_module", ""),
+            })
+
+    return {
+        "unique_app_count": len(unique_apps),
+        "unique_apps": sorted(unique_apps),
+        "total_crashes": len(app_events),
+        "is_random_multiapp": len(unique_apps) >= 3,
+    }
+

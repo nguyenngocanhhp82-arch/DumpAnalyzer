@@ -33,18 +33,22 @@ CREATE TABLE IF NOT EXISTS crash (
     cdb_raw_output TEXT,         -- LUÔN lưu output thô để phân tích lại khi đổi luật
     analyzed_by TEXT,            -- 'cdb', 'header_only', hoặc 'none'
     crash_time_source TEXT DEFAULT 'unknown', -- 'header', 'mtime', 'cdb', 'eventlog_6008', 'estimated', 'kp41'
-    suspect_driver TEXT DEFAULT ''            -- Driver nghi vấn phát hiện trong stack trace
+    suspect_driver TEXT DEFAULT '',           -- Driver nghi vấn phát hiện trong stack trace
+    extra_json TEXT DEFAULT '{}'              -- Dữ liệu mở rộng JSON (errrec, chkimg, driver_age)
 );
 
 CREATE TABLE IF NOT EXISTS evidence (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     crash_id INTEGER REFERENCES crash(id) ON DELETE CASCADE,
-    kind TEXT,                   -- 'dump', 'eventlog', 'smart', 'update', 'driver', 'thermal'
+    kind TEXT,                   -- 'dump', 'eventlog', 'smart', 'update', 'driver', 'thermal', 'sysinfo', 'hwtest'
     source TEXT,                 -- Ví dụ: 'Microsoft-Windows-WHEA-Logger', 'Disk', 'cdb'
     event_id INTEGER,
     time_utc TEXT,
     summary TEXT,
-    detail TEXT
+    detail TEXT,
+    strength TEXT DEFAULT 'weak',       -- 'strong', 'medium', 'weak'
+    polarity TEXT DEFAULT 'support',    -- 'support', 'refute'
+    group_id TEXT DEFAULT ''            -- Nhóm bằng chứng độc lập
 );
 
 CREATE TABLE IF NOT EXISTS finding (
@@ -57,7 +61,57 @@ CREATE TABLE IF NOT EXISTS finding (
     confidence TEXT,             -- 'thấp', 'trung bình', 'cao'
     rationale TEXT,
     evidence_ids TEXT,           -- Danh sách id evidence, phân cách bằng dấu phẩy
-    next_steps TEXT              -- JSON string danh sách các bước kiểm tra theo thứ tự từ dễ đến khó
+    next_steps TEXT,             -- JSON string danh sách các bước kiểm tra theo thứ tự từ dễ đến khó
+    suspicion_share REAL DEFAULT 0.0,
+    confidence_rationale TEXT DEFAULT ''
+);
+
+-- Thông tin phần cứng thu thập từ PowerShell / CIM (Phần 1.3)
+CREATE TABLE IF NOT EXISTS system_info (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    machine_id INTEGER REFERENCES machine(id) ON DELETE CASCADE,
+    collected_at TEXT,
+    category TEXT,               -- 'ram', 'disk', 'bios', 'cpu', 'gpu'
+    key TEXT,
+    value TEXT,
+    raw_json TEXT
+);
+
+-- Danh sách tài sản nhập từ file CSV AppSheet (Phần 1.4)
+CREATE TABLE IF NOT EXISTS asset_info (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    hostname TEXT UNIQUE,
+    purchase_date TEXT,
+    warranty_expiry TEXT,
+    repair_count INTEGER DEFAULT 0,
+    ram TEXT,
+    notes TEXT,
+    raw_json TEXT
+);
+
+-- Phản hồi đánh giá kết quả từ IT (Phần 2.1)
+CREATE TABLE IF NOT EXISTS feedback (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    machine_id INTEGER REFERENCES machine(id) ON DELETE SET NULL,
+    analysis_ref TEXT,
+    predicted_group TEXT,
+    predicted_confidence TEXT,
+    verdict TEXT,                -- 'dung', 'sai', 'chua_ro'
+    actual_cause TEXT,
+    note TEXT,
+    created_at TEXT
+);
+
+-- Lịch sử chạy bài kiểm tra phần cứng (Phần 4.1)
+CREATE TABLE IF NOT EXISTS test_run (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    machine_id INTEGER REFERENCES machine(id) ON DELETE CASCADE,
+    test_id TEXT,
+    status TEXT,                 -- 'passed', 'failed', 'inconclusive', 'pending', 'not_run'
+    details TEXT,
+    started_at TEXT,
+    finished_at TEXT,
+    raw_output TEXT
 );
 
 CREATE INDEX IF NOT EXISTS idx_crash_sha256 ON crash(dump_sha256);
@@ -65,3 +119,8 @@ CREATE INDEX IF NOT EXISTS idx_crash_time ON crash(crash_time_utc);
 CREATE INDEX IF NOT EXISTS idx_evidence_crash ON evidence(crash_id);
 CREATE INDEX IF NOT EXISTS idx_finding_crash ON finding(crash_id);
 CREATE INDEX IF NOT EXISTS idx_finding_machine ON finding(machine_id);
+CREATE INDEX IF NOT EXISTS idx_sysinfo_machine ON system_info(machine_id);
+CREATE INDEX IF NOT EXISTS idx_asset_hostname ON asset_info(hostname);
+CREATE INDEX IF NOT EXISTS idx_feedback_machine ON feedback(machine_id);
+CREATE INDEX IF NOT EXISTS idx_testrun_machine ON test_run(machine_id);
+

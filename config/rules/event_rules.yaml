@@ -1,7 +1,7 @@
 # ==============================================================================
 # QUY TẮC PHÂN TÍCH EVENT LOG (event_rules.yaml)
 # Định nghĩa các Event Provider và ID cần giám sát trong cửa sổ trước khi crash.
-# Trọng số cộng điểm (adds) sẽ tăng điểm nghi ngờ cho từng nhóm nguyên nhân.
+# Mỗi luật có: adds, cap, strength (strong/medium/weak), polarity (support/refute), group_id.
 # ==============================================================================
 
 events:
@@ -13,6 +13,9 @@ events:
       ram: 15
       psu: 10
     cap: 40
+    strength: "strong"
+    polarity: "support"
+    group_id: "eventlog_whea"
 
   - source: "Disk"
     ids: [7, 11, 51, 153]
@@ -20,6 +23,9 @@ events:
     adds:
       storage: 25
     cap: 40
+    strength: "strong"
+    polarity: "support"
+    group_id: "eventlog_disk"
 
   - source: "stornvme"
     ids: [129]
@@ -27,6 +33,9 @@ events:
     adds:
       storage: 25
     cap: 35
+    strength: "strong"
+    polarity: "support"
+    group_id: "eventlog_nvme"
 
   - source: "storahci"
     ids: [129]
@@ -34,6 +43,9 @@ events:
     adds:
       storage: 20
     cap: 30
+    strength: "strong"
+    polarity: "support"
+    group_id: "eventlog_ahci"
 
   - source: "Display"
     ids: [4101]
@@ -41,6 +53,9 @@ events:
     adds:
       gpu: 30
     cap: 40
+    strength: "medium"
+    polarity: "support"
+    group_id: "eventlog_display_tdr"
 
   - source: "nvlddmkm"
     ids: [13, 14]
@@ -48,6 +63,9 @@ events:
     adds:
       gpu: 35
     cap: 45
+    strength: "strong"
+    polarity: "support"
+    group_id: "eventlog_nvidia"
 
   - source: "Ntfs"
     ids: [55]
@@ -55,6 +73,9 @@ events:
     adds:
       storage: 20
     cap: 30
+    strength: "medium"
+    polarity: "support"
+    group_id: "eventlog_ntfs"
 
   - source: "Microsoft-Windows-Kernel-Power"
     ids: [41]
@@ -63,6 +84,9 @@ events:
       psu: 15
       thermal: 10
     cap: 25
+    strength: "weak"
+    polarity: "support"
+    group_id: "eventlog_kp41"
 
   - source: "EventLog"
     ids: [6008]
@@ -71,6 +95,9 @@ events:
       psu: 10
       thermal: 10
     cap: 20
+    strength: "weak"
+    polarity: "support"
+    group_id: "eventlog_6008"
 
   - source: "volmgr"
     ids: [161]
@@ -78,6 +105,50 @@ events:
     adds:
       storage: 20
     cap: 25
+    strength: "medium"
+    polarity: "support"
+    group_id: "eventlog_volmgr"
+
+  - source: "Microsoft-Windows-Kernel-PnP"
+    ids: [219]
+    description: "Driver thiết bị không nạp được thành công (Kernel-PnP ID 219)"
+    adds:
+      driver: 25
+    cap: 35
+    strength: "medium"
+    polarity: "support"
+    group_id: "eventlog_kernel_pnp"
+
+  - source: "Microsoft-Windows-CodeIntegrity"
+    ids: [3033, 3063]
+    description: "Driver bị chặn do không đạt kiểm tra chữ ký số hoặc tính toàn vẹn mã (Code Integrity)"
+    adds:
+      driver: 30
+    cap: 40
+    strength: "strong"
+    polarity: "support"
+    group_id: "eventlog_code_integrity"
+
+  - source: "Application Error"
+    ids: [1000]
+    description: "Nhiều ứng dụng khác nhau bị sập ngẫu nhiên (Application Error ID 1000) gợi ý bất ổn định RAM/bộ nhớ"
+    adds:
+      ram: 25
+    cap: 35
+    strength: "medium"
+    polarity: "support"
+    group_id: "eventlog_app_crash"
+
+  - source: "Microsoft-Windows-Kernel-Processor-Power"
+    ids: [37]
+    description: "Xung nhịp CPU bị firmware giới hạn do nhiệt độ hoặc năng lượng (Event 37)"
+    adds:
+      thermal: 25
+      cpu: 15
+    cap: 35
+    strength: "medium"
+    polarity: "support"
+    group_id: "eventlog_processor_power"
 
   - source: "WindowsUpdateClient"
     ids: [19, 20]
@@ -85,6 +156,9 @@ events:
     adds:
       update: 20
     cap: 30
+    strength: "medium"
+    polarity: "support"
+    group_id: "eventlog_update"
 
   - source: "MsiInstaller"
     ids: [11707, 1033]
@@ -93,3 +167,6 @@ events:
       driver: 10
       update: 15
     cap: 20
+    strength: "weak"
+    polarity: "support"
+    group_id: "eventlog_installer"
