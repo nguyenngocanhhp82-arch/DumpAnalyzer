@@ -131,6 +131,8 @@ def find_cdb_executable(configured_path: Optional[str] = None) -> Optional[str]:
         p = Path(configured_path.strip())
         if p.exists() and p.is_file():
             return str(p)
+        # Đường dẫn được cấu hình rõ ràng nhưng không tồn tại -> không tự ý dùng cdb khác
+        return None
 
     # 2. Kiểm tra trong PATH
     in_path = shutil.which("cdb.exe") or shutil.which("cdb")

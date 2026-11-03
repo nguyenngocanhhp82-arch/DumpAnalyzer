@@ -67,3 +67,17 @@ def test_environment_summary():
     assert "is_admin" in summary
     assert "os_platform" in summary
     assert "dump_paths" in summary
+
+
+def test_find_cdb_executable(tmp_path):
+    """Kiểm tra logic tìm kiếm cdb.exe: ưu tiên đường dẫn chỉ định tay, không fallback bừa bãi."""
+    from dumpanalyzer.core.config import find_cdb_executable
+
+    # 1. Đường dẫn chỉ định tay không tồn tại -> bắt buộc trả về None
+    assert find_cdb_executable("/nonexistent/path/to/cdb.exe") is None
+
+    # 2. Đường dẫn chỉ định tay tồn tại -> trả về đúng đường dẫn đó
+    fake_cdb = tmp_path / "cdb.exe"
+    fake_cdb.write_text("mock binary", encoding="utf-8")
+    assert find_cdb_executable(str(fake_cdb)) == str(fake_cdb)
+
