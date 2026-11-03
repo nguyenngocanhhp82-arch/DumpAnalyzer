@@ -26,6 +26,7 @@ from PySide6.QtWidgets import (
 
 from dumpanalyzer.core.models import Crash, Evidence, Finding, MachineInfo
 from dumpanalyzer.gui.tab_detail import DetailTab
+from dumpanalyzer.gui.tab_hwtests import HardwareTestsTab
 from dumpanalyzer.gui.tab_overview import OverviewTab
 from dumpanalyzer.gui.tab_settings import SettingsTab
 from dumpanalyzer.gui.tab_verdict import VerdictTab
@@ -182,11 +183,13 @@ class MainWindow(QMainWindow):
         self.tab_overview = OverviewTab()
         self.tab_detail = DetailTab()
         self.tab_verdict = VerdictTab()
+        self.tab_hwtests = HardwareTestsTab()
         self.tab_settings = SettingsTab()
 
         self.tabs.addTab(self.tab_overview, "Tổng quan")
         self.tabs.addTab(self.tab_detail, "Chi tiết crash")
         self.tabs.addTab(self.tab_verdict, "Kết luận")
+        self.tabs.addTab(self.tab_hwtests, "Kiểm tra phần cứng")
         self.tabs.addTab(self.tab_settings, "Cài đặt")
 
         # Kết nối tín hiệu chuyển tab khi double click dòng ở Tab Tổng quan
@@ -268,7 +271,7 @@ class MainWindow(QMainWindow):
         self._suspect_ranking = data.get("suspect_ranking", [])
         conflict_detected = data.get("conflict_detected", False)
 
-        # Cập nhật dữ liệu cho cả 3 Tab
+        # Cập nhật dữ liệu cho các Tab
         self.tab_overview.set_data(self._crashes, self._finding, self._suspect_ranking)
         self.tab_detail.set_data(self._crashes, self._evidences)
         self.tab_verdict.set_data(
@@ -279,6 +282,7 @@ class MainWindow(QMainWindow):
             suspect_ranking=self._suspect_ranking,
             conflict_detected=conflict_detected,
         )
+        self.tab_hwtests.set_machine_info(self._machine_info)
 
         # Tự động chuyển người dùng sang tab Kết luận nếu có sập máy
         if self._crashes:

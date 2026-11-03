@@ -135,11 +135,12 @@ def test_main_window_structure(qapp, mock_msgbox):
     win.show()
 
     assert win.windowTitle() == "DumpAnalyzer – Phân tích màn hình xanh & khởi động lại"
-    assert win.tabs.count() == 4
+    assert win.tabs.count() == 5
     assert win.tabs.tabText(0) == "Tổng quan"
     assert win.tabs.tabText(1) == "Chi tiết crash"
     assert win.tabs.tabText(2) == "Kết luận"
-    assert win.tabs.tabText(3) == "Cài đặt"
+    assert win.tabs.tabText(3) == "Kiểm tra phần cứng"
+    assert win.tabs.tabText(4) == "Cài đặt"
 
 
 def test_overview_tab_kpi_and_badges(qapp, mock_msgbox, sample_gui_data):

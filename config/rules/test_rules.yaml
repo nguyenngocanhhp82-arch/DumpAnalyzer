@@ -1,0 +1,51 @@
+# ==============================================================================
+# QUY TẮC KIỂM TRA PHẦN CỨNG & QUY ĐỔI BẰNG CHỨNG (test_rules.yaml)
+# Đợt Cập nhật 03 (v1.1.0)
+# Định nghĩa các quy tắc cho khung plugin kiểm tra phần cứng (hwtests).
+# ==============================================================================
+
+# 1. Quy đổi kết quả kiểm tra thành Bằng chứng (Evidence)
+evidence_conversion:
+  storage_health:
+    group: "storage"
+    failed:
+      strength: "strong"
+      polarity: "support"
+      summary: "Kiểm tra ổ đĩa (storage_health) PHÁT HIỆN LỖI phần cứng hoặc hệ thống tệp"
+    passed:
+      strength: "medium"
+      polarity: "refute"
+      summary: "Kiểm tra ổ đĩa (storage_health) ĐẠT - sức khỏe SMART và quét cấu trúc đĩa tốt"
+
+  windows_memory_diagnostic:
+    group: "ram"
+    failed:
+      strength: "strong"
+      polarity: "support"
+      summary: "Windows Memory Diagnostic (mdsched) PHÁT HIỆN LỖI bộ nhớ RAM"
+    passed:
+      strength: "weak"
+      polarity: "refute"
+      summary: "Windows Memory Diagnostic ĐẠT - không tìm thấy lỗi trong lượt quét này (lưu ý: lỗi RAM có thể chập chờn)"
+
+  external_test_import:
+    failed:
+      strength: "strong"
+      polarity: "support"
+      summary: "Công cụ kiểm tra chuyên dụng ngoài (MemTest86/OCCT/Prime95) PHÁT HIỆN LỖI"
+    passed:
+      strength: "medium"
+      polarity: "refute"
+      summary: "Công cụ kiểm tra chuyên dụng ngoài hoàn thành đủ lượt và KHÔNG phát hiện lỗi"
+
+# 2. Ánh xạ Event ID cho Windows Memory Diagnostic (Microsoft-Windows-MemoryDiagnostics-Results)
+# ID chưa kiểm chứng đầy đủ trên Windows thật, người dùng có thể bổ sung ID vào đây
+memory_diagnostic_event_map:
+  1101: "passed"       # Windows Memory Diagnostic tested the computer's memory and detected no errors.
+  1102: "failed"       # Windows Memory Diagnostic tested the computer's memory and detected hardware errors.
+  1201: "passed"
+  1202: "failed"
+
+# 3. Cấu hình kiểm tra MemTest86 / Công cụ ngoài
+external_test_rules:
+  min_passes: 4        # Khuyến nghị tối thiểu 4 lượt pass để coi là đạt (passed)

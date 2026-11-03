@@ -914,7 +914,157 @@ def cmd_clean_workspace(args):
     return 0
 
 
+def cmd_feedback(args):
+
+    """Quản lý và thống kê phản hồi kết luận từ kỹ thuật viên (Phần 2.1)."""
+    db = Database()
+    action = getattr(args, "feedback_action", "stats")
+
+    if action == "add":
+        verdict = args.verdict.strip().lower()
+        if verdict not in ("dung", "sai", "chua_ro"):
+            print("[!] Lỗi: verdict phải là một trong: 'dung', 'sai', 'chua_ro'.")
+            db.close()
+            return 1
+
+        m_id = None
+        if getattr(args, "machine", None):
+            conn = db._get_connection()
+            cur = conn.execute("SELECT id FROM machine WHERE hostname = ?", (args.machine,))
+            row = cur.fetchone()
+            if row:
+                m_id = row["id"]
+
+        ref = getattr(args, "ref", None) or 1
+        fid = db.insert_feedback(
+            machine_id=m_id,
+            analysis_ref=int(ref),
+            predicted_group=getattr(args, "predicted_group", "") or "unknown",
+            predicted_confidence=getattr(args, "predicted_confidence", "") or "trung bình",
+            verdict=verdict,
+            actual_cause=getattr(args, "actual_cause", "") or "",
+            note=getattr(args, "note", "") or "",
+        )
+        print(f"[OK] Đã ghi nhận phản hồi #{fid}: Đánh giá [{verdict.upper()}] cho phân tích #{ref}.")
+        db.close()
+        return 0
+
+    elif action == "list":
+        limit = int(getattr(args, "limit", 20) or 20)
+        items = db.list_feedback(limit=limit)
+        print(f"\n--- DANH SÁCH {len(items)} PHẢN HỒI GẦN NHẤT ---")
+        if not items:
+            print("Chưa có phản hồi nào được ghi nhận.")
+        else:
+            print(f"{'ID':<4} | {'Máy':<12} | {'Ref':<6} | {'Đánh giá':<10} | {'Nguyên nhân thực tế':<20} | {'Ghi chú'}")
+            print("-" * 75)
+            for it in items:
+                v_lbl = it['verdict'].upper()
+                print(f"{it['id']:<4} | {it.get('machine_id', 0):<12} | #{it.get('analysis_ref', 0):<5} | {v_lbl:<10} | {it.get('actual_cause', ''):<20} | {it.get('note', '')}")
+        print()
+        db.close()
+        return 0
+
+    elif action == "stats":
+        stats = db.get_feedback_stats()
+        total = stats.get("total_count", stats.get("total", 0))
+        print("\n--- THỐNG KÊ ĐỘ CHÍNH XÁC KẾT LUẬN (FEEDBACK STATS) ---")
+        print(f"Tổng số ca đã đánh giá: {total}")
+        v_counts = stats["verdict_counts"]
+        print(f"  * Đúng:     {v_counts.get('dung', 0)}")
+        print(f"  * Sai:      {v_counts.get('sai', 0)}")
+        print(f"  * Chưa rõ:  {v_counts.get('chua_ro', 0)}")
+
+        if total < 10:
+            print("\n[!] Chưa đủ dữ liệu đánh giá độ chính xác (cần tối thiểu 10 ca có phản hồi).")
+        else:
+            acc = stats.get("accuracy_rate")
+            print(f"\n[+] TỶ LỆ KẾT LUẬN CHÍNH XÁC (Hạng 1): {acc}%")
+
+        if stats.get("by_confidence"):
+            print("\nPhân bổ theo mức độ tin cậy được hệ thống dự đoán:")
+            for conf, c_stat in stats["by_confidence"].items():
+                print(f"  - [{conf.upper()}]: Tổng {c_stat['total']} ca | Đúng: {c_stat.get('dung', 0)}, Sai: {c_stat.get('sai', 0)}, Chưa rõ: {c_stat.get('chua_ro', 0)}")
+
+        print()
+        db.close()
+        return 0
+
+
+def cmd_fleet(args):
+    """Phân tích các sự cố lan rộng trên toàn bộ đội máy tính trong cơ sở dữ liệu (Phần 2.3)."""
+    from dumpanalyzer.engine.fleet import analyze_fleet_crashes
+    settings = load_settings()
+    rules = load_all_rules()
+    db = Database()
+
+    window = getattr(args, "window", None)
+    min_m = getattr(args, "min_machines", None)
+    if window:
+        settings["fleet_window_days"] = int(window)
+    if min_m:
+        settings["fleet_min_machines"] = int(min_m)
+
+    res = analyze_fleet_crashes(db, settings, rules)
+    print("\n======================================================================")
+    print("  PHÂN TÍCH SỰ CỐ DIỆN RỘNG TOÀN ĐỘI MÁY (FLEET ANALYSIS)")
+    print("======================================================================")
+    print(f"Khung thời gian quét: Trong vòng {res['window_days']} ngày gần nhất")
+    print(f"Ngưỡng phát hiện:     Xuất hiện trên >= {res['min_machines']} máy tính khác nhau")
+    print(f"Tổng số vụ sập quét: {res['total_crashes_in_window']} vụ sập trong CSDL\n")
+
+    b_list = res.get("fleet_buckets", [])
+    print(f"[1] FAILURE_BUCKET_ID XUẤT HIỆN TRÊN NHIỀU MÁY ({len(b_list)} nhóm):")
+    if not b_list:
+        print("  Không phát hiện mã bucket nào xuất hiện trên nhiều máy.")
+    else:
+        for b in b_list:
+            m_str = ", ".join(b["machines"])
+            print(f"  * Bucket: {b['bucket_id']}")
+            print(f"    - Ảnh hưởng: {b['machine_count']} máy ({m_str})")
+            print(f"    - Số vụ sập: {b['crash_count']} lần")
+
+    d_list = res.get("fleet_drivers", [])
+    print(f"\n[2] DRIVER BÊN THỨ BA GÂY LỖI TRÊN NHIỀU MÁY ({len(d_list)} driver):")
+    if not d_list:
+        print("  Không phát hiện driver bên thứ ba nào gây crash hàng loạt.")
+    else:
+        for d in d_list:
+            m_str = ", ".join(d["machines"])
+            print(f"  * Driver: {d['driver']}")
+            print(f"    - Ảnh hưởng: {d['machine_count']} máy ({m_str})")
+            print(f"    - Số vụ sập: {d['crash_count']} lần")
+
+    print("======================================================================\n")
+    db.close()
+    return 0
+
+
+def cmd_asset(args):
+    """Nhập danh sách thiết bị và lịch sử sửa chữa từ file CSV (Phần 1.4)."""
+    from dumpanalyzer.collectors.asset_info import import_asset_csv
+    db = Database()
+    csv_path = args.csv_file
+    print("\n--- NHẬP DANH SÁCH THIẾT BỊ TỪ FILE CSV (AppSheet Export) ---")
+    print(f"[*] Đường dẫn file: {csv_path}")
+
+    res = import_asset_csv(csv_path, db)
+    if res.get("errors"):
+        print("\n[!] Lỗi khi xử lý file CSV:")
+        for err in res["errors"]:
+            print(f"  - {err}")
+        db.close()
+        return 1
+
+    print(f"\n[OK] Đã xử lý {res['total_rows']} dòng dữ liệu:")
+    print(f"  * Nhập thành công: {res['imported_count']} thiết bị")
+    print(f"  * Bỏ qua:          {res['skipped_count']} dòng")
+    db.close()
+    return 0
+
+
 def build_parser() -> argparse.ArgumentParser:
+
     """Xây dựng bộ phân tích tham số dòng lệnh."""
     parser = argparse.ArgumentParser(
         prog="dumpanalyzer",
@@ -967,6 +1117,11 @@ def build_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="Bỏ qua cache SHA256, bắt buộc đọc lại và cập nhật cơ sở dữ liệu",
     )
+    parser_scan.add_argument(
+        "--save-cdb-samples",
+        action="store_true",
+        help="Lưu lại toàn bộ output thô cdb vào thư mục workspace/cdb_samples để gửi mẫu phân tích",
+    )
     parser_scan.set_defaults(func=cmd_scan)
 
     # Subcommand: check-dump-config (Phase 1B)
@@ -1001,7 +1156,13 @@ def build_parser() -> argparse.ArgumentParser:
         default=2,
         help="Số tiến trình phân tích song song tối đa (mặc định: 2)",
     )
+    parser_analyze.add_argument(
+        "--save-cdb-samples",
+        action="store_true",
+        help="Lưu lại toàn bộ output thô cdb vào thư mục workspace/cdb_samples để gửi mẫu phân tích",
+    )
     parser_analyze.set_defaults(func=cmd_analyze)
+
 
     # Subcommand: warmup-symbols (Phase 2)
     parser_warmup = subparsers.add_parser(
@@ -1101,7 +1262,51 @@ def build_parser() -> argparse.ArgumentParser:
     )
     parser_clean.set_defaults(func=cmd_clean_workspace)
 
+    # Subcommand: feedback (Phần 2.1)
+    parser_fb = subparsers.add_parser(
+        "feedback",
+        help="Ghi nhận và thống kê phản hồi kết luận từ kỹ thuật viên (add | list | stats)",
+    )
+    fb_subparsers = parser_fb.add_subparsers(dest="feedback_action", help="Thao tác phản hồi")
+
+    fb_add = fb_subparsers.add_parser("add", help="Thêm phản hồi đánh giá kết luận")
+    fb_add.add_argument("--verdict", required=True, choices=["dung", "sai", "chua_ro"], help="Đánh giá kết luận: dung, sai, chua_ro")
+    fb_add.add_argument("--ref", type=int, default=1, help="Mã ID kết luận (Finding ID hoặc Crash ID)")
+    fb_add.add_argument("--machine", help="Tên máy tính (hostname)")
+    fb_add.add_argument("--predicted-group", help="Nhóm nguyên nhân dự đoán (gpu, ram, storage, ...)")
+    fb_add.add_argument("--predicted-confidence", help="Mức độ tin cậy được dự đoán (cao, trung bình, thấp)")
+    fb_add.add_argument("--actual-cause", help="Nguyên nhân thực tế sau khi sửa chữa/kiểm tra")
+    fb_add.add_argument("--note", help="Ghi chú chi tiết của kỹ thuật viên")
+
+    fb_list = fb_subparsers.add_parser("list", help="Liệt kê danh sách các phản hồi đã ghi nhận")
+    fb_list.add_argument("--limit", type=int, default=20, help="Số lượng bản ghi tối đa (mặc định: 20)")
+    fb_list.add_argument("--machine-id", type=int, help="Lọc theo ID máy tính")
+
+    fb_subparsers.add_parser("stats", help="Thống kê tỷ lệ chính xác và phân bổ phản hồi")
+
+    parser_fb.set_defaults(func=cmd_feedback)
+
+    # Subcommand: fleet (Phần 2.3)
+    parser_flt = subparsers.add_parser(
+        "fleet",
+        help="Phân tích tổng quan sự cố trên toàn bộ đội máy tính trong CSDL",
+    )
+    parser_flt.add_argument("--window", type=int, help="Khung thời gian quét (số ngày, mặc định 30)")
+    parser_flt.add_argument("--min-machines", type=int, help="Ngưỡng số máy tối thiểu gặp cùng lỗi (mặc định 3)")
+    parser_flt.set_defaults(func=cmd_fleet)
+
+    # Subcommand: asset (Phần 1.4)
+    parser_ast = subparsers.add_parser(
+        "asset",
+        help="Quản lý thông tin thiết bị và nhập danh sách từ AppSheet CSV",
+    )
+    ast_subparsers = parser_ast.add_subparsers(dest="asset_action", help="Thao tác asset")
+    ast_import = ast_subparsers.add_parser("import", help="Nhập file CSV danh sách thiết bị xuất từ AppSheet/Google Sheets")
+    ast_import.add_argument("csv_file", help="Đường dẫn tới file CSV danh sách thiết bị")
+    parser_ast.set_defaults(func=cmd_asset)
+
     return parser
+
 
 
 

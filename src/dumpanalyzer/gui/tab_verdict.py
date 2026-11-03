@@ -1,17 +1,20 @@
 """Tab 3: Kết luận chẩn đoán (Verdict Tab) trong PySide6 DumpAnalyzer.
 
 Hiển thị xếp hạng nghi ngờ với thanh phần trăm trực quan, phân tích mức độ tin cậy,
-danh sách bằng chứng có gắn nhãn phân loại, giải thích nguyên nhân bằng tiếng Việt
-và danh sách các bước kiểm tra khuyến nghị được sắp xếp từ Dễ đến Khó.
+danh sách bằng chứng có gắn nhãn phân loại (Ủng hộ / Phản bác), giải thích nguyên nhân bằng tiếng Việt,
+các bước kiểm tra khuyến nghị và khung phản hồi độ chính xác (Feedback).
 """
 
 from typing import Any, Dict, List, Optional
 from PySide6.QtCore import Qt, Signal
 from PySide6.QtWidgets import (
+    QButtonGroup,
+    QComboBox,
     QFileDialog,
     QFrame,
     QHBoxLayout,
     QLabel,
+    QLineEdit,
     QMessageBox,
     QProgressBar,
     QPushButton,
@@ -31,6 +34,7 @@ from dumpanalyzer.gui.theme import (
     get_confidence_badge_style,
 )
 from dumpanalyzer.report.exporter import export_excel_report, export_html_report
+from dumpanalyzer.storage.db import Database
 
 
 class SuspectBarWidget(QWidget):
@@ -72,7 +76,13 @@ class VerdictTab(QWidget):
         self._machine_info: Optional[MachineInfo] = None
         self._evidences: List[Evidence] = []
         self._suspect_ranking: List[Dict[str, Any]] = []
+        self._db: Optional[Database] = None
         self._init_ui()
+
+    def _get_db(self) -> Database:
+        if self._db is None:
+            self._db = Database()
+        return self._db
 
     def _init_ui(self) -> None:
         main_layout = QVBoxLayout(self)
@@ -110,6 +120,12 @@ class VerdictTab(QWidget):
         self.lbl_top_suspect.setStyleSheet("font-size: 22px; font-weight: bold; color: #38bdf8; margin: 4px 0;")
         top_layout.addWidget(self.lbl_top_suspect)
 
+        # Giải thích căn cứ độ tin cậy
+        self.lbl_conf_rationale = QLabel("")
+        self.lbl_conf_rationale.setStyleSheet("color: #94a3b8; font-size: 12px; font-style: italic;")
+        self.lbl_conf_rationale.setWordWrap(True)
+        top_layout.addWidget(self.lbl_conf_rationale)
+
         # Cảnh báo mâu thuẫn (Conflict Warning) nếu dump vs log không thống nhất
         self.conflict_banner = QFrame()
         self.conflict_banner.setStyleSheet(
@@ -138,7 +154,7 @@ class VerdictTab(QWidget):
         ranking_layout.setContentsMargins(14, 14, 14, 14)
         ranking_layout.setSpacing(10)
 
-        lbl_rank_title = QLabel("XẾP HẠNG XÁC SUẤT NGI VẤN")
+        lbl_rank_title = QLabel("XẾP HẠNG XÁC SUẤT NGHI VẤN")
         lbl_rank_title.setStyleSheet(f"font-size: 13px; font-weight: bold; color: {COLOR_TEXT_PRIMARY}; border-bottom: 2px solid {COLOR_BORDER}; padding-bottom: 6px;")
         ranking_layout.addWidget(lbl_rank_title)
 
@@ -148,14 +164,14 @@ class VerdictTab(QWidget):
 
         left_layout.addWidget(ranking_card)
 
-        # 3. Thẻ Bằng chứng thu thập
+        # 3. Thẻ Bằng chứng thu thập (Ủng hộ & Phản bác)
         evidence_card = QFrame()
         evidence_card.setObjectName("CardFrame")
         ev_layout = QVBoxLayout(evidence_card)
         ev_layout.setContentsMargins(14, 14, 14, 14)
         ev_layout.setSpacing(8)
 
-        lbl_ev_title = QLabel("BẰNG CHỨNG ĐỐI CHIẾU THU THẬP ĐƯỢC")
+        lbl_ev_title = QLabel("BẰNG CHỨNG THU THẬP ĐƯỢC (ỦNG HỘ & PHẢN BÁC)")
         lbl_ev_title.setStyleSheet(f"font-size: 13px; font-weight: bold; color: {COLOR_TEXT_PRIMARY}; border-bottom: 2px solid {COLOR_BORDER}; padding-bottom: 6px;")
         ev_layout.addWidget(lbl_ev_title)
 
@@ -172,7 +188,7 @@ class VerdictTab(QWidget):
         left_layout.addWidget(evidence_card, 1)
         splitter.addWidget(left_container)
 
-        # ==================== CỘT PHẢI: RATIONALE & KHUYẾN NGHỊ ====================
+        # ==================== CỘT PHẢI: RATIONALE, KHUYẾN NGHỊ & FEEDBACK ====================
         right_container = QWidget()
         right_layout = QVBoxLayout(right_container)
         right_layout.setContentsMargins(0, 0, 0, 0)
@@ -219,7 +235,75 @@ class VerdictTab(QWidget):
 
         right_layout.addWidget(steps_card, 1)
 
-        # 3. Hàng nút xuất báo cáo & Lưu ý kỹ thuật
+        # 3. Thẻ Phản hồi của Kỹ thuật viên IT (Feedback - Phần 2.1)
+        feedback_card = QFrame()
+        feedback_card.setObjectName("CardFrame")
+        feedback_card.setStyleSheet("background-color: #0b1120; border: 1px solid #1e293b; border-radius: 8px; padding: 12px;")
+        fb_layout = QVBoxLayout(feedback_card)
+        fb_layout.setSpacing(8)
+
+        lbl_fb_title = QLabel("ĐÁNH GIÁ ĐỘ CHÍNH XÁC KẾT LUẬN (FEEDBACK)")
+        lbl_fb_title.setStyleSheet(f"font-size: 13px; font-weight: bold; color: {COLOR_TEXT_PRIMARY}; border-bottom: 2px solid {COLOR_BORDER}; padding-bottom: 4px;")
+        fb_layout.addWidget(lbl_fb_title)
+
+        fb_btn_row = QHBoxLayout()
+        fb_btn_row.setSpacing(8)
+
+        self.btn_group_verdict = QButtonGroup(self)
+        self.btn_fb_dung = QPushButton("✓ Đúng")
+        self.btn_fb_dung.setStyleSheet("background-color: #1e293b; color: #4ade80; font-weight: bold; padding: 5px 12px; border: 1px solid #4ade80; border-radius: 4px;")
+        self.btn_fb_dung.setCheckable(True)
+
+        self.btn_fb_sai = QPushButton("✗ Sai")
+        self.btn_fb_sai.setStyleSheet("background-color: #1e293b; color: #f87171; font-weight: bold; padding: 5px 12px; border: 1px solid #f87171; border-radius: 4px;")
+        self.btn_fb_sai.setCheckable(True)
+
+        self.btn_fb_chua_ro = QPushButton("? Chưa rõ")
+        self.btn_fb_chua_ro.setStyleSheet("background-color: #1e293b; color: #facc15; font-weight: bold; padding: 5px 12px; border: 1px solid #facc15; border-radius: 4px;")
+        self.btn_fb_chua_ro.setCheckable(True)
+        self.btn_fb_chua_ro.setChecked(True)
+
+        self.btn_group_verdict.addButton(self.btn_fb_dung)
+        self.btn_group_verdict.addButton(self.btn_fb_sai)
+        self.btn_group_verdict.addButton(self.btn_fb_chua_ro)
+
+        fb_btn_row.addWidget(self.btn_fb_dung)
+        fb_btn_row.addWidget(self.btn_fb_sai)
+        fb_btn_row.addWidget(self.btn_fb_chua_ro)
+        fb_btn_row.addStretch()
+        fb_layout.addLayout(fb_btn_row)
+
+        fb_form_row = QHBoxLayout()
+        lbl_cause = QLabel("Nguyên nhân thực tế:")
+        lbl_cause.setStyleSheet(f"color: {COLOR_TEXT_MUTED}; font-size: 12px;")
+        fb_form_row.addWidget(lbl_cause)
+
+        self.combo_actual_cause = QComboBox()
+        self.combo_actual_cause.addItems(["ram", "storage", "driver", "gpu", "psu", "cpu", "thermal", "software", "Khác"])
+        fb_form_row.addWidget(self.combo_actual_cause)
+
+        lbl_fb_note = QLabel("Ghi chú:")
+        lbl_fb_note.setStyleSheet(f"color: {COLOR_TEXT_MUTED}; font-size: 12px;")
+        fb_form_row.addWidget(lbl_fb_note)
+
+        self.txt_feedback_note = QLineEdit()
+        self.txt_feedback_note.setPlaceholderText("Ghi chú kinh nghiệm xử lý thực tế...")
+        fb_form_row.addWidget(self.txt_feedback_note, 1)
+
+        self.btn_save_feedback = QPushButton("Lưu phản hồi")
+        self.btn_save_feedback.setStyleSheet("background-color: #0284c7; color: #ffffff; font-weight: bold; padding: 5px 14px; border-radius: 4px;")
+        self.btn_save_feedback.clicked.connect(self._on_save_feedback)
+        fb_form_row.addWidget(self.btn_save_feedback)
+
+        fb_layout.addLayout(fb_form_row)
+
+        self.lbl_feedback_msg = QLabel("")
+        self.lbl_feedback_msg.setStyleSheet("color: #4ade80; font-size: 11px;")
+        fb_layout.addWidget(self.lbl_feedback_msg)
+
+        right_layout.addWidget(feedback_card)
+
+        # 4. Hàng nút xuất báo cáo & Lưu ý kỹ thuật
         bottom_actions = QHBoxLayout()
         bottom_actions.setSpacing(12)
 
@@ -277,11 +361,19 @@ class VerdictTab(QWidget):
                 top_text = f"{finding.suspect} ({finding.score:.1f}%)"
             self.lbl_top_suspect.setText(top_text)
 
+            conf_rat = getattr(finding, "confidence_rationale", "")
+            if conf_rat:
+                self.lbl_conf_rationale.setText(f"Căn cứ độ tin cậy: {conf_rat}")
+                self.lbl_conf_rationale.setVisible(True)
+            else:
+                self.lbl_conf_rationale.setVisible(False)
+
             self.lbl_rationale.setText(finding.rationale or "Không có diễn giải bổ sung.")
         else:
             self.lbl_confidence_badge.setText("ĐỘ TIN CẬY: CHƯA RÕ")
             self.lbl_confidence_badge.setStyleSheet(get_confidence_badge_style("none"))
             self.lbl_top_suspect.setText("Chưa có kết luận chẩn đoán")
+            self.lbl_conf_rationale.setVisible(False)
             self.lbl_rationale.setText("Chưa có dữ liệu phân tích.")
 
         # Cờ xung đột
@@ -300,36 +392,25 @@ class VerdictTab(QWidget):
             lbl_empty.setStyleSheet(f"color: {COLOR_TEXT_MUTED}; font-style: italic;")
             self.ranking_container.addWidget(lbl_empty)
 
-        # 3. Xây dựng danh sách bằng chứng
+        # 3. Xây dựng danh sách bằng chứng (Ủng hộ vs Phản bác)
         self._clear_layout(self.ev_container)
         if self._evidences:
-            for ev in self._evidences[:20]:  # Giới hạn 20 bằng chứng nổi bật nhất
-                ev_card = QFrame()
-                ev_card.setStyleSheet("background-color: #0b1120; border: 1px solid #1e293b; border-radius: 6px; padding: 6px;")
-                card_l = QVBoxLayout(ev_card)
-                card_l.setContentsMargins(6, 4, 6, 4)
-                card_l.setSpacing(2)
+            support_ev = [e for e in self._evidences if getattr(e, "polarity", "support") != "refute"]
+            refute_ev = [e for e in self._evidences if getattr(e, "polarity", "support") == "refute"]
 
-                top_l = QHBoxLayout()
-                ev_type = getattr(ev, "kind", getattr(ev, "evidence_type", "eventlog"))
-                source = getattr(ev, "source", "")
-                lbl_badge = QLabel(f"[{ev_type.upper()}] {source}")
-                lbl_badge.setStyleSheet("color: #38bdf8; font-weight: bold; font-size: 11px;")
-                top_l.addWidget(lbl_badge)
+            if support_ev:
+                lbl_sup = QLabel(f"BẰNG CHỨNG ỦNG HỘ ({len(support_ev)}):")
+                lbl_sup.setStyleSheet("color: #4ade80; font-weight: bold; font-size: 11px; margin-top: 4px;")
+                self.ev_container.addWidget(lbl_sup)
+                for ev in support_ev[:15]:
+                    self.ev_container.addWidget(self._create_evidence_card(ev, is_refute=False))
 
-                weight = getattr(ev, "weight", 10)
-                lbl_w = QLabel(f"+{weight}")
-                lbl_w.setStyleSheet("color: #4ade80; font-weight: bold; font-size: 11px;")
-                top_l.addWidget(lbl_w, alignment=Qt.AlignRight)
-                card_l.addLayout(top_l)
-
-                detail = getattr(ev, "detail", getattr(ev, "details", getattr(ev, "summary", "-")))
-                lbl_d = QLabel(detail)
-                lbl_d.setStyleSheet("color: #cbd5e1; font-size: 11px;")
-                lbl_d.setWordWrap(True)
-                card_l.addWidget(lbl_d)
-
-                self.ev_container.addWidget(ev_card)
+            if refute_ev:
+                lbl_ref = QLabel(f"BẰNG CHỨNG PHẢN BÁC / HẠ ĐIỂM ({len(refute_ev)}):")
+                lbl_ref.setStyleSheet("color: #f87171; font-weight: bold; font-size: 11px; margin-top: 8px;")
+                self.ev_container.addWidget(lbl_ref)
+                for ev in refute_ev[:10]:
+                    self.ev_container.addWidget(self._create_evidence_card(ev, is_refute=True))
         else:
             lbl_no_ev = QLabel("Chưa thu thập được bằng chứng cụ thể.")
             lbl_no_ev.setStyleSheet(f"color: {COLOR_TEXT_MUTED}; font-style: italic;")
@@ -347,6 +428,47 @@ class VerdictTab(QWidget):
             lbl_no_step.setStyleSheet(f"color: {COLOR_TEXT_MUTED}; font-style: italic;")
             self.steps_container.addWidget(lbl_no_step)
 
+    def _create_evidence_card(self, ev: Evidence, is_refute: bool = False) -> QWidget:
+        """Tạo thẻ hiển thị bằng chứng kèm độ mạnh (strength) và chiều hướng (polarity)."""
+        ev_card = QFrame()
+        bg_col = "#1c1917" if is_refute else "#0b1120"
+        border_col = "#78350f" if is_refute else "#1e293b"
+        ev_card.setStyleSheet(f"background-color: {bg_col}; border: 1px solid {border_col}; border-radius: 6px; padding: 6px;")
+        card_l = QVBoxLayout(ev_card)
+        card_l.setContentsMargins(6, 4, 6, 4)
+        card_l.setSpacing(2)
+
+        top_l = QHBoxLayout()
+        ev_type = getattr(ev, "kind", getattr(ev, "evidence_type", "eventlog"))
+        source = getattr(ev, "source", "")
+        strength = getattr(ev, "strength", "weak").upper()
+
+        if is_refute:
+            badge_text = f"[PHẢN BÁC - {strength}] [{ev_type.upper()}] {source}"
+            badge_color = "#f87171"
+        else:
+            badge_text = f"[{strength}] [{ev_type.upper()}] {source}"
+            badge_color = "#38bdf8"
+
+        lbl_badge = QLabel(badge_text)
+        lbl_badge.setStyleSheet(f"color: {badge_color}; font-weight: bold; font-size: 11px;")
+        top_l.addWidget(lbl_badge)
+
+        weight = getattr(ev, "weight", 10)
+        sign = "-" if is_refute else "+"
+        w_color = "#fb923c" if is_refute else "#4ade80"
+        lbl_w = QLabel(f"{sign}{weight}")
+        lbl_w.setStyleSheet(f"color: {w_color}; font-weight: bold; font-size: 11px;")
+        top_l.addWidget(lbl_w, alignment=Qt.AlignRight)
+        card_l.addLayout(top_l)
+
+        detail = getattr(ev, "detail", getattr(ev, "details", getattr(ev, "summary", "-")))
+        lbl_d = QLabel(detail)
+        lbl_d.setStyleSheet("color: #cbd5e1; font-size: 11px;")
+        lbl_d.setWordWrap(True)
+        card_l.addWidget(lbl_d)
+        return ev_card
+
     def _create_step_widget(self, index: int, step_text: str) -> QWidget:
         """Tạo widget cho một bước kiểm tra kèm huy hiệu phân loại độ khó."""
         w = QFrame()
@@ -359,47 +481,94 @@ class VerdictTab(QWidget):
         badge_style, badge_text = self._get_tier_badge_info(step_text)
         lbl_tier = QLabel(badge_text)
         lbl_tier.setStyleSheet(badge_style)
-        l.addWidget(lbl_tier, alignment=Qt.AlignTop)
+        lbl_tier.setFixedHeight(20)
+        l.addWidget(lbl_tier)
 
-        lbl_desc = QLabel(f"<strong>{index}.</strong> {step_text}")
-        lbl_desc.setStyleSheet("color: #f1f5f9; font-size: 13px; line-height: 1.4;")
-        lbl_desc.setWordWrap(True)
-        l.addWidget(lbl_desc, 1)
+        # Nội dung bước
+        lbl_text = QLabel(f"<b>{index}.</b> {step_text}")
+        lbl_text.setStyleSheet("color: #e2e8f0; font-size: 12px;")
+        lbl_text.setWordWrap(True)
+        l.addWidget(lbl_text, 1)
 
         return w
 
-    def _get_tier_badge_info(self, step_text: str) -> tuple[str, str]:
-        """Xác định phong cách CSS và tên huy hiệu tầng độ khó."""
-        s = step_text.lower()
+    def _get_tier_badge_info(self, step: str) -> tuple[str, str]:
+        """Xác định màu và nhãn tầng độ khó dựa trên nội dung bước kiểm tra."""
+        s = step.lower()
         if any(k in s for k in ["nhiệt độ", "nóng", "quạt", "driver verifier", "khởi động sạch", "cấu hình dump", "tắt verifier"]):
-            return "background-color: #1e3a8a; color: #bfdbfe; font-size: 10px; font-weight: bold; padding: 2px 6px; border-radius: 4px;", "TẦNG 1: DỄ"
+            return (
+                "background-color: #064e3b; color: #34d399; font-weight: bold; font-size: 10px; padding: 2px 6px; border-radius: 4px;",
+                "TẦNG 1: DỄ",
+            )
         elif any(k in s for k in ["ddu", "cập nhật driver", "cài lại driver", "sfc", "chkdsk", "sửa lỗi tệp", "diệt virus", "antivirus"]):
-            return "background-color: #78350f; color: #fde68a; font-size: 10px; font-weight: bold; padding: 2px 6px; border-radius: 4px;", "TẦNG 2: TRUNG BÌNH"
+            return (
+                "background-color: #1e3a8a; color: #60a5fa; font-weight: bold; font-size: 10px; padding: 2px 6px; border-radius: 4px;",
+                "TẦNG 2: VỪA",
+            )
         elif any(k in s for k in ["memtest", "kiểm tra ram", "smart", "cáp", "tháo", "ổ cứng", "ssd", "nvme"]):
-            return "background-color: #7c2d12; color: #fed7aa; font-size: 10px; font-weight: bold; padding: 2px 6px; border-radius: 4px;", "TẦNG 3: NÂNG CAO"
+            return (
+                "background-color: #78350f; color: #fbbf24; font-weight: bold; font-size: 10px; padding: 2px 6px; border-radius: 4px;",
+                "TẦNG 3: NÂNG CAO",
+            )
         elif any(k in s for k in ["cập nhật bios", "bios", "nguồn", "psu", "thay", "bo mạch chủ", "mainboard"]):
-            return "background-color: #7f1d1d; color: #fecaca; font-size: 10px; font-weight: bold; padding: 2px 6px; border-radius: 4px;", "TẦNG 4: PHỨC TẠP"
-        return "background-color: #334155; color: #cbd5e1; font-size: 10px; font-weight: bold; padding: 2px 6px; border-radius: 4px;", "KHUYẾN NGHỊ"
+            return (
+                "background-color: #7f1d1d; color: #f87171; font-weight: bold; font-size: 10px; padding: 2px 6px; border-radius: 4px;",
+                "TẦNG 4: PHỨC TẠP",
+            )
+        return (
+            "background-color: #1e293b; color: #94a3b8; font-weight: bold; font-size: 10px; padding: 2px 6px; border-radius: 4px;",
+            "KHUYẾN NGHỊ",
+        )
 
-    def _clear_layout(self, layout: QVBoxLayout) -> None:
-        """Xoá toàn bộ widget con trong layout."""
-        while layout.count():
-            item = layout.takeAt(0)
-            widget = item.widget()
-            if widget:
-                widget.deleteLater()
+    def _on_save_feedback(self) -> None:
+        """Lưu đánh giá độ chính xác kết luận từ KTV."""
+        if self.btn_fb_dung.isChecked():
+            verdict = "dung"
+        elif self.btn_fb_sai.isChecked():
+            verdict = "sai"
+        else:
+            verdict = "chua_ro"
+
+        actual_cause = self.combo_actual_cause.currentText()
+        note = self.txt_feedback_note.text().strip()
+
+        pred_grp = "unknown"
+        if self._suspect_ranking:
+            pred_grp = self._suspect_ranking[0].get("suspect", "unknown")
+        elif self._finding and hasattr(self._finding, "suspect"):
+            pred_grp = self._finding.suspect
+
+        pred_conf = self._finding.confidence if self._finding else "unknown"
+        m_id = getattr(self._machine_info, "id", None) or 1
+        an_ref = f"finding_{getattr(self._finding, 'id', 'latest')}"
+
+        db = self._get_db()
+        db.add_feedback(
+            machine_id=m_id,
+            analysis_ref=an_ref,
+            predicted_group=pred_grp,
+            predicted_confidence=pred_conf,
+            verdict=verdict,
+            actual_cause=actual_cause,
+            note=note,
+        )
+
+        self.lbl_feedback_msg.setText("✓ Đã ghi nhận phản hồi vào cơ sở dữ liệu thành công!")
+        QMessageBox.information(
+            self,
+            "Ghi nhận phản hồi",
+            f"Đã lưu đánh giá của bạn ({verdict.upper()}) cho máy này.\n"
+            f"Nguyên nhân thực tế: {actual_cause}\n"
+            f"Dữ liệu này sẽ được dùng để thống kê độ chính xác của hệ thống.",
+        )
 
     def _on_export_html_clicked(self) -> None:
-        """Xử lý xuất báo cáo HTML."""
-        if not self._crashes and not self._finding:
-            QMessageBox.warning(self, "Chưa có dữ liệu", "Chưa có dữ liệu phân tích nào để xuất báo cáo.")
-            return
-
+        """Xử lý sự kiện nhấn nút Xuất báo cáo HTML."""
         file_path, _ = QFileDialog.getSaveFileName(
             self,
             "Lưu báo cáo chẩn đoán HTML",
-            "Bao_cao_DumpAnalyzer.html",
-            "Tệp HTML (*.html);;Tất cả tệp (*.*)",
+            "BaoCao_ChanDoan_DumpAnalyzer.html",
+            "HTML Files (*.html)",
         )
         if file_path:
             try:
@@ -411,21 +580,25 @@ class VerdictTab(QWidget):
                     evidences=self._evidences,
                     suspect_ranking=self._suspect_ranking,
                 )
-                QMessageBox.information(self, "Xuất thành công", f"Đã xuất báo cáo HTML thành công tại:\n{file_path}")
+                QMessageBox.information(
+                    self,
+                    "Xuất báo cáo thành công",
+                    f"Báo cáo chẩn đoán dạng HTML đã được lưu thành công tại:\n{file_path}",
+                )
             except Exception as e:
-                QMessageBox.critical(self, "Lỗi xuất báo cáo", f"Không thể xuất báo cáo HTML:\n{str(e)}")
+                QMessageBox.critical(
+                    self,
+                    "Lỗi xuất báo cáo",
+                    f"Không thể xuất file báo cáo HTML: {e}",
+                )
 
     def _on_export_excel_clicked(self) -> None:
-        """Xử lý xuất báo cáo Excel."""
-        if not self._crashes and not self._finding:
-            QMessageBox.warning(self, "Chưa có dữ liệu", "Chưa có dữ liệu phân tích nào để xuất báo cáo.")
-            return
-
+        """Xử lý sự kiện nhấn nút Xuất báo cáo Excel."""
         file_path, _ = QFileDialog.getSaveFileName(
             self,
             "Lưu báo cáo chẩn đoán Excel",
-            "Bao_cao_DumpAnalyzer.xlsx",
-            "Bảng tính Excel (*.xlsx);;Tất cả tệp (*.*)",
+            "BaoCao_ChanDoan_DumpAnalyzer.xlsx",
+            "Excel Files (*.xlsx)",
         )
         if file_path:
             try:
@@ -437,6 +610,24 @@ class VerdictTab(QWidget):
                     evidences=self._evidences,
                     suspect_ranking=self._suspect_ranking,
                 )
-                QMessageBox.information(self, "Xuất thành công", f"Đã xuất báo cáo Excel thành công tại:\n{file_path}")
+                QMessageBox.information(
+                    self,
+                    "Xuất báo cáo thành công",
+                    f"Báo cáo chẩn đoán dạng Excel (.xlsx) đã được lưu thành công tại:\n{file_path}",
+                )
             except Exception as e:
-                QMessageBox.critical(self, "Lỗi xuất báo cáo", f"Không thể xuất báo cáo Excel:\n{str(e)}")
+                QMessageBox.critical(
+                    self,
+                    "Lỗi xuất báo cáo",
+                    f"Không thể xuất file báo cáo Excel: {e}",
+                )
+
+    def _clear_layout(self, layout: QVBoxLayout) -> None:
+        """Dọn sạch các widget con trong layout."""
+        while layout.count():
+            item = layout.takeAt(0)
+            widget = item.widget()
+            if widget is not None:
+                widget.deleteLater()
+            elif item.layout() is not None:
+                self._clear_layout(item.layout())

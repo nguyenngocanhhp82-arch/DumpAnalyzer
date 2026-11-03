@@ -195,7 +195,46 @@ class DetailTab(QWidget):
         splitter.addWidget(right_container)
         splitter.setSizes([380, 620])
 
-        main_layout.addWidget(splitter)
+        main_layout.addWidget(splitter, 1)
+
+        # 3. Khung Dòng thời gian Crash của máy (Crash Timeline - Phần 2.2)
+        timeline_card = QFrame()
+        timeline_card.setObjectName("CardFrame")
+        timeline_card.setFixedHeight(170)
+        tl_layout = QVBoxLayout(timeline_card)
+        tl_layout.setContentsMargins(12, 8, 12, 8)
+        tl_layout.setSpacing(6)
+
+        lbl_tl_title = QLabel("DÒNG THỜI GIAN SỰ CỐ CỦA MÁY (CRASH TIMELINE - PHẦN 2.2)")
+        lbl_tl_title.setStyleSheet(f"font-size: 12px; font-weight: bold; color: {COLOR_TEXT_PRIMARY};")
+        tl_layout.addWidget(lbl_tl_title)
+
+        self.table_timeline = QTableWidget()
+        self.table_timeline.setColumnCount(5)
+        self.table_timeline.setHorizontalHeaderLabels([
+            "STT",
+            "Thời điểm (Giờ địa phương)",
+            "Mã BugCheck",
+            "Tên sự cố",
+            "Module / Driver",
+        ])
+        self.table_timeline.horizontalHeader().setSectionResizeMode(0, QHeaderView.ResizeToContents)
+        self.table_timeline.horizontalHeader().setSectionResizeMode(1, QHeaderView.ResizeToContents)
+        self.table_timeline.horizontalHeader().setSectionResizeMode(2, QHeaderView.ResizeToContents)
+        self.table_timeline.horizontalHeader().setSectionResizeMode(3, QHeaderView.ResizeToContents)
+        self.table_timeline.horizontalHeader().setSectionResizeMode(4, QHeaderView.Stretch)
+        self.table_timeline.setSelectionBehavior(QTableWidget.SelectRows)
+        self.table_timeline.setEditTriggers(QTableWidget.NoEditTriggers)
+        self.table_timeline.verticalHeader().setVisible(False)
+        self.table_timeline.cellClicked.connect(self._on_timeline_row_clicked)
+        tl_layout.addWidget(self.table_timeline)
+
+        main_layout.addWidget(timeline_card)
+
+    def _on_timeline_row_clicked(self, row: int, _col: int) -> None:
+        """Chuyển chi tiết hiển thị khi click một dòng trên timeline."""
+        if 0 <= row < len(self._crashes):
+            self.select_crash(self._crashes[row])
 
     def set_data(self, crashes: List[Crash], evidences: Optional[List[Evidence]] = None) -> None:
         """Cập nhật dữ liệu cho tab Chi tiết."""
@@ -211,6 +250,8 @@ class DetailTab(QWidget):
         self.combo_crashes.blockSignals(True)
         self.combo_crashes.clear()
 
+        self.table_timeline.setRowCount(len(self._crashes))
+
         for idx, c in enumerate(self._crashes, start=1):
             t_val = getattr(c, "crash_time_utc", getattr(c, "crash_time", None))
             t_str = utc_to_local_str(t_val) if t_val else "Chưa rõ thời điểm"
@@ -218,6 +259,13 @@ class DetailTab(QWidget):
             bc_name = getattr(c, "bugcheck_name", "Chưa rõ") or "Chưa rõ"
             item_text = f"Sự cố #{idx}: {t_str} — {bc_code} ({bc_name})"
             self.combo_crashes.addItem(item_text, userData=c)
+
+            mod = getattr(c, "image_name", getattr(c, "module_name", "-")) or "-"
+            self.table_timeline.setItem(idx - 1, 0, QTableWidgetItem(str(idx)))
+            self.table_timeline.setItem(idx - 1, 1, QTableWidgetItem(t_str))
+            self.table_timeline.setItem(idx - 1, 2, QTableWidgetItem(bc_code))
+            self.table_timeline.setItem(idx - 1, 3, QTableWidgetItem(bc_name))
+            self.table_timeline.setItem(idx - 1, 4, QTableWidgetItem(mod))
 
         self.combo_crashes.blockSignals(False)
 
