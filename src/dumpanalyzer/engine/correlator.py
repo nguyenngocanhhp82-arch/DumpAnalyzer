@@ -13,6 +13,7 @@ Nhiệm vụ:
 from datetime import datetime, timezone, timedelta
 from typing import List, Dict, Any, Optional, Tuple
 from pathlib import Path
+import json
 import yaml
 
 from dumpanalyzer.core.models import Crash, Evidence
@@ -103,12 +104,6 @@ class Correlator:
                     detail = json.dumps(ev.get("event_data"), ensure_ascii=False)
 
                 kind = "eventlog"
-                if "WHEA" in prov:
-                    kind = "hardware"
-                elif "Disk" in prov or "stornvme" in prov or "storahci" in prov or "Ntfs" in prov:
-                    kind = "smart" if "smart" in prov.lower() else "eventlog"
-                elif "WindowsUpdate" in prov:
-                    kind = "update"
 
                 evidence = Evidence(
                     crash_id=crash.id,

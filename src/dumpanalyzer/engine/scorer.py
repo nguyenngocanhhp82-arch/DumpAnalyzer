@@ -7,6 +7,7 @@ import logging
 from typing import Any, Dict, List, Optional, Set, Tuple
 from dumpanalyzer.core.models import Crash, Evidence
 from dumpanalyzer.engine.rule_loader import normalize_bugcheck_code
+from dumpanalyzer.core.timeutil import parse_to_utc
 
 logger = logging.getLogger("dumpanalyzer.engine.scorer")
 
@@ -32,6 +33,71 @@ def get_suspect_label_vi(suspect: str) -> str:
         drv_name = suspect.split(":", 1)[1]
         return f"Driver {drv_name}"
     return SUSPECT_LABELS_VI.get(suspect, suspect)
+
+
+def compute_event_points(
+    evidences: List[Evidence],
+    rules: Dict[str, Any],
+    initial_top_suspects: Optional[Set[str]] = None,
+) -> Tuple[Dict[str, float], Set[int]]:
+    """
+    Tính điểm nghi ngờ từ danh sách bằng chứng (Evidences) cho một vụ sập.
+    Hỗ trợ:
+      - Tra cứu event_rules.yaml cho ev.kind == 'eventlog'
+      - Hệ số đồng thuận 1.5x nếu suspect nằm trong initial_top_suspects
+      - Giới hạn trần 'cap' cho từng quy tắc và suspect
+      - Bằng chứng SMART thật (ev.kind == 'smart'): +30 điểm cho storage
+      - Bằng chứng Update thật (ev.kind == 'update'): +25 điểm cho update
+    Trả về:
+      - (points_dict, used_evidence_ids)
+    """
+    points: Dict[str, float] = {}
+    used_ids: Set[int] = set()
+    event_rules = rules.get("event_rules", [])
+
+    # Theo dõi điểm đã cộng dồn cho mỗi (rule_index, suspect) để áp dụng cap
+    rule_pts_accumulated: Dict[Tuple[int, str], float] = {}
+
+    for ev in evidences:
+        ev_id = ev.id if ev.id is not None else 0
+        if ev.kind == "eventlog":
+            matched = False
+            for idx, rule in enumerate(event_rules):
+                rule_source = rule.get("source", "").lower()
+                if rule_source and rule_source in ev.source.lower():
+                    rule_ids = rule.get("ids", [])
+                    if ev.event_id in rule_ids or not rule_ids:
+                        matched = True
+                        rule_cap = rule.get("cap")
+                        for susp, weight in rule.get("adds", {}).items():
+                            factor = 1.5 if (initial_top_suspects and susp in initial_top_suspects) else 1.0
+                            raw_add = float(weight) * factor
+
+                            if rule_cap is not None:
+                                current_rule_pts = rule_pts_accumulated.get((idx, susp), 0.0)
+                                allowed = max(0.0, float(rule_cap) - current_rule_pts)
+                                actual_add = min(raw_add, allowed)
+                                rule_pts_accumulated[(idx, susp)] = current_rule_pts + actual_add
+                            else:
+                                actual_add = raw_add
+
+                            if actual_add > 0:
+                                points[susp] = points.get(susp, 0.0) + actual_add
+
+            if matched and ev_id:
+                used_ids.add(ev_id)
+
+        elif ev.kind == "smart":
+            points["storage"] = points.get("storage", 0.0) + 30.0
+            if ev_id:
+                used_ids.add(ev_id)
+
+        elif ev.kind == "update":
+            points["update"] = points.get("update", 0.0) + 25.0
+            if ev_id:
+                used_ids.add(ev_id)
+
+    return points, used_ids
 
 
 def score_single_crash(
@@ -142,37 +208,14 @@ def score_single_crash(
 
 
     # 3. Cộng điểm từ Event Log theo event_rules.yaml
-    event_rules = rules.get("event_rules", [])
+    ev_points, ev_used_ids = compute_event_points(evidences, rules, initial_top_suspects)
     has_supporting_event = False
-
-    for ev in evidences:
-        ev_id_val = ev.id if ev.id is not None else 0
-        if ev.kind == "eventlog":
-            matched = False
-            for rule in event_rules:
-                if rule.get("source", "").lower() in ev.source.lower():
-                    rule_ids = rule.get("ids", [])
-                    if ev.event_id in rule_ids or not rule_ids:
-                        matched = True
-                        for susp, weight in rule.get("adds", {}).items():
-                            # Nếu event đồng thuận với hướng nghi ngờ từ dump -> nhân hệ số 1.5
-                            factor = 1.5 if susp in initial_top_suspects else 1.0
-                            raw_scores[susp] = raw_scores.get(susp, 0.0) + (float(weight) * factor)
-                            has_supporting_event = True
-            if matched and ev_id_val:
-                used_evidence_ids.append(ev_id_val)
-
-        elif ev.kind == "smart":
-            raw_scores["storage"] = raw_scores.get("storage", 0.0) + 30.0
-            if ev_id_val:
-                used_evidence_ids.append(ev_id_val)
+    for susp, pts in ev_points.items():
+        if pts > 0:
+            raw_scores[susp] = raw_scores.get(susp, 0.0) + pts
             has_supporting_event = True
 
-        elif ev.kind == "update":
-            raw_scores["update"] = raw_scores.get("update", 0.0) + 25.0
-            if ev_id_val:
-                used_evidence_ids.append(ev_id_val)
-            has_supporting_event = True
+    used_evidence_ids.extend(ev_used_ids)
 
     # 4. Chuẩn hoá điểm về thang 0 - 100
     total_raw = sum(raw_scores.values())
@@ -263,9 +306,14 @@ def score_machine_crashes(
             "crash_count": 0,
         }
 
+    normalized_crashes: List[Tuple[Crash, List[Evidence]]] = [
+        item if isinstance(item, tuple) else (item, [])
+        for item in crashes_with_evidences
+    ]
+
     # Nếu chỉ có 1 crash: kế thừa trực tiếp kết quả crash đơn lẻ
-    if len(crashes_with_evidences) == 1:
-        crash, evs = crashes_with_evidences[0]
+    if len(normalized_crashes) == 1:
+        crash, evs = normalized_crashes[0]
         res = score_single_crash(crash, evs, rules, settings)
         res["is_conflicted"] = False
         res["conflict_note"] = ""
@@ -285,12 +333,8 @@ def score_machine_crashes(
     conflict_threshold = float(settings.get("conflict_threshold", 15))
 
     ms_core_modules = rules.get("ms_core_modules", [])
-    third_party_modules: List[str] = []
-    all_microsoft_modules = True
-    has_update_event = False
-    has_kp41_zero = False
 
-    for crash, evs in crashes_with_evidences:
+    for crash, evs in normalized_crashes:
         c_res = score_single_crash(crash, evs, rules, settings)
         c_weight = log_only_weight if c_res["is_log_only"] else 1.0
 
@@ -305,80 +349,121 @@ def score_machine_crashes(
             dump_hypotheses.append(c_res["top_suspect"])
 
         # Tìm giả thuyết từ các sự kiện Event Log của crash này
-        event_rules = rules.get("event_rules", [])
-        log_pts_crash: Dict[str, float] = {}
-        for ev in evs:
-            if ev.kind == "eventlog":
-                for r in event_rules:
-                    if r.get("source", "").lower() in ev.source.lower():
-                        r_ids = r.get("ids", [])
-                        if ev.event_id in r_ids or not r_ids:
-                            for s, w in r.get("adds", {}).items():
-                                log_pts_crash[s] = log_pts_crash.get(s, 0.0) + float(w)
-            elif ev.kind == "smart":
-                log_pts_crash["storage"] = log_pts_crash.get("storage", 0.0) + 30.0
-            elif ev.kind == "update":
-                log_pts_crash["update"] = log_pts_crash.get("update", 0.0) + 25.0
-
+        log_pts_crash, _ = compute_event_points(evs, rules, initial_top_suspects=None)
         if log_pts_crash:
             top_log_crash = max(log_pts_crash, key=log_pts_crash.get)
             log_hypotheses.append(top_log_crash)
         elif c_res["is_log_only"]:
             log_hypotheses.append(c_res["top_suspect"])
 
-        if normalize_bugcheck_code(crash.bugcheck_code) in ("0", "0x0", ""):
-            has_kp41_zero = True
-
-
-        # Kiểm tra module
-        img = (crash.image_name or "").strip().lower()
-        if img:
-            is_ms = any(img.endswith(m) for m in ms_core_modules)
-            if is_ms:
-                pass
-            else:
-                all_microsoft_modules = False
-                third_party_modules.append(img)
-
-        # Kiểm tra bằng chứng update
-        for ev in evs:
-            if ev.kind == "update":
-                has_update_event = True
-
     # Áp dụng patterns.yaml
     patterns = rules.get("patterns", [])
     patterns_matched: List[str] = []
     total_crashes = len(crashes_with_evidences)
+    driver_map = rules.get("drivers", {})
+
+    # Thu thập crash có module (từ CDB / minidump)
+    crashes_with_module: List[Tuple[Crash, str]] = []
+    for c, _ in normalized_crashes:
+        mod_name = (c.image_name or c.module_name or "").strip().lower()
+        if mod_name:
+            crashes_with_module.append((c, mod_name))
 
     for pat in patterns:
         cond = pat.get("when", {})
         pat_name = pat.get("name", "")
         matched = False
+        repeating_driver = None
 
         # Pattern 1: Module khác nhau mỗi lần, toàn module Microsoft
-        if cond.get("only_microsoft_modules") and total_crashes >= cond.get("min_dumps", 3):
-            if all_microsoft_modules and len(set(c[0].bugcheck_code for c in crashes_with_evidences)) >= cond.get("distinct_modules_min", 2):
-                matched = True
+        if cond.get("only_microsoft_modules"):
+            min_dumps = cond.get("min_dumps", 3)
+            distinct_min = cond.get("distinct_modules_min", 3)
+            if len(crashes_with_module) >= min_dumps:
+                all_ms = all(
+                    any(mod.endswith(ms_mod.lower()) for ms_mod in ms_core_modules)
+                    for _, mod in crashes_with_module
+                )
+                distinct_mods = set(mod for _, mod in crashes_with_module)
+                if all_ms and len(distinct_mods) >= distinct_min:
+                    matched = True
 
         # Pattern 2: Cùng một driver bên thứ ba lặp lại
-        if cond.get("same_third_party_module_min") and len(third_party_modules) >= cond.get("min_dumps", 3):
-            from collections import Counter
-            counts = Counter(third_party_modules)
-            if any(cnt >= cond.get("same_third_party_module_min", 3) for cnt in counts.values()):
-                matched = True
+        if cond.get("same_third_party_module_min"):
+            min_dumps = cond.get("min_dumps", 3)
+            same_min = cond.get("same_third_party_module_min", 3)
+            third_party_modules = []
+            for _, mod in crashes_with_module:
+                is_ms = any(mod.endswith(ms_mod.lower()) for ms_mod in ms_core_modules)
+                if not is_ms:
+                    third_party_modules.append(mod)
+
+            if len(crashes_with_module) >= min_dumps and third_party_modules:
+                from collections import Counter
+                counts = Counter(third_party_modules)
+                for drv, cnt in counts.items():
+                    if cnt >= same_min:
+                        repeating_driver = drv
+                        matched = True
+                        break
 
         # Pattern 3: Sự cố liên quan cập nhật
-        if cond.get("first_crash_within_days_after_update") and has_update_event:
-            matched = True
+        days_after_update = cond.get("first_crash_within_days_after_update")
+        if days_after_update is not None:
+            crash_dts = []
+            for c, _ in normalized_crashes:
+                if c.crash_time_utc:
+                    dt = parse_to_utc(c.crash_time_utc)
+                    if dt:
+                        crash_dts.append(dt)
+            update_dts = []
+            for _, evs in normalized_crashes:
+                for ev in evs:
+                    if ev.kind == "update" or "windowsupdate" in ev.source.lower():
+                        if ev.time_utc:
+                            u_dt = parse_to_utc(ev.time_utc)
+                            if u_dt:
+                                update_dts.append(u_dt)
+            if crash_dts and update_dts:
+                first_crash_dt = min(crash_dts)
+                for u_dt in update_dts:
+                    diff_seconds = (first_crash_dt - u_dt).total_seconds()
+                    if 0 < diff_seconds <= float(days_after_update) * 86400:
+                        matched = True
+                        break
 
         # Pattern 4: Mất nguồn đột ngột không dump (KP41 = 0)
-        if cond.get("kernelpower41_bugcheck0") and has_kp41_zero:
-            matched = True
+        req_no_dump = cond.get("no_dump", False)
+        req_kp41_zero = cond.get("kernelpower41_bugcheck0", False)
+        if req_no_dump and req_kp41_zero:
+            has_matching_crash = any(
+                (c.dump_type in ("none", "") or c.analyzed_by == "log_only" or not c.dump_path)
+                and (normalize_bugcheck_code(c.bugcheck_code) in ("0", "0x0", ""))
+                for c, _ in normalized_crashes
+            )
+            if has_matching_crash:
+                matched = True
+        elif req_kp41_zero:
+            if any(normalize_bugcheck_code(c.bugcheck_code) in ("0", "0x0", "") for c, _ in normalized_crashes):
+                matched = True
+        elif req_no_dump:
+            if any((c.dump_type in ("none", "") or c.analyzed_by == "log_only" or not c.dump_path) for c, _ in normalized_crashes):
+                matched = True
 
         if matched:
             patterns_matched.append(pat_name)
             for s, add_pts in pat.get("add", {}).items():
-                target_s = "driver" if s == "driver_of_module" else s
+                if s == "driver_of_module":
+                    if repeating_driver:
+                        drv_info = driver_map.get(repeating_driver)
+                        if drv_info:
+                            target_s = drv_info.get("type", "driver")
+                        else:
+                            target_s = f"driver:{repeating_driver}"
+                    else:
+                        target_s = "driver"
+                else:
+                    target_s = s
                 aggregated_scores[target_s] = aggregated_scores.get(target_s, 0.0) + float(add_pts)
 
     # Thưởng lặp lại (Repeat Bonus): Cùng một giả thuyết đứng đầu ở >= 3 crash

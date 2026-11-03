@@ -143,6 +143,19 @@ def validate_event_rules(data: Any, file_path: Path) -> List[str]:
             errors.append(f"'{file_path.name}' sự kiện #{idx + 1}: Thiếu danh sách 'ids'.")
         if "adds" not in ev or not isinstance(ev["adds"], dict):
             errors.append(f"'{file_path.name}' sự kiện #{idx + 1}: Thiếu từ điển trọng số 'adds'.")
+        if "cap" in ev:
+            cap_val = ev["cap"]
+            if not isinstance(cap_val, (int, float)) or cap_val <= 0:
+                errors.append(f"'{file_path.name}' sự kiện #{idx + 1}: Trường 'cap' phải là số > 0.")
+            elif isinstance(ev.get("adds"), dict):
+                max_add = max([v for v in ev["adds"].values() if isinstance(v, (int, float))], default=0)
+                if cap_val < max_add:
+                    errors.append(
+                        f"'{file_path.name}' sự kiện #{idx + 1}: Trường 'cap' ({cap_val}) nhỏ hơn điểm cộng lớn nhất ({max_add})."
+                    )
+                    logger.warning(
+                        f"'{file_path.name}' sự kiện #{idx + 1}: 'cap' ({cap_val}) nhỏ hơn điểm cộng ({max_add})."
+                    )
 
     return errors
 
