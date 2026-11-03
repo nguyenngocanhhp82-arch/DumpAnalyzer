@@ -11,12 +11,14 @@ from pathlib import Path
 
 block_cipher = None
 
+SCHEMA_SQL = str(Path(SPECPATH) / 'src' / 'dumpanalyzer' / 'storage' / 'schema.sql')
+
 # Analysis cho GUI (PySide6)
 a_gui = Analysis(
     ['src/dumpanalyzer/gui/main.py'],
     pathex=['src'],
     binaries=[],
-    datas=[],
+    datas=[(SCHEMA_SQL, 'dumpanalyzer/storage')],
     hiddenimports=[
         'openpyxl',
         'yaml',
@@ -32,11 +34,17 @@ a_gui = Analysis(
         'dumpanalyzer.gui.tab_detail',
         'dumpanalyzer.gui.tab_verdict',
         'dumpanalyzer.gui.tab_settings',
+        'dumpanalyzer.gui.tab_hwtests',
         'dumpanalyzer.gui.main_window',
         'dumpanalyzer.gui.worker',
         'dumpanalyzer.engine.batch_analyzer',
+        'dumpanalyzer.engine.fleet',
         'dumpanalyzer.analyzer.batch',
         'dumpanalyzer.report.exporter',
+        'dumpanalyzer.hwtests',
+        'dumpanalyzer.storage.db',
+        'dumpanalyzer.collectors.sysinfo',
+        'dumpanalyzer.collectors.asset_info',
     ],
     hookspath=[],
     hooksconfig={},
@@ -74,15 +82,20 @@ a_cli = Analysis(
     ['src/dumpanalyzer/cli.py'],
     pathex=['src'],
     binaries=[],
-    datas=[],
+    datas=[(SCHEMA_SQL, 'dumpanalyzer/storage')],
     hiddenimports=[
         'openpyxl',
         'yaml',
         'jinja2',
         'dumpanalyzer',
         'dumpanalyzer.engine.batch_analyzer',
+        'dumpanalyzer.engine.fleet',
         'dumpanalyzer.analyzer.batch',
         'dumpanalyzer.report.exporter',
+        'dumpanalyzer.hwtests',
+        'dumpanalyzer.storage.db',
+        'dumpanalyzer.collectors.sysinfo',
+        'dumpanalyzer.collectors.asset_info',
     ],
     hookspath=[],
     hooksconfig={},
