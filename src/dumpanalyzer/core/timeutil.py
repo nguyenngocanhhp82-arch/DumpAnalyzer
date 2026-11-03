@@ -5,7 +5,7 @@ Quy tắc:
 - Chỉ chuyển đổi sang giờ địa phương khi hiển thị trên giao diện hoặc xuất báo cáo.
 """
 
-from datetime import datetime, timezone, tzinfo
+from datetime import datetime, timezone
 from typing import Optional, Union
 import re
 

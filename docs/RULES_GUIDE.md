@@ -124,10 +124,30 @@ Quy định điểm số cộng thêm vào giả thuyết khi phát hiện các 
   adds:
     cpu: 30
     ram: 25
+  cap:
+    cpu: 60       # Trần điểm tối đa của quy tắc này cho CPU
+    ram: 50       # Trần điểm tối đa của quy tắc này cho RAM
   next_steps:
     - "Tắt chế độ ép xung CPU/RAM (XMP) trong BIOS"
     - "Kiểm tra nhiệt độ CPU khi chịu tải nặng"
 ```
+
+#### Ý nghĩa của trường `cap` (Giới hạn điểm tối đa):
+- Khi một sự kiện (ví dụ WHEA hoặc Disk error) xảy ra liên tục hàng chục, hàng trăm lần trong cửa sổ tương quan, nếu chỉ cộng dồn `adds * số lần` thì điểm số sẽ bị thổi phồng vượt mức thực tế.
+- Khóa `cap` đặt mức trần điểm số tối đa mà quy tắc đó có thể đóng góp cho từng đối tượng nghi vấn trong một vụ sập:
+  $$\text{Điểm quy tắc cho suspect} = \min(\text{số sự kiện} \times \text{adds}[suspect], \text{cap}[suspect])$$
+
+#### Thứ tự tính toán điểm số (Scoring Order):
+1. **Điểm Bug Check khởi điểm (`bugcheck_rules.yaml`)**: Xác định các nhóm nghi vấn ban đầu dựa theo mã sập.
+2. **Điểm Driver trong Call Stack (`driver_map.yaml`)**: Phân định nạn nhân (module hệ điều hành Microsoft) và thủ phạm (driver bên thứ ba).
+3. **Điểm Event Log (`event_rules.yaml`)**: Cộng điểm từ các sự kiện xảy ra gần thời điểm sập, áp dụng `cap` cho từng quy tắc.
+4. **Chuẩn hoá điểm**: Chuyển đổi tổng điểm thô về tỷ lệ phần trăm (0 - 100%).
+5. **Áp dụng trần độ tin cậy (Confidence Caps)**:
+   - 1 crash đơn lẻ: tối đa "trung bình".
+   - header_only (không có CDB stack trace): tối đa "trung bình".
+   - log_only mã 0: tối đa "thấp".
+6. **Nhận diện xu hướng (`patterns.yaml`)**: Thưởng điểm lặp lại khi phân tích trên nhiều lần sập của cùng một máy tính.
+
 
 ---
 

@@ -16,7 +16,7 @@ import json
 import subprocess
 from pathlib import Path
 from datetime import datetime, timezone
-from typing import Dict, Any, Optional, List
+from typing import Dict, Any, Optional
 from dumpanalyzer.core.config import get_project_root, is_running_as_admin
 from dumpanalyzer.core.logging_setup import get_logger
 

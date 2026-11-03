@@ -12,7 +12,6 @@ Bao gồm:
 import os
 import subprocess
 import sys
-from pathlib import Path
 from typing import Any, Dict, Optional
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (
@@ -41,12 +40,10 @@ from dumpanalyzer.collectors.dump_config import (
     evaluate_readiness,
     read_registry_crash_control,
 )
-from dumpanalyzer.core.config import find_cdb_executable, get_rules_dir, get_settings_path, load_settings, save_settings
+from dumpanalyzer.core.config import get_rules_dir, get_settings_path, load_settings, save_settings
 from dumpanalyzer.engine.rule_loader import validate_rules_and_settings
 from dumpanalyzer.gui.theme import (
     COLOR_ACCENT,
-    COLOR_BG_INPUT,
-    COLOR_BG_SURFACE,
     COLOR_BORDER,
     COLOR_DANGER,
     COLOR_SUCCESS,
@@ -382,5 +379,5 @@ class SettingsTab(QWidget):
                 subprocess.Popen(["open", str(rules_dir)])
             else:
                 subprocess.Popen(["xdg-open", str(rules_dir)])
-        except Exception as e:
+        except Exception:
             QMessageBox.information(self, "Đường dẫn thư mục", f"Đường dẫn thư mục quy tắc:\n{rules_dir}")

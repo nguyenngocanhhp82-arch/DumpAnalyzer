@@ -5,7 +5,6 @@
 """
 
 import sys
-import os
 import logging
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import QApplication

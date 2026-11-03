@@ -12,8 +12,7 @@ import json
 import re
 import subprocess
 import xml.etree.ElementTree as ET
-from datetime import datetime, timezone
-from pathlib import Path
+from datetime import datetime
 from typing import List, Dict, Any, Optional, Union
 from dumpanalyzer.core.timeutil import parse_to_utc, to_utc_iso
 from dumpanalyzer.core.logging_setup import get_logger

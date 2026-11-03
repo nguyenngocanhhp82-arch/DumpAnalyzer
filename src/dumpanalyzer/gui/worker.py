@@ -7,17 +7,16 @@ Hỗ trợ thanh tiến trình (progress bar), cập nhật thông báo và nút
 
 import logging
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, List, Optional
 from PySide6.QtCore import QThread, Signal
 
 from dumpanalyzer.analyzer.cdb_runner import build_crash_from_dump
-from dumpanalyzer.analyzer.header_parser import parse_dump_header
 from dumpanalyzer.collectors.drivers_updates import collect_recent_windows_updates
 from dumpanalyzer.collectors.dump_finder import calculate_sha256, copy_dump_safely, find_dumps
 from dumpanalyzer.collectors.eventlog import read_system_events
 from dumpanalyzer.collectors.hardware import collect_machine_info
 from dumpanalyzer.core.config import get_settings_path, load_settings
-from dumpanalyzer.core.models import Crash, Evidence, Finding, MachineInfo
+from dumpanalyzer.core.models import Crash, Evidence, MachineInfo
 from dumpanalyzer.engine.correlator import Correlator
 from dumpanalyzer.engine.rule_loader import load_all_rules, validate_rules_and_settings
 from dumpanalyzer.engine.scorer import score_machine_crashes

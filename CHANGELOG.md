@@ -2,9 +2,44 @@
 
 Mọi thay đổi quan trọng của dự án DumpAnalyzer được ghi lại tại tài liệu này theo từng phiên bản và ngày tháng thực hiện.
 
+## [v1.0.1] - 2026-11-03
+
+### Đợt Cập nhật 02 — Sửa lỗi toàn diện & Ổn định hóa hệ thống
+- **Nhóm A (Scorer & Rules):**
+  - Sửa tính điểm WHEA: thống nhất `kind="eventlog"` và chia sẻ hàm tính điểm `compute_event_points` giữa phân tích đơn vụ sập và đa vụ sập.
+  - Áp dụng thuộc tính `cap` trong `event_rules.yaml` giới hạn điểm tối đa của từng quy tắc cho một đối tượng nghi vấn, tránh thổi phồng điểm số khi sự kiện lặp lại nhiều lần.
+  - Bổ sung import `json` còn thiếu trong `correlator.py`.
+  - Chuẩn hoá các điều kiện pattern (`ms_core_modules` kiểm tra module Microsoft qua CDB dump, `driver_of_module` map sang hardware type, kiểm tra khoảng ngày `within_days`, yêu cầu `no_dump: true` cho crash không dump).
+- **Nhóm B (Parser & Crash Time Source):**
+  - Chuẩn hoá offset nhị phân header kernel dump `PAGEDU64` theo chuẩn cấu trúc Microsoft `_DUMP_HEADER64`: BugCheckCode tại `0x38`, DumpType tại `0xF98`, SystemTime (FILETIME 64-bit) tại `0xFA8`, SystemUpTime tại `0xFF8`.
+  - Minidump `MINIDUMP_HEADER`: đọc chính xác `TimeDateStamp` tại offset `0x14`.
+  - Bổ sung trường `crash_time_source` (`header`, `mtime`, `cdb`, `eventlog_6008`, `estimated`, `kp41`) và `uptime_seconds` vào dataclass `Crash` và `DumpHeaderInfo`.
+  - Hiển thị "Nguồn thời điểm" trên giao diện chi tiết GUI (`tab_detail.py`) và CLI.
+  - Tự động di chuyển schema SQLite tương thích ngược cho DB cũ (`ALTER TABLE crash ADD COLUMN crash_time_source`, `suspect_driver`).
+- **Nhóm C (PowerShell Event Log & Debug):**
+  - Viết lại câu lệnh PowerShell dùng `Get-WinEvent -FilterHashtable` + pipeline `ForEach-Object` + `[Console]::OutputEncoding = UTF8`.
+  - Xử lý 3 trạng thái: mảng rỗng sạch `[]` khi không có event, ghi log cảnh báo WARNING với stderr khi lỗi PowerShell, và ghi log WARNING kèm số giây khi bị timeout.
+  - Bổ sung cấu hình `eventlog_timeout_seconds: 120` trong `settings.yaml` và `DEFAULT_SETTINGS`.
+  - Bổ sung cờ `--debug-ps` trong lệnh CLI `dumpanalyzer events`.
+- **Nhóm D (Giờ sập cho crash log_only):**
+  - Ước tính thời điểm sập hệ thống theo thứ tự ưu tiên: Event 6008 shutdown time -> sự kiện cuối cùng trước khi khởi động lại -> fallback thời điểm Event 41.
+  - Mở rộng cửa sổ tương quan cho crash `log_only` thành `[crash_time - window, reboot_time (Event 41) + 2 min]`.
+- **Nhóm E (Event 1001 độc lập ngôn ngữ):**
+  - Trích xuất mã Bug Check, 4 tham số và đường dẫn file dump trực tiếp từ XML `EventData` (`param1`, `param2`) không phụ thuộc ngôn ngữ hiển thị của Windows.
+  - Giữ regex message tiếng Anh làm phương án dự phòng.
+  - Lọc Provider cho Event 1001 (chỉ nhận WER-SystemErrorReporting hoặc BugCheck).
+- **Nhóm F (Dọn dẹp thiết kế nhỏ):**
+  - Bổ sung cột `suspect_driver` trong bảng `crash`, scorer ưu tiên cột này trước khi fallback sang chuỗi cdb thô.
+  - Kiểm tra an toàn trước khi copy dump lớn: kiểm tra `max_copy_gb` (mặc định 8 GB) và kiểm tra ổ đĩa trống (cần $\ge 1.2 \times \text{size}$); nếu không đủ thì phân tích trực tiếp file gốc ở chế độ chỉ đọc.
+  - Bổ sung thuật toán `calculate_fast_hash` (kích thước + mtime + sha256 1MB đầu + 1MB cuối) làm khoá cache cho file dump lớn.
+  - Đảm bảo `.gitignore` và `DumpAnalyzer.spec` / `build_exe.py` loại trừ hoàn toàn `data/*.db`, `workspace/`, `logs/`.
+
+---
+
 ## [v1.0.0] - 2026-10-29
  
 ### Phát hành chính thức: Hoàn thành Toàn diện Dự án DumpAnalyzer (Phases 0–6)
+
 - **Module Phân tích theo lô Đa máy & Fleet Analysis (`analyzer/batch.py` & `engine/batch_analyzer.py`):**
   - Tự động quét cấu trúc thư mục con: mỗi thư mục con tương ứng với một máy tính (hostname / PC Name) hoặc xử lý file dump tại thư mục gốc.
   - Phân tích và chấm điểm độc lập cho từng máy tính qua `score_machine_crashes` và `generate_machine_finding`.

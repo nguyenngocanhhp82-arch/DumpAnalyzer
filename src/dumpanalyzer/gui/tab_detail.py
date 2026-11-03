@@ -6,7 +6,7 @@ Hiển thị toàn bộ thông số kỹ thuật chuyên sâu của một lần 
 - Bảng sự kiện Event Log xảy ra trong cửa sổ 10 phút trước khi sập.
 """
 
-from typing import Any, Dict, List, Optional
+from typing import Dict, List, Optional
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (
     QComboBox,
@@ -15,7 +15,6 @@ from PySide6.QtWidgets import (
     QHBoxLayout,
     QHeaderView,
     QLabel,
-    QLineEdit,
     QPlainTextEdit,
     QSplitter,
     QTableWidget,
@@ -27,8 +26,6 @@ from PySide6.QtWidgets import (
 from dumpanalyzer.core.models import Crash, Evidence
 from dumpanalyzer.core.timeutil import utc_to_local_str
 from dumpanalyzer.gui.theme import (
-    COLOR_BG_INPUT,
-    COLOR_BG_SURFACE,
     COLOR_BORDER,
     COLOR_TEXT_MUTED,
     COLOR_TEXT_PRIMARY,

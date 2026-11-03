@@ -7,7 +7,7 @@ tổng hợp chẩn đoán cho từng máy, và phát hiện các driver/model g
 from collections import Counter
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional
 import openpyxl
 from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
 from openpyxl.utils import get_column_letter
@@ -15,7 +15,7 @@ from openpyxl.utils import get_column_letter
 from dumpanalyzer.analyzer.cdb_runner import build_crash_from_dump
 from dumpanalyzer.collectors.dump_finder import calculate_sha256, copy_dump_safely, find_dumps
 from dumpanalyzer.core.config import get_settings_path, load_settings
-from dumpanalyzer.core.models import Crash, Evidence, Finding, MachineInfo
+from dumpanalyzer.core.models import Crash, MachineInfo
 from dumpanalyzer.core.timeutil import utc_to_local_str
 from dumpanalyzer.engine.rule_loader import load_all_rules
 from dumpanalyzer.engine.scorer import score_machine_crashes

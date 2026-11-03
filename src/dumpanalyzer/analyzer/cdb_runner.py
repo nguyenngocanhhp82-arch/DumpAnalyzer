@@ -318,9 +318,10 @@ def warmup_symbols(cdb_path: Optional[str] = None, symbol_path: Optional[str] = 
 
     # Chạy cdb để tải thử symbol cho tiến trình hiện tại
     try:
-        proc = subprocess.run(
+        subprocess.run(
             [cdb_exe, "-y", sym_path, "-c", ".reload; q"],
             capture_output=True,
+
             text=True,
             timeout=30,
         )

@@ -4,11 +4,9 @@ Tổng hợp kết quả chấm điểm, sinh lời giải thích rõ ràng bằ
 liên kết bằng chứng (evidence_ids) và sắp xếp các bước kiểm tra theo thứ tự DỄ -> KHÓ.
 """
 
-import json
 import logging
-import re
 from typing import Any, Dict, List, Optional
-from dumpanalyzer.core.models import Crash, Evidence, Finding
+from dumpanalyzer.core.models import Crash, Finding
 from dumpanalyzer.engine.scorer import get_suspect_label_vi
 from dumpanalyzer.engine.rule_loader import normalize_bugcheck_code
 

@@ -5,7 +5,6 @@ danh sách bằng chứng có gắn nhãn phân loại, giải thích nguyên nh
 và danh sách các bước kiểm tra khuyến nghị được sắp xếp từ Dễ đến Khó.
 """
 
-from pathlib import Path
 from typing import Any, Dict, List, Optional
 from PySide6.QtCore import Qt, Signal
 from PySide6.QtWidgets import (
@@ -25,8 +24,6 @@ from PySide6.QtWidgets import (
 from dumpanalyzer.core.models import Crash, Evidence, Finding, MachineInfo
 from dumpanalyzer.gui.theme import (
     COLOR_ACCENT,
-    COLOR_BG_INPUT,
-    COLOR_BG_SURFACE,
     COLOR_BORDER,
     COLOR_TEXT_MUTED,
     COLOR_TEXT_PRIMARY,
@@ -125,7 +122,7 @@ class VerdictTab(QWidget):
         conf_layout.addWidget(lbl_conf_icon)
 
         self.lbl_conflict_text = QLabel("Cảnh báo: Dữ liệu dump và sự kiện log mâu thuẫn (chưa thống nhất hướng nghi ngờ).")
-        self.lbl_conflict_text.setStyleSheet(f"color: #fde68a; font-size: 12px; font-weight: 500;")
+        self.lbl_conflict_text.setStyleSheet("color: #fde68a; font-size: 12px; font-weight: 500;")
         self.lbl_conflict_text.setWordWrap(True)
         conf_layout.addWidget(self.lbl_conflict_text, 1)
 

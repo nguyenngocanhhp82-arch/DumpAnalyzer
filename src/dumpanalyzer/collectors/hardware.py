@@ -10,7 +10,7 @@ import socket
 import platform
 import subprocess
 import json
-from typing import Dict, Any, List, Optional
+from typing import Dict, Any, List
 from dumpanalyzer.core.models import MachineInfo
 from dumpanalyzer.core.logging_setup import get_logger
 

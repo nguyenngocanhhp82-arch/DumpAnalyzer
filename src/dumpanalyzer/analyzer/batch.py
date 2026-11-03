@@ -15,15 +15,15 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Union, Tuple
 
-from dumpanalyzer.analyzer.header_parser import parse_dump_header, DumpHeaderInfo
+from dumpanalyzer.analyzer.header_parser import parse_dump_header
 from dumpanalyzer.collectors.dump_finder import find_dumps
 from dumpanalyzer.core.logging_setup import get_logger
 from dumpanalyzer.core.timeutil import utc_to_local_str
-from dumpanalyzer.core.models import Crash, Evidence, Finding
+from dumpanalyzer.core.models import Crash, Evidence
 from dumpanalyzer.engine.rule_loader import load_all_rules
 from dumpanalyzer.core.config import load_settings
-from dumpanalyzer.engine.scorer import score_machine_crashes, score_single_crash, get_suspect_label_vi
-from dumpanalyzer.engine.verdict import generate_machine_finding, generate_crash_finding
+from dumpanalyzer.engine.scorer import score_machine_crashes, get_suspect_label_vi
+from dumpanalyzer.engine.verdict import generate_machine_finding
 
 logger = get_logger("batch_analyzer")
 
@@ -370,7 +370,7 @@ class FleetBatchAnalyzer:
         - Sheet 4: Danh sách Toàn bộ Crash
         """
         import openpyxl
-        from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
+        from openpyxl.styles import Font, PatternFill
         from openpyxl.utils import get_column_letter
 
         out = Path(output_path).resolve()

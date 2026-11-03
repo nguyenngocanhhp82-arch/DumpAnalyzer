@@ -7,7 +7,7 @@ import sys
 import argparse
 import json
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Tuple
 from dumpanalyzer import __version__
 from dumpanalyzer.core.config import (
     check_environment_summary,
@@ -33,12 +33,9 @@ from dumpanalyzer.collectors.dump_config import (
 )
 from dumpanalyzer.analyzer.cdb_runner import (
     analyze_dump_file,
-    analyze_dumps_parallel,
     warmup_symbols,
 )
 from dumpanalyzer.collectors.eventlog import read_system_events
-from dumpanalyzer.collectors.hardware import collect_machine_info
-from dumpanalyzer.collectors.drivers_updates import collect_recent_windows_updates
 from dumpanalyzer.engine.correlator import Correlator
 from dumpanalyzer.core.models import Evidence, Finding
 from dumpanalyzer.engine.rule_loader import validate_rules_and_settings, load_all_rules
@@ -195,12 +192,12 @@ def cmd_check_env(args):
     env = check_environment_summary()
 
     # 1. Hệ điều hành & Python
-    print(f"\n[1] Môi trường thực thi:")
+    print("\n[1] Môi trường thực thi:")
     print(f"    - Nền tảng HĐH:     {env['os_platform']}")
     print(f"    - Phiên bản Python: {env['python_version']}")
 
     # 2. Quyền Administrator
-    print(f"\n[2] Quyền thực thi:")
+    print("\n[2] Quyền thực thi:")
     if env["is_admin"]:
         print("    [OK] Đang chạy với quyền Administrator (hoặc root).")
     else:
@@ -210,7 +207,7 @@ def cmd_check_env(args):
             print("           yêu cầu quyền Admin để đọc. Hãy mở Terminal bằng 'Run as administrator'.")
 
     # 3. Công cụ cdb.exe (Windows Debugging Tools)
-    print(f"\n[3] Công cụ gỡ lỗi Windows (cdb.exe):")
+    print("\n[3] Công cụ gỡ lỗi Windows (cdb.exe):")
     if env["cdb_found"]:
         print(f"    [OK] Đã phát hiện cdb.exe tại: {env['cdb_path']}")
     else:
@@ -218,14 +215,14 @@ def cmd_check_env(args):
         print(env["cdb_guide"])
 
     # 4. Thư mục dump mặc định
-    print(f"\n[4] Kiểm tra thư mục / file Dump hệ thống:")
+    print("\n[4] Kiểm tra thư mục / file Dump hệ thống:")
     for path_str, exists in env["dump_paths"].items():
         status = "[TỒN TẠI]" if exists else "[KHÔNG THẤY]"
         print(f"    - {path_str:<35} : {status}")
 
     # 5. Kiểm tra cơ sở dữ liệu mã Bug Check
     json_path = get_project_root() / "config" / "data" / "bugcheck_codes.json"
-    print(f"\n[5] Cơ sở dữ liệu mã Bug Check:")
+    print("\n[5] Cơ sở dữ liệu mã Bug Check:")
     if json_path.exists():
         try:
             with open(json_path, "r", encoding="utf-8") as f:
@@ -237,7 +234,7 @@ def cmd_check_env(args):
         print(f"    [X] Chưa tìm thấy file dữ liệu tại {json_path}")
 
     # 6. Thư mục làm việc
-    print(f"\n[6] Thư mục làm việc tạm (workspace):")
+    print("\n[6] Thư mục làm việc tạm (workspace):")
     ws_path = Path(env["working_dir"])
     if not ws_path.is_absolute():
         ws_path = get_project_root() / ws_path
@@ -263,7 +260,7 @@ def cmd_check_dump_config(args):
     eval_result = evaluate_readiness(reg_data, pf_data, disk_data, volmgr_data)
 
     # 1. Cấu hình Registry CrashControl
-    print(f"\n[1] Cấu hình Registry (CrashControl):")
+    print("\n[1] Cấu hình Registry (CrashControl):")
     dump_code = reg_data.get("CrashDumpEnabled")
     mode_desc = CRASH_DUMP_MODES.get(dump_code, f"Mã không xác định ({dump_code})")
     print(f"    - CrashDumpEnabled:  {dump_code} ({mode_desc})")
@@ -273,7 +270,7 @@ def cmd_check_dump_config(args):
     print(f"    - DumpFile:          {reg_data.get('DumpFile')}")
 
     # 2. Tình trạng Pagefile
-    print(f"\n[2] Tình trạng Bộ nhớ ảo (Pagefile):")
+    print("\n[2] Tình trạng Bộ nhớ ảo (Pagefile):")
     if pf_data["has_system_drive_pagefile"]:
         print("    [OK] Đã phát hiện Pagefile trên ổ đĩa hệ thống.")
     else:
@@ -283,7 +280,7 @@ def cmd_check_dump_config(args):
             print(f"         + {d}")
 
     # 3. Dung lượng trống ổ cứng và RAM
-    print(f"\n[3] Dung lượng ổ đĩa & Bộ nhớ RAM:")
+    print("\n[3] Dung lượng ổ đĩa & Bộ nhớ RAM:")
     print(f"    - Dung lượng RAM:    {disk_data['ram_gb']} GB")
     print(f"    - Dung lượng trống:  {disk_data['free_disk_gb']} GB trên ổ {disk_data['system_drive']}")
     print(f"    - Mức khuyến nghị:   >= {disk_data['recommended_free_gb']} GB (RAM + 5GB)")
@@ -293,7 +290,7 @@ def cmd_check_dump_config(args):
         print("    [!] CẢNH BÁO: Dung lượng trống thấp hơn mức an toàn để ghi dump.")
 
     # 4. Lịch sử dịch vụ volmgr
-    print(f"\n[4] Lịch sử dịch vụ ghi dump (volmgr):")
+    print("\n[4] Lịch sử dịch vụ ghi dump (volmgr):")
     if volmgr_data["has_failure_161"]:
         print(f"    [!] CẢNH BÁO: Đã từng có sự kiện tạo dump thất bại (Event 161 lúc {volmgr_data['last_failure_time']}).")
     else:
@@ -352,7 +349,7 @@ def cmd_validate_rules(args):
     is_valid, errors, summary = validate_rules_and_settings()
     if is_valid:
         print("[OK] TOÀN BỘ CÁC FILE QUY TẮC ĐỀU HỢP LỆ VÀ SẴN SÀNG SỬ DỤNG!")
-        print(f"  - settings.yaml:          Hợp lệ")
+        print("  - settings.yaml:          Hợp lệ")
         print(f"  - bugcheck_rules.yaml:    {summary.get('bugcheck_rules_count', 0)} quy tắc mã lỗi")
         print(f"  - driver_map.yaml:        {summary.get('driver_mappings_count', 0)} ánh xạ driver, {summary.get('ms_core_modules_count', 0)} module lõi Microsoft")
         print(f"  - event_rules.yaml:       {summary.get('event_rules_count', 0)} quy tắc sự kiện Event Log")
@@ -373,29 +370,29 @@ def _print_finding_report(finding: Finding, crash: Crash, scored: Dict[str, Any]
     bc_str = crash.bugcheck_code or "N/A"
     bc_name = crash.bugcheck_name or "Chưa rõ"
 
-    print(f"\n======================================================================")
+    print("\n======================================================================")
     print(f"  KẾT LUẬN VỤ SẬP: Lúc {time_str} | Mã lỗi: {bc_str} ({bc_name})")
-    print(f"======================================================================")
+    print("======================================================================")
     print(f"Phân loại dump:   {crash.dump_type} (Phân tích bằng: {crash.analyzed_by})")
     print(f"Nghi vấn chính:   {get_suspect_label_vi(finding.suspect)} ({finding.score:.1f}%)")
     print(f"Độ tin cậy:       [{finding.confidence.upper()}]")
     if finding.evidence_ids:
         print(f"Bằng chứng số:    {', '.join(f'#{i}' for i in finding.evidence_ids)}")
 
-    print(f"\n[XẾP HẠNG CÁC NHÓM NGUYÊN NHÂN]:")
+    print("\n[XẾP HẠNG CÁC NHÓM NGUYÊN NHÂN]:")
     for susp, pct in scored.get("suspect_scores", [])[:4]:
         bar_len = int(pct / 5)
         bar = "█" * bar_len + "░" * (20 - bar_len)
         lbl = get_suspect_label_vi(susp)
         print(f"  {lbl:<36} : {bar} {pct:>5.1f}%")
 
-    print(f"\n[GIẢI THÍCH NGUYÊN NHÂN (Rationale)]:")
+    print("\n[GIẢI THÍCH NGUYÊN NHÂN (Rationale)]:")
     print(f"  {finding.rationale}")
 
-    print(f"\n[CÁC BƯỚC KIỂM TRA ĐỀ XUẤT (Từ dễ đến khó)]:")
+    print("\n[CÁC BƯỚC KIỂM TRA ĐỀ XUẤT (Từ dễ đến khó)]:")
     for idx, step in enumerate(finding.next_steps, 1):
         print(f"  Bước {idx}: {step}")
-    print(f"======================================================================\n")
+    print("======================================================================\n")
 
 
 def _print_machine_verdict_report(
@@ -405,36 +402,36 @@ def _print_machine_verdict_report(
 ):
     """In báo cáo kết luận tổng hợp theo máy tính."""
     crash_count = len(crashes_with_evs)
-    print(f"\n======================================================================")
+    print("\n======================================================================")
     print(f"  TỔNG HỢP CHẨN ĐOÁN HỆ THỐNG ({crash_count} LẦN SẬP ĐƯỢC PHÂN TÍCH)")
-    print(f"======================================================================")
+    print("======================================================================")
     print(f"Nguyên nhân hàng đầu: {get_suspect_label_vi(finding.suspect)} ({finding.score:.1f}%)")
     print(f"Mức độ tin cậy:       [{finding.confidence.upper()}]")
 
     if scored.get("is_conflicted"):
-        print(f"\n[!] CẢNH BÁO MÂU THUẪN:")
+        print("\n[!] CẢNH BÁO MÂU THUẪN:")
         print(f"    {scored.get('conflict_note')}")
 
     if scored.get("patterns_matched"):
-        print(f"\n[*] MẪU HÌNH NHẬN DIỆN ĐƯỢC:")
+        print("\n[*] MẪU HÌNH NHẬN DIỆN ĐƯỢC:")
         for p in scored["patterns_matched"]:
             print(f"    - {p}")
 
-    print(f"\n[XẾP HẠNG NGHI VẤN TỔNG HỢP]:")
+    print("\n[XẾP HẠNG NGHI VẤN TỔNG HỢP]:")
     for susp, pct in scored.get("suspect_scores", [])[:5]:
         bar_len = int(pct / 5)
         bar = "█" * bar_len + "░" * (20 - bar_len)
         lbl = get_suspect_label_vi(susp)
         print(f"  {lbl:<36} : {bar} {pct:>5.1f}%")
 
-    print(f"\n[GIẢI THÍCH NGUYÊN NHÂN (Rationale)]:")
+    print("\n[GIẢI THÍCH NGUYÊN NHÂN (Rationale)]:")
     print(f"  {finding.rationale}")
 
-    print(f"\n[HÀNH ĐỘNG KIỂM TRA KHUYẾN NGHỊ (Sắp xếp từ DỄ -> KHÓ)]:")
+    print("\n[HÀNH ĐỘNG KIỂM TRA KHUYẾN NGHỊ (Sắp xếp từ DỄ -> KHÓ)]:")
     for idx, step in enumerate(finding.next_steps, 1):
         print(f"  {idx}. {step}")
 
-    print(f"\n[CHI TIẾT CÁC LẦN SẬP ĐÃ PHÂN TÍCH]:")
+    print("\n[CHI TIẾT CÁC LẦN SẬP ĐÃ PHÂN TÍCH]:")
     col_t = 20
     col_code = 10
     col_name = 28
@@ -451,7 +448,7 @@ def _print_machine_verdict_report(
         c_by = c.analyzed_by[:col_by]
         print(f"{t_loc:<{col_t}} | {c_code:<{col_code}} | {c_name:<{col_name}} | {c_by:<{col_by}}")
     print(sep)
-    print(f"======================================================================\n")
+    print("======================================================================\n")
 
 
 def cmd_verdict(args):
@@ -617,8 +614,9 @@ def cmd_analyze(args):
                 targets = [cached]
             else:
                 h_info = parse_dump_header(search_path)
-                c_id = db.insert_crash(Crash(
+                db.insert_crash(Crash(
                     dump_path=str(search_path),
+
                     dump_sha256=sha256,
                     dump_type=h_info.dump_type,
                     crash_time_utc=h_info.crash_time_utc,
@@ -637,8 +635,9 @@ def cmd_analyze(args):
                     targets.append(cached)
                 else:
                     h_info = parse_dump_header(f["path"])
-                    c_id = db.insert_crash(Crash(
+                    db.insert_crash(Crash(
                         dump_path=str(f["path"]),
+
                         dump_sha256=sha256,
                         dump_type=h_info.dump_type,
                         crash_time_utc=h_info.crash_time_utc,
@@ -840,7 +839,7 @@ def cmd_batch(args):
         print(f"[X] Thư mục không tồn tại: {target_dir}")
         return 1
 
-    print(f"\n--- PHÂN TÍCH THEO LÔ ĐA MÁY TÍNH (Fleet Analysis) ---")
+    print("\n--- PHÂN TÍCH THEO LÔ ĐA MÁY TÍNH (Fleet Analysis) ---")
     print(f"[*] Đang quét thư mục: {path_obj}")
 
     analyzer = FleetBatchAnalyzer()
@@ -850,7 +849,7 @@ def cmd_batch(args):
         print(f"[X] Lỗi trong quá trình phân tích theo lô: {e}")
         return 1
 
-    print(f"\n[+] KẾT QUẢ TỔNG QUAN:")
+    print("\n[+] KẾT QUẢ TỔNG QUAN:")
     print(f"  * Tổng số máy tính nhận diện: {fleet_data['total_machines']}")
     print(f"  * Tổng số file dump sập: {fleet_data['total_crashes']}")
 
@@ -868,12 +867,12 @@ def cmd_batch(args):
     # Mã lỗi phổ biến
     top_bcs = fleet_data.get("top_bugchecks", [])
     if top_bcs:
-        print(f"\n[*] Các mã lỗi xuất hiện nhiều nhất:")
+        print("\n[*] Các mã lỗi xuất hiện nhiều nhất:")
         for bc, count in top_bcs[:5]:
             print(f"    - {bc}: {count} lần")
 
     # Danh sách máy
-    print(f"\n[*] Tóm tắt kết luận từng máy:")
+    print("\n[*] Tóm tắt kết luận từng máy:")
     for m in fleet_data.get("machines", []):
         v = m.get("verdict", {})
         print(f"    - Máy '{m['machine_name']}': {m['dump_count']} dump | Nghi ngờ: {v.get('primary_culprit', 'Chưa rõ')} ({v.get('top_score', 0)}%) | Tin cậy: {v.get('confidence', 'Chưa rõ')}")

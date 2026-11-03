@@ -6,8 +6,7 @@ Giúp xác định driver quá hạn hoặc cập nhật Windows gây xung độ
 import sys
 import subprocess
 import json
-from datetime import datetime, timezone, timedelta
-from typing import List, Dict, Any, Optional
+from typing import List, Dict, Any
 from dumpanalyzer.core.timeutil import parse_to_utc, to_utc_iso
 from dumpanalyzer.core.logging_setup import get_logger
 

@@ -23,9 +23,6 @@ from PySide6.QtWidgets import (
 from dumpanalyzer.core.models import Crash, Finding
 from dumpanalyzer.core.timeutil import utc_to_local_str
 from dumpanalyzer.gui.theme import (
-    COLOR_BG_INPUT,
-    COLOR_BG_SURFACE,
-    COLOR_BORDER,
     COLOR_TEXT_MUTED,
     COLOR_TEXT_PRIMARY,
     get_method_badge_style,

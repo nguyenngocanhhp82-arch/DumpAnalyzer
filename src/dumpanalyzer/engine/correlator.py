@@ -10,16 +10,15 @@ Nhiệm vụ:
 5. Tạo và lưu các bản ghi Evidence có liên kết trực tiếp với Crash.
 """
 
-from datetime import datetime, timezone, timedelta
+from datetime import datetime, timedelta
 from typing import List, Dict, Any, Optional, Tuple
-from pathlib import Path
 import json
 import re
 import yaml
 
 from dumpanalyzer.core.models import Crash, Evidence
 from dumpanalyzer.core.config import get_project_root, load_settings
-from dumpanalyzer.core.timeutil import parse_to_utc, to_utc_iso
+from dumpanalyzer.core.timeutil import parse_to_utc
 from dumpanalyzer.core.logging_setup import get_logger
 from dumpanalyzer.analyzer.header_parser import lookup_bugcheck_name
 

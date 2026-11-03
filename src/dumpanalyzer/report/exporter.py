@@ -526,8 +526,8 @@ def export_excel_report(
     font_bold = Font(name="Calibri", size=11, bold=True)
     font_regular = Font(name="Calibri", size=11)
     align_center = Alignment(horizontal="center", vertical="center")
-    align_left = Alignment(horizontal="left", vertical="center")
     border_thin = Border(
+
         left=Side(style="thin", color="D9D9D9"),
         right=Side(style="thin", color="D9D9D9"),
         top=Side(style="thin", color="D9D9D9"),

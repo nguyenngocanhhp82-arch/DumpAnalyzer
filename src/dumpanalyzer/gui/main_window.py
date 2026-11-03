@@ -4,10 +4,8 @@ Tích hợp thanh công cụ điều khiển (Nguồn dữ liệu, Khoảng th�
 thanh tiến trình động, và 4 Tab chức năng: Tổng quan | Chi tiết crash | Kết luận | Cài đặt.
 """
 
-from datetime import datetime, timedelta
-from pathlib import Path
 from typing import Any, Dict, List, Optional
-from PySide6.QtCore import QDate, Qt
+from PySide6.QtCore import QDate
 from PySide6.QtWidgets import (
     QComboBox,
     QDateEdit,
@@ -32,18 +30,12 @@ from dumpanalyzer.gui.tab_overview import OverviewTab
 from dumpanalyzer.gui.tab_settings import SettingsTab
 from dumpanalyzer.gui.tab_verdict import VerdictTab
 from dumpanalyzer.gui.theme import (
-    COLOR_ACCENT,
-    COLOR_BG_INPUT,
-    COLOR_BG_PRIMARY,
     COLOR_BG_SURFACE,
     COLOR_BORDER,
-    COLOR_DANGER,
     COLOR_TEXT_MUTED,
-    COLOR_TEXT_PRIMARY,
     MAIN_STYLESHEET,
 )
 from dumpanalyzer.gui.worker import AnalysisWorker
-from dumpanalyzer.report.exporter import export_excel_report, export_html_report
 
 
 class MainWindow(QMainWindow):
