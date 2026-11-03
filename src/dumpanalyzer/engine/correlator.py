@@ -14,6 +14,7 @@ from datetime import datetime, timezone, timedelta
 from typing import List, Dict, Any, Optional, Tuple
 from pathlib import Path
 import json
+import re
 import yaml
 
 from dumpanalyzer.core.models import Crash, Evidence
@@ -23,6 +24,30 @@ from dumpanalyzer.core.logging_setup import get_logger
 from dumpanalyzer.analyzer.header_parser import lookup_bugcheck_name
 
 logger = get_logger("correlator")
+
+
+def _extract_event_6008_time(ev: Dict[str, Any]) -> Optional[datetime]:
+    """Trích xuất thời điểm tắt máy bất thường từ Event 6008."""
+    ed = ev.get("event_data")
+    if isinstance(ed, dict):
+        if "ShutdownTime" in ed and ed["ShutdownTime"]:
+            dt = parse_to_utc(str(ed["ShutdownTime"]))
+            if dt:
+                return dt
+        for val in ed.values():
+            if isinstance(val, str) and len(val) >= 10:
+                dt = parse_to_utc(val)
+                if dt:
+                    return dt
+    msg = ev.get("raw_message", "")
+    if msg:
+        iso_match = re.search(r"\b(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?Z?)\b", msg)
+        if iso_match:
+            dt = parse_to_utc(iso_match.group(1))
+            if dt:
+                return dt
+    return None
+
 
 
 def load_event_rules() -> List[Dict[str, Any]]:
@@ -77,6 +102,21 @@ class Correlator:
 
         start_dt = crash_dt - timedelta(minutes=self.window_minutes)
         end_dt = crash_dt + timedelta(minutes=2)  # Cho phép dung sai 2 phút ghi log
+
+        # Nếu là log_only: mở rộng cửa sổ đến thời điểm Event 41 (thời điểm reboot) + 2 phút
+        if crash.analyzed_by == "log_only" or crash.crash_time_source in ("eventlog_6008", "estimated", "kp41"):
+            candidate_kps = []
+            for ev in all_events:
+                if ev.get("event_id") == 41 and "Kernel-Power" in ev.get("provider", ""):
+                    ev_t = ev.get("time_created_utc")
+                    if ev_t:
+                        ev_dt = parse_to_utc(ev_t)
+                        if ev_dt and ev_dt >= crash_dt - timedelta(minutes=1):
+                            candidate_kps.append(ev_dt)
+            if candidate_kps:
+                kp_dt = min(candidate_kps, key=lambda t: (t - crash_dt).total_seconds())
+                end_dt = max(end_dt, kp_dt + timedelta(minutes=2))
+
 
         evidences: List[Evidence] = []
 
@@ -193,6 +233,61 @@ class Correlator:
                             p3 = wer_info.get("p3", p3)
                             p4 = wer_info.get("p4", p4)
 
+            # Xác định thời điểm và nguồn thời gian sập (Nhóm D)
+            # Thứ tự ưu tiên:
+            # 1. Event 6008 gần thời điểm reboot kp_dt
+            # 2. Ước lượng bằng sự kiện cuối cùng trước thời điểm khởi động
+            # 3. Fallback dùng chính thời điểm Event 41
+            crash_time_utc = kp_time_str
+            crash_time_source = "kp41"
+
+            # 1. Kiểm tra Event 6008
+            found_6008 = False
+            for ev in all_events:
+                if ev.get("event_id") == 6008:
+                    ev_t_str = ev.get("time_created_utc")
+                    if ev_t_str:
+                        ev_dt = parse_to_utc(ev_t_str)
+                        if ev_dt and abs((ev_dt - kp_dt).total_seconds()) <= 600:
+                            s_time = _extract_event_6008_time(ev)
+                            if s_time:
+                                crash_time_utc = s_time.strftime("%Y-%m-%dT%H:%M:%SZ")
+                                crash_time_source = "eventlog_6008"
+                                if ev not in matched_events:
+                                    matched_events.append(ev)
+                                found_6008 = True
+                                break
+
+            # 2. Nếu không có 6008, tìm sự kiện cuối cùng trước boot
+            if not found_6008:
+                boot_times = [kp_dt]
+                for ev in all_events:
+                    eid = ev.get("event_id")
+                    prov = ev.get("provider", "")
+                    if eid in (6005, 12) or (eid == 41 and "Kernel-Power" in prov):
+                        ev_t_str = ev.get("time_created_utc")
+                        if ev_t_str:
+                            ev_dt = parse_to_utc(ev_t_str)
+                            if ev_dt and abs((ev_dt - kp_dt).total_seconds()) <= 300:
+                                boot_times.append(ev_dt)
+                boot_start_dt = min(boot_times)
+
+                pre_boot_events = []
+                for ev in all_events:
+                    eid = ev.get("event_id")
+                    if eid in (41, 6005, 12):
+                        continue
+                    ev_t_str = ev.get("time_created_utc")
+                    if ev_t_str:
+                        ev_dt = parse_to_utc(ev_t_str)
+                        if ev_dt and (boot_start_dt - timedelta(hours=24) <= ev_dt < boot_start_dt - timedelta(seconds=15)):
+                            pre_boot_events.append((ev_dt, ev_t_str))
+
+                if pre_boot_events:
+                    latest_dt, latest_str = max(pre_boot_events, key=lambda x: x[0])
+                    crash_time_utc = latest_str
+                    crash_time_source = "estimated"
+
             # Đặt tên lỗi
             if bc_code and bc_code != "0x0":
                 bc_name = lookup_bugcheck_name(bc_code)
@@ -204,7 +299,8 @@ class Correlator:
                 dump_path="",
                 dump_sha256=f"log_only_{kp_time_str.replace(':', '').replace('-', '')}",
                 dump_type="none",
-                crash_time_utc=kp_time_str,
+                crash_time_utc=crash_time_utc,
+                crash_time_source=crash_time_source,
                 bugcheck_code=bc_code,
                 bugcheck_name=bc_name,
                 p1=p1,
@@ -215,6 +311,7 @@ class Correlator:
             )
 
             detected.append((log_crash, matched_events))
+
 
         return detected
 
