@@ -12,6 +12,18 @@ import shutil
 import subprocess
 from pathlib import Path
 
+# Đảm bảo stdout/stderr luôn dùng UTF-8 trên mọi nền tảng (tránh UnicodeEncodeError cp1252 trên Windows runner)
+if sys.stdout and hasattr(sys.stdout, "reconfigure"):
+    try:
+        sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+    except Exception:
+        pass
+if sys.stderr and hasattr(sys.stderr, "reconfigure"):
+    try:
+        sys.stderr.reconfigure(encoding="utf-8", errors="replace")
+    except Exception:
+        pass
+
 
 def main():
     project_root = Path(__file__).resolve().parent.parent
@@ -20,45 +32,46 @@ def main():
     config_src = project_root / "config"
 
     print("=================================================================")
-    print("      DUMPANALYZER — QUY TRÌNH ĐÓNG GÓI PYINSTALLER (PHASE 6)    ")
+    print("      DUMPANALYZER -- QUY TRINH DONG GOI PYINSTALLER (PHASE 6)   ")
     print("=================================================================")
-    print(f"[*] Thư mục dự án: {project_root}")
-    print(f"[*] File cấu hình spec: {spec_file}")
+    print(f"[*] Thu muc du an: {project_root}")
+    print(f"[*] File cau hinh spec: {spec_file}")
 
     if not spec_file.exists():
-        print(f"[X] Không tìm thấy file {spec_file}!")
+        print(f"[X] Khong tim thay file {spec_file}!")
         sys.exit(1)
 
     # 1. Chạy PyInstaller
-    print("\n[1/3] Đang tiến hành đóng gói PyInstaller...")
+    print("\n[1/3] Dang tien hanh dong goi PyInstaller...")
     cmd = [sys.executable, "-m", "PyInstaller", "--noconfirm", str(spec_file)]
     res = subprocess.run(cmd, cwd=project_root)
     if res.returncode != 0:
-        print("[X] Quá trình PyInstaller gặp lỗi. Dừng đóng gói.")
+        print("[X] Qua trinh PyInstaller gap loi. Dung dong goi.")
         sys.exit(res.returncode)
 
     # 2. Sao chép thư mục config đặt cạnh file .exe
-    print("\n[2/3] Đang sao chép thư mục 'config/' ra cạnh file thực thi...")
+    print("\n[2/3] Dang sao chep thu muc 'config/' ra canh file thuc thi...")
     target_config = dist_dir / "config"
     if target_config.exists():
         shutil.rmtree(target_config)
-    shutil.copytree(config_src, target_config)
-    print(f"[+] Đã sao chép cấu hình YAML thành công -> {target_config}")
+    shutil.copytree(config_src, target_config, ignore=shutil.ignore_patterns("*.db", "*.sqlite", "workspace*", "logs*"))
+    print(f"[+] Da sao chep cau hinh YAML thanh cong -> {target_config}")
 
     # Tạo thư mục logs sẵn sàng
     logs_dir = dist_dir / "logs"
     logs_dir.mkdir(exist_ok=True)
 
-    print("\n[3/3] HOÀN TẤT ĐÓNG GÓI THÀNH CÔNG!")
-    print(f"[+] Thư mục ứng dụng đã sẵn sàng tại:")
+    print("\n[3/3] HOAN TAT DONG GOI THANH CONG!")
+    print(f"[+] Thu muc ung dung da san sang tai:")
     print(f"    {dist_dir}")
-    print("\nLƯU Ý QUAN TRỌNG KHI TRIỂN KHAI CHO IT:")
-    print("1. File thực thi 'DumpAnalyzer.exe' tự động yêu cầu quyền Administrator.")
-    print("2. Kỹ thuật viên IT có thể mở trực tiếp thư mục 'dist/DumpAnalyzer/config/rules/'")
-    print("   để bổ sung mã Bug Check hoặc map driver mà không cần build lại mã nguồn.")
-    print("3. Thêm thư mục ứng dụng vào danh sách loại trừ (Exclusion) của Windows Defender")
-    print("   hoặc phần mềm diệt virus công ty để tránh hiện tượng nhận diện nhầm.")
+    print("\nLUU Y QUAN TRONG KHI TRIEN KHAI CHO IT:")
+    print("1. File thuc thi 'DumpAnalyzer.exe' tu dong yeu cau quyen Administrator.")
+    print("2. Ky thuat vien IT co the mo truc tiep thu muc 'dist/DumpAnalyzer/config/rules/'")
+    print("   de bo sung ma Bug Check hoac map driver ma khong can build lai ma nguon.")
+    print("3. Them thu muc ung dung vao danh sach loai tru (Exclusion) cua Windows Defender")
+    print("   hoac phan mem diet virus cong ty de tranh hien tuong nhan dien nham.")
     print("=================================================================\n")
+
 
 
 if __name__ == "__main__":

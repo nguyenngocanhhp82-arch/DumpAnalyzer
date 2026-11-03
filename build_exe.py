@@ -13,6 +13,18 @@ import shutil
 import subprocess
 from pathlib import Path
 
+# Đảm bảo stdout/stderr luôn dùng UTF-8 trên mọi nền tảng (tránh UnicodeEncodeError cp1252 trên Windows runner)
+if sys.stdout and hasattr(sys.stdout, "reconfigure"):
+    try:
+        sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+    except Exception:
+        pass
+if sys.stderr and hasattr(sys.stderr, "reconfigure"):
+    try:
+        sys.stderr.reconfigure(encoding="utf-8", errors="replace")
+    except Exception:
+        pass
+
 
 def build():
     root = Path(__file__).resolve().parent
@@ -21,10 +33,10 @@ def build():
     spec_file = root / "DumpAnalyzer.spec"
 
     print("=================================================================")
-    print("      TIẾN HÀNH ĐÓNG GÓI DUMPANALYZER (PYINSTALLER)")
+    print("      TIEN HANH DONG GOI DUMPANALYZER (PYINSTALLER)")
     print("=================================================================")
-    print(f"[*] Thư mục gốc: {root}")
-    print(f"[*] File cấu hình spec: {spec_file}")
+    print(f"[*] Thu muc goc: {root}")
+    print(f"[*] File cau hinh spec: {spec_file}")
 
     # 1. Chạy PyInstaller
     cmd = [
@@ -35,18 +47,19 @@ def build():
         str(spec_file),
     ]
 
-    print(f"[*] Đang thực thi: {' '.join(cmd)}")
+    print(f"[*] Dang thuc thi: {' '.join(cmd)}")
     ret = subprocess.run(cmd, cwd=str(root))
     if ret.returncode != 0:
-        print(f"[X] Lỗi: PyInstaller kết thúc với mã lỗi {ret.returncode}")
+        print(f"[X] Loi: PyInstaller ket thuc voi ma loi {ret.returncode}")
         return ret.returncode
 
     # 2. Sao chép thư mục config/ vào cạnh file .exe
     config_dest = dist_dir / "config"
-    print(f"[*] Đang sao chép thư mục cấu hình: {config_src} -> {config_dest}")
+    print(f"[*] Dang sao chep thu muc cau hinh: {config_src} -> {config_dest}")
     if config_dest.exists():
         shutil.rmtree(config_dest)
     shutil.copytree(config_src, config_dest, ignore=shutil.ignore_patterns("*.db", "*.sqlite", "workspace*", "logs*"))
+
 
 
     # 3. Tạo file run_gui.bat và run_cli.bat
@@ -103,7 +116,7 @@ def build():
 
     # 5. Tự động đóng gói thành file .zip để phân phối hoặc tải lên GitHub Releases
     zip_base_name = root / "dist" / "DumpAnalyzer-windows-x64"
-    print(f"[*] Đang nén file zip: {dist_dir} -> {zip_base_name}.zip")
+    print(f"[*] Dang nen file zip: {dist_dir} -> {zip_base_name}.zip")
     shutil.make_archive(
         base_name=str(zip_base_name),
         format="zip",
@@ -113,11 +126,12 @@ def build():
     zip_file = root / "dist" / "DumpAnalyzer-windows-x64.zip"
 
     print("\n=================================================================")
-    print(f"[+] ĐÓNG GÓI THÀNH CÔNG TẠI: {dist_dir}")
+    print(f"[+] DONG GOI THANH CONG TAI: {dist_dir}")
     if zip_file.exists():
-        print(f"[+] FILE NÉN PHÂN PHỐI (ZIP): {zip_file} ({zip_file.stat().st_size / (1024*1024):.2f} MB)")
+        print(f"[+] FILE NEN PHAN PHOI (ZIP): {zip_file} ({zip_file.stat().st_size / (1024*1024):.2f} MB)")
     print("=================================================================\n")
     return 0
+
 
 
 if __name__ == "__main__":
