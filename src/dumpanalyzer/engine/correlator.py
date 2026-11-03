@@ -222,15 +222,18 @@ class Correlator:
     def detect_log_only_crashes(
         self,
         existing_crashes: List[Crash],
-        all_events: List[Dict[str, Any]],
+        all_events: Optional[List[Dict[str, Any]]] = None,
+        events: Optional[List[Dict[str, Any]]] = None,
     ) -> List[Tuple[Crash, List[Dict[str, Any]]]]:
         """
         Phát hiện các vụ sập hệ thống KHÔNG CÓ DUMP (chế độ log_only):
         - Quét tìm Kernel-Power Event 41 và WER Event 1001.
         - Gộp 41 và 1001 cùng một thời điểm thành 1 crash duy nhất.
         - Nếu quanh thời điểm đó (dung sai 10 phút) đã có Crash từ file dump thì bỏ qua (tránh trùng).
-        - Nếu chưa có: tạo Crash mới với dump_type='none', analyzed_by='log_only'.
+        - Nếu chưa có: tạo Crash mới với dump_type='none' / 'log_only', analyzed_by='log_only'.
         """
+        ev_list = all_events if all_events is not None else (events or [])
+
         # Thu thập các mốc thời gian của crash dump đã biết
         existing_times = []
         for c in existing_crashes:
@@ -240,8 +243,8 @@ class Correlator:
                     existing_times.append(dt)
 
         # Lọc danh sách Event 41 và Event 1001
-        kp_events = [e for e in all_events if e.get("event_id") == 41 and "Kernel-Power" in e.get("provider", "")]
-        wer_events = [e for e in all_events if e.get("event_id") == 1001]
+        kp_events = [e for e in ev_list if e.get("event_id") == 41 and "Kernel-Power" in e.get("provider", "")]
+        wer_events = [e for e in ev_list if e.get("event_id") == 1001]
 
         detected: List[Tuple[Crash, List[Dict[str, Any]]]] = []
         handled_event_times = set()
@@ -271,12 +274,33 @@ class Correlator:
                 continue
             handled_event_times.add(time_key)
 
-            kp_info = kp.get("kp41_info", {})
+            kp_info = kp.get("kp41_info")
+            if not kp_info and kp.get("extra_json"):
+                try:
+                    ej = json.loads(kp["extra_json"])
+                    from dumpanalyzer.collectors.eventlog import parse_kernel_power_41
+                    kp_info = parse_kernel_power_41(ej)
+                except Exception:
+                    kp_info = {}
+            elif not kp_info and kp.get("event_data"):
+                from dumpanalyzer.collectors.eventlog import parse_kernel_power_41
+                kp_info = parse_kernel_power_41(kp["event_data"])
+            elif not kp_info:
+                kp_info = {}
+
             bc_code = kp_info.get("bugcheck_code", "0x0")
             p1 = kp_info.get("p1", "0x0")
             p2 = kp_info.get("p2", "0x0")
             p3 = kp_info.get("p3", "0x0")
             p4 = kp_info.get("p4", "0x0")
+
+            val_code = 0
+            if bc_code:
+                try:
+                    val_code = int(str(bc_code), 16) if str(bc_code).startswith("0x") else int(str(bc_code))
+                    bc_code = f"0x{val_code:X}"
+                except ValueError:
+                    pass
 
             # Tìm xem có Event 1001 nào đi kèm trong vòng 10 phút sau sập không
             matched_events = [kp]
@@ -304,7 +328,7 @@ class Correlator:
 
             # 1. Kiểm tra Event 6008
             found_6008 = False
-            for ev in all_events:
+            for ev in ev_list:
                 if ev.get("event_id") == 6008:
                     ev_t_str = ev.get("time_created_utc")
                     if ev_t_str:
@@ -322,7 +346,7 @@ class Correlator:
             # 2. Nếu không có 6008, tìm sự kiện cuối cùng trước boot
             if not found_6008:
                 boot_times = [kp_dt]
-                for ev in all_events:
+                for ev in ev_list:
                     eid = ev.get("event_id")
                     prov = ev.get("provider", "")
                     if eid in (6005, 12) or (eid == 41 and "Kernel-Power" in prov):
@@ -334,7 +358,7 @@ class Correlator:
                 boot_start_dt = min(boot_times)
 
                 pre_boot_events = []
-                for ev in all_events:
+                for ev in ev_list:
                     eid = ev.get("event_id")
                     if eid in (41, 6005, 12):
                         continue
@@ -350,11 +374,13 @@ class Correlator:
                     crash_time_source = "estimated"
 
             # Đặt tên lỗi
-            if bc_code and bc_code != "0x0":
+            if bc_code and bc_code not in ("0x0", "0", ""):
                 bc_name = lookup_bugcheck_name(bc_code)
+                is_bsod = True
             else:
                 bc_code = ""
                 bc_name = "Tắt máy/Mất nguồn đột ngột (Không có BSOD)"
+                is_bsod = False
 
             log_crash = Crash(
                 dump_path="",
@@ -369,6 +395,11 @@ class Correlator:
                 p3=p3,
                 p4=p4,
                 analyzed_by="log_only",
+                extra_json=json.dumps({
+                    "reset_type": "non_bsod_reset" if not is_bsod else "bsod",
+                    "is_bsod": is_bsod,
+                    "bugcheck_hex_8": f"0x{val_code:08X}" if is_bsod else "0x00000000",
+                }),
             )
 
             detected.append((log_crash, matched_events))

@@ -59,6 +59,19 @@ DEFAULT_SETTINGS: Dict[str, Any] = {
         "max_bytes": 10485760,
         "backup_count": 5,
     },
+    "dump_readiness": {
+        "target_mode": 7,
+        "set_log_event": False,
+        "allow_pagefile_fix": False,
+        "backup_dir": "backup",
+        "share_dir": "",
+        "stale_days": 14,
+        "volmgr_lookback_days": 180,
+        "dump_gap_days": 90,
+        "dump_gap_match_minutes": 15,
+        "remote_enabled": False,
+        "remote_max_parallel": 5,
+    },
 }
 
 

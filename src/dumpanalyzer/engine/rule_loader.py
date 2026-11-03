@@ -262,8 +262,31 @@ def validate_rules_and_settings(config_dir: Optional[Path] = None) -> Tuple[bool
         all_errors.extend(val_errs)
         summary["patterns_count"] = len(pt_data.get("patterns", []))
 
+    # 6. Kiểm tra dump_readiness.yaml (Đợt 04)
+    dr_file = rules_path / "dump_readiness.yaml"
+    if dr_file.exists():
+        dr_data, dr_err = load_yaml_with_line_numbers(dr_file)
+        if dr_err:
+            all_errors.append(dr_err)
+        elif dr_data:
+            val_errs = validate_dump_readiness_rules(dr_data, dr_file)
+            all_errors.extend(val_errs)
+            summary["dump_readiness_rules"] = True
+
     is_valid = len(all_errors) == 0
     return is_valid, all_errors, summary
+
+
+def validate_dump_readiness_rules(data: Any, file_path: Path) -> List[str]:
+    """Kiểm tra cấu trúc file quy tắc dump_readiness.yaml."""
+    errors = []
+    if not isinstance(data, dict):
+        return [f"File {file_path.name} phải là một dictionary/map YAML."]
+    if "disk_thresholds_gb" not in data:
+        errors.append(f"Thiếu trường 'disk_thresholds_gb' trong {file_path.name}.")
+    if "reason_recommendations" not in data:
+        errors.append(f"Thiếu trường 'reason_recommendations' trong {file_path.name}.")
+    return errors
 
 
 def load_all_rules(config_dir: Optional[Path] = None) -> Dict[str, Any]:
@@ -324,6 +347,11 @@ def load_all_rules(config_dir: Optional[Path] = None) -> Dict[str, Any]:
     tr_raw, _ = load_yaml_with_line_numbers(tr_file)
     test_rules = tr_raw if isinstance(tr_raw, dict) else {}
 
+    # Nạp dump_readiness (Đợt 04)
+    dr_file = rules_path / "dump_readiness.yaml"
+    dr_raw, _ = load_yaml_with_line_numbers(dr_file)
+    dump_readiness_rules = dr_raw if isinstance(dr_raw, dict) else {}
+
     return {
         "bugchecks": normalized_bc,
         "drivers": drivers,
@@ -333,5 +361,6 @@ def load_all_rules(config_dir: Optional[Path] = None) -> Dict[str, Any]:
         "system_rules": system_rules,
         "next_steps": next_steps_rules,
         "test_rules": test_rules,
+        "dump_readiness": dump_readiness_rules,
     }
 
