@@ -15,7 +15,7 @@ from openpyxl.utils import get_column_letter
 from dumpanalyzer.analyzer.cdb_runner import build_crash_from_dump
 from dumpanalyzer.collectors.dump_finder import calculate_sha256, copy_dump_safely, find_dumps
 from dumpanalyzer.core.config import get_settings_path, load_settings
-from dumpanalyzer.core.models import Crash, MachineInfo
+from dumpanalyzer.core.models import Crash, MachineInfo, Evidence
 from dumpanalyzer.core.timeutil import utc_to_local_str
 from dumpanalyzer.engine.rule_loader import load_all_rules
 from dumpanalyzer.engine.scorer import score_machine_crashes
@@ -132,10 +132,32 @@ def analyze_fleet(
             if drv and not drv.lower().endswith(".exe") and "ntoskrnl" not in drv.lower():
                 fleet_drivers[drv.lower()] += 1
 
-        total_crashes_count += len(m_crashes)
+        # Truy vấn lịch sử các vụ sập trước đây của máy trong history_lookback_days (Phần 2.2)
+        lookback_days = int(settings.get("history_lookback_days", 180))
+        from datetime import timezone, timedelta
+        from_date_iso = (datetime.now(timezone.utc) - timedelta(days=lookback_days)).isoformat()
+        historical_crashes_raw = db.get_crashes_by_machine(m_id, from_date=from_date_iso)
 
-        # Chấm điểm cho từng máy
-        crash_tuples = [(c, []) for c in m_crashes]
+        combined_crashes_map: Dict[str, Crash] = {}
+        for c in m_crashes:
+            key = c.dump_sha256 or str(c.id) or c.dump_path or ""
+            combined_crashes_map[key] = c
+        for hc_dict in historical_crashes_raw:
+            hc_obj = Crash(**hc_dict)
+            key = hc_obj.dump_sha256 or str(hc_obj.id) or hc_obj.dump_path or ""
+            if key not in combined_crashes_map:
+                combined_crashes_map[key] = hc_obj
+
+        all_machine_crashes = list(combined_crashes_map.values())
+        total_crashes_count += len(all_machine_crashes)
+
+        # Chấm điểm cho từng máy với toàn bộ crash trong khoảng lookback
+        crash_tuples = []
+        for c in all_machine_crashes:
+            evs_raw = db.get_evidences_by_crash(c.id) if c.id else []
+            evs_obj = [Evidence(**e) for e in evs_raw]
+            crash_tuples.append((c, evs_obj))
+
         scored_result = score_machine_crashes(crash_tuples, rules, settings)
         top_suspect = scored_result.get("top_suspect", "unknown")
         top_score = scored_result.get("top_score", 0.0)
@@ -153,18 +175,29 @@ def analyze_fleet(
         # Đếm nhóm nghi vấn trên quy mô máy
         fleet_suspects[top_suspect] += 1
 
+        # Dòng thời gian crash của máy (Phần 2.2)
+        timeline = []
+        for c in sorted(all_machine_crashes, key=lambda x: x.crash_time_utc or "", reverse=True):
+            timeline.append({
+                "crash_time_utc": c.crash_time_utc,
+                "bugcheck_code": c.bugcheck_code,
+                "module_name": c.image_name or c.module_name or "unknown",
+            })
+
         machines_results.append({
             "machine_name": machine_name,
             "machine_info": m_info,
-            "crashes": m_crashes,
+            "crashes": all_machine_crashes,
             "finding": finding,
             "suspect_ranking": suspect_ranking,
             "top_suspect": top_suspect,
             "top_score": top_score,
             "confidence": confidence,
+            "timeline": timeline,
         })
 
     db.close()
+
 
     # Nhận diện cảnh báo lỗi diện rộng (Fleet-wide warnings)
     fleet_warnings: List[str] = []

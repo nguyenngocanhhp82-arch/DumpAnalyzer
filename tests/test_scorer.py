@@ -44,7 +44,7 @@ def test_single_crash_confidence_cap_medium(rules, settings):
 
 
 def test_header_only_confidence_cap_medium(rules, settings):
-    """Quy tắc UPDATE_01: header_only có độ tin cậy tối đa 'trung bình'."""
+    """Quy tắc UPDATE_03: header_only chỉ có mã bug check có độ tin cậy 'thấp' (dù điểm cao), khi có event hỗ trợ đạt trần 'trung bình'."""
     crash = Crash(
         id=2,
         dump_type="mini",
@@ -54,7 +54,16 @@ def test_header_only_confidence_cap_medium(rules, settings):
     )
     res = score_single_crash(crash, [], rules, settings)
     assert res["top_suspect"] == "gpu"
-    assert res["confidence"] == "trung bình"
+    assert res["top_score"] >= 70.0
+    # Dưới Update 03: chỉ có mã bugcheck đơn thuần -> độ tin cậy là 'thấp'
+    assert res["confidence"] == "thấp"
+
+    # Khi có event hỗ trợ: đạt trần 'trung bình'
+    ev_disp = Evidence(id=102, crash_id=2, kind="eventlog", source="Display", event_id=4101, summary="TDR")
+    res_ev = score_single_crash(crash, [ev_disp], rules, settings)
+    assert res_ev["confidence"] == "trung bình"
+    assert "Trần header_only" in res_ev["applied_caps"]
+
 
 
 def test_log_only_confidence_caps(rules, settings):

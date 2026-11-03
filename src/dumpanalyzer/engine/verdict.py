@@ -73,14 +73,16 @@ def generate_crash_finding(
     is_log_only = scored_result.get("is_log_only", False)
     applied_caps = scored_result.get("applied_caps", "")
 
-    # 1. Thu thập các bước kiểm tra (next_steps)
+    # 1. Thu thập các bước kiểm tra (next_steps) từ next_steps.yaml và các quy tắc
     raw_steps: List[str] = []
+    ns_rules = rules.get("next_steps", {})
+    suspect_steps_map = ns_rules.get("suspect_steps", {})
+    missing_data_hints = ns_rules.get("missing_data_hints", {})
 
-    # Lấy từ bugcheck_rules
-    bc_code = normalize_bugcheck_code(crash.bugcheck_code) if crash.bugcheck_code else "0x0"
-    bc_rules = rules.get("bugchecks", {})
-    if bc_code in bc_rules:
-        raw_steps.extend(bc_rules[bc_code].get("next_steps", []))
+    # Lấy bước hành động từ suspect_steps trong next_steps.yaml
+    clean_susp = top_suspect.split(":", 1)[0] if ":" in top_suspect else top_suspect
+    if clean_susp in suspect_steps_map:
+        raw_steps.extend(suspect_steps_map[clean_susp])
 
     # Lấy từ driver_map nếu có driver cụ thể
     driver_map = rules.get("drivers", {})
@@ -88,9 +90,25 @@ def generate_crash_finding(
     if img in driver_map and "action" in driver_map[img]:
         raw_steps.insert(0, driver_map[img]["action"])
 
-    # Nếu là log_only và chưa bật ghi dump: luôn thêm bước đầu tiên là bật ghi dump (UPDATE_01)
+    # Lấy từ bugcheck_rules
+    bc_code = normalize_bugcheck_code(crash.bugcheck_code) if crash.bugcheck_code else "0x0"
+    bc_rules = rules.get("bugchecks", {})
+    if bc_code in bc_rules:
+        raw_steps.extend(bc_rules[bc_code].get("next_steps", []))
+
+    # Phát hiện dữ liệu còn thiếu (Missing Data Hints)
+    missing_hints: List[str] = []
     if is_log_only:
         raw_steps.insert(0, "Bật tính năng ghi dump bộ nhớ (Automatic Memory Dump) trong DumpAnalyzer để có dữ liệu chẩn đoán sâu hơn nếu máy bị sập lại.")
+    elif crash.analyzed_by == "header_only" or not crash.cdb_raw_output:
+        if "missing_cdb" in missing_data_hints:
+            missing_hints.append(missing_data_hints["missing_cdb"].get("text", ""))
+    if crash.dump_type in ("minidump", "triage", "mini"):
+        if "mini_dump_only" in missing_data_hints:
+            missing_hints.append(missing_data_hints["mini_dump_only"].get("text", ""))
+
+    if missing_hints:
+        raw_steps.extend(missing_hints)
 
     if not raw_steps:
         raw_steps = [
@@ -143,6 +161,11 @@ def generate_crash_finding(
 
     if applied_caps:
         rationale += f" [{applied_caps}]"
+    if missing_hints:
+        rationale += f" [Dữ liệu còn thiếu: {'; '.join(missing_hints)}]"
+
+    suspicion_share = float(scored_result.get("suspicion_share", top_score))
+    confidence_rationale = scored_result.get("confidence_rationale", "")
 
     return Finding(
         scope="crash",
@@ -154,7 +177,10 @@ def generate_crash_finding(
         rationale=rationale,
         evidence_ids=evidence_ids,
         next_steps=ordered_steps,
+        suspicion_share=suspicion_share,
+        confidence_rationale=confidence_rationale,
     )
+
 
 
 def generate_machine_finding(
@@ -180,6 +206,13 @@ def generate_machine_finding(
 
     # 1. Thu thập các bước kiểm tra phù hợp với nhóm nghi ngờ cao nhất của máy
     raw_steps: List[str] = []
+    ns_rules = active_rules.get("next_steps", {})
+    suspect_steps_map = ns_rules.get("suspect_steps", {})
+    missing_data_hints = ns_rules.get("missing_data_hints", {})
+
+    clean_susp = top_suspect.split(":", 1)[0] if ":" in top_suspect else top_suspect
+    if clean_susp in suspect_steps_map:
+        raw_steps.extend(suspect_steps_map[clean_susp])
 
     # Tra cứu các bước của top suspect từ các bugcheck rules liên quan
     bc_rules = active_rules.get("bugchecks", {})
@@ -191,6 +224,18 @@ def generate_machine_finding(
     for pat in active_rules.get("patterns", []):
         if pat.get("name") in patterns_matched and "next_steps" in pat:
             raw_steps.extend(pat.get("next_steps", []))
+
+    # Phát hiện dữ liệu còn thiếu cho máy
+    missing_hints: List[str] = []
+    if crash_count == 1 and "single_crash_only" in missing_data_hints:
+        missing_hints.append(missing_data_hints["single_crash_only"].get("text", ""))
+    if clean_susp == "ram" and "missing_hwtest_ram" in missing_data_hints:
+        missing_hints.append(missing_data_hints["missing_hwtest_ram"].get("text", ""))
+    elif clean_susp == "storage" and "missing_hwtest_storage" in missing_data_hints:
+        missing_hints.append(missing_data_hints["missing_hwtest_storage"].get("text", ""))
+
+    if missing_hints:
+        raw_steps.extend(missing_hints)
 
     if not raw_steps:
         raw_steps = [
@@ -220,6 +265,12 @@ def generate_machine_finding(
         if is_conflicted and conflict_note:
             rationale += f" {conflict_note}"
 
+        if missing_hints:
+            rationale += f" [Dữ liệu còn thiếu: {'; '.join(missing_hints)}]"
+
+    suspicion_share = float(scored.get("suspicion_share", top_score))
+    confidence_rationale = scored.get("confidence_rationale", "")
+
     return Finding(
         scope="machine",
         crash_id=None,
@@ -230,4 +281,7 @@ def generate_machine_finding(
         rationale=rationale,
         evidence_ids=evidence_ids,
         next_steps=ordered_steps,
+        suspicion_share=suspicion_share,
+        confidence_rationale=confidence_rationale,
     )
+

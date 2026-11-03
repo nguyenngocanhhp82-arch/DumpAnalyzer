@@ -472,6 +472,8 @@ class Database:
             )
             return cursor.lastrowid
 
+    add_feedback = insert_feedback
+
     def list_feedback(self, limit: int = 100) -> List[Dict[str, Any]]:
         """Lấy danh sách các phản hồi đã ghi nhận."""
         conn = self._get_connection()
@@ -492,6 +494,7 @@ class Database:
 
         stats: Dict[str, Any] = {
             "total_count": total,
+            "total": total,
             "sufficient_data": total >= 10,
             "message": "Đủ dữ liệu thống kê" if total >= 10 else "chưa đủ dữ liệu (cần tối thiểu 10 ca có đánh giá)",
             "verdict_counts": {"dung": 0, "sai": 0, "chua_ro": 0},

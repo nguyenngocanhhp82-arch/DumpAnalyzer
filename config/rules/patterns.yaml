@@ -13,6 +13,8 @@ patterns:
       ram: 35
       psu: 25
       thermal: 15
+    strength: "medium"
+    group_id: "pattern_varying_modules"
     note: "Dấu hiệu phần cứng không ổn định (đặc biệt là RAM bị lỗi bit ngẫu nhiên, nguồn điện sụt áp hoặc quá nhiệt)"
     next_steps:
       - "Chạy MemTest86 kiểm tra kỹ toàn bộ các thanh RAM"
@@ -25,6 +27,8 @@ patterns:
       same_third_party_module_min: 3
     add:
       driver_of_module: 45
+    strength: "strong"
+    group_id: "pattern_repeating_driver"
     note: "Xác suất rất cao driver này có lỗi rò rỉ bộ nhớ, deadlock hoặc xung đột phần cứng"
     next_steps:
       - "Gỡ bỏ hoàn toàn driver và cài đặt bản driver ổn định (WHQL)"
@@ -35,6 +39,8 @@ patterns:
       first_crash_within_days_after_update: 7
     add:
       update: 30
+    strength: "medium"
+    group_id: "pattern_post_update"
     note: "Sự cố có tương quan chặt chẽ với bản cập nhật Windows hoặc phần mềm vừa cài"
     next_steps:
       - "Kiểm tra danh sách bản cập nhật KB gần nhất và gỡ bỏ thử nghiệm (Uninstall Update)"
@@ -48,8 +54,11 @@ patterns:
       psu: 40
       thermal: 35
       cpu: 10
+    strength: "medium"
+    group_id: "pattern_power_loss"
     note: "Máy tính tắt hoặc khởi động lại ngay lập tức mà không có màn hình xanh BSOD, thường do ngắt điện đột ngột hoặc rơ-le quá nhiệt kích hoạt"
     next_steps:
       - "Vệ sinh quạt tản nhiệt, bôi lại keo tản nhiệt CPU và GPU"
       - "Kiểm tra ổ cắm, dây nguồn và bộ nguồn (PSU) của máy"
       - "Kiểm tra bộ lưu điện (UPS) nếu có"
+

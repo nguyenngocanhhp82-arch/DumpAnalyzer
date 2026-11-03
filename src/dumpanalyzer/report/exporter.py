@@ -496,6 +496,7 @@ def export_excel_report(
     machine_info: Optional[MachineInfo] = None,
     evidences: Optional[List[Evidence]] = None,
     suspect_ranking: Optional[List[Dict[str, Any]]] = None,
+    db: Optional[Any] = None,
 ) -> Path:
     """Xuất báo cáo định dạng Microsoft Excel (.xlsx) với nhiều sheet trình bày rõ ràng.
 
@@ -667,10 +668,13 @@ def export_excel_report(
     # -------------------------------------------------------------
     # SHEET 3: Bằng chứng (Evidences)
     # -------------------------------------------------------------
+    # -------------------------------------------------------------
+    # SHEET 3: Bằng chứng (Evidences)
+    # -------------------------------------------------------------
     if evidences:
         ws3 = wb.create_sheet(title="Bằng chứng thu thập")
         ws3.views.sheetView[0].showGridLines = True
-        ev_headers = ["STT", "Thời điểm", "Loại bằng chứng", "Nguồn", "Chi tiết bằng chứng", "Trọng số"]
+        ev_headers = ["STT", "Thời điểm", "Loại", "Nguồn", "Chi tiết bằng chứng", "Độ mạnh", "Chiều hướng", "Trọng số"]
         for col_idx, h in enumerate(ev_headers, start=1):
             c = ws3.cell(row=1, column=col_idx, value=h)
             c.font = font_header
@@ -684,6 +688,8 @@ def export_excel_report(
             ev_type = getattr(ev, "kind", getattr(ev, "evidence_type", "eventlog"))
             ev_source = getattr(ev, "source", "")
             ev_detail = getattr(ev, "detail", getattr(ev, "details", getattr(ev, "summary", "-")))
+            ev_strength = getattr(ev, "strength", "weak").upper()
+            ev_polarity = getattr(ev, "polarity", "support").upper()
             ev_weight = getattr(ev, "weight", 10)
 
             ws3.cell(row=r_idx, column=1, value=r_idx - 1).alignment = align_center
@@ -691,9 +697,125 @@ def export_excel_report(
             ws3.cell(row=r_idx, column=3, value=ev_type).alignment = align_center
             ws3.cell(row=r_idx, column=4, value=ev_source)
             ws3.cell(row=r_idx, column=5, value=ev_detail)
-            ws3.cell(row=r_idx, column=6, value=ev_weight).alignment = align_center
-            for c_col in range(1, 7):
+            ws3.cell(row=r_idx, column=6, value=ev_strength).alignment = align_center
+            ws3.cell(row=r_idx, column=7, value=ev_polarity).alignment = align_center
+            ws3.cell(row=r_idx, column=8, value=ev_weight).alignment = align_center
+            for c_col in range(1, 9):
                 ws3.cell(row=r_idx, column=c_col).border = border_thin
+
+    # -------------------------------------------------------------
+    # SHEET 4: Thống kê Phản hồi (Feedback Stats - Phần 2.1)
+    # -------------------------------------------------------------
+    try:
+        from dumpanalyzer.storage.db import Database
+        active_db = db or Database()
+        fb_stats = active_db.get_feedback_stats()
+
+        ws4 = wb.create_sheet(title="Thống kê phản hồi")
+        ws4.views.sheetView[0].showGridLines = True
+        ws4["A1"] = "THỐNG KÊ PHẢN HỒI KẾT LUẬN (FEEDBACK ACCURACY)"
+        ws4["A1"].font = font_title
+
+        ws4.cell(row=3, column=1, value="Tổng số ca phản hồi:").font = font_regular
+        ws4.cell(row=3, column=2, value=fb_stats.get("total_count", 0)).font = font_bold
+
+        ws4.cell(row=4, column=1, value="Trạng thái độ chính xác:").font = font_regular
+        ws4.cell(row=4, column=2, value=fb_stats.get("message", "")).font = font_bold
+
+        acc_rate = fb_stats.get("accuracy_rate")
+        ws4.cell(row=5, column=1, value="Tỷ lệ kết luận đúng:").font = font_regular
+        if acc_rate is not None:
+            ws4.cell(row=5, column=2, value=f"{acc_rate:.1f}%").font = font_bold
+        else:
+            ws4.cell(row=5, column=2, value="chưa đủ dữ liệu (cần tối thiểu 10 ca có đánh giá)").font = font_bold
+
+        # Bảng chi tiết theo nhóm
+        r = 7
+        ws4.cell(row=r, column=1, value="KẾT QUẢ THEO NHÓM NGHI NGỜ").font = font_bold
+        r += 1
+        fb_headers = ["Nhóm nghi ngờ", "Tổng số ca", "Đúng", "Sai", "Chưa rõ"]
+        for c_idx, h in enumerate(fb_headers, start=1):
+            c = ws4.cell(row=r, column=c_idx, value=h)
+            c.font = font_header
+            c.fill = fill_header
+            c.alignment = align_center
+            c.border = border_thin
+        r += 1
+        for grp, cnts in fb_stats.get("by_predicted_group", {}).items():
+            ws4.cell(row=r, column=1, value=grp)
+            ws4.cell(row=r, column=2, value=cnts.get("total", 0)).alignment = align_center
+            ws4.cell(row=r, column=3, value=cnts.get("dung", 0)).alignment = align_center
+            ws4.cell(row=r, column=4, value=cnts.get("sai", 0)).alignment = align_center
+            ws4.cell(row=r, column=5, value=cnts.get("chua_ro", 0)).alignment = align_center
+            for c_col in range(1, 6):
+                ws4.cell(row=r, column=c_col).border = border_thin
+            r += 1
+    except Exception:
+        pass
+
+    # -------------------------------------------------------------
+    # SHEET 5: Tổng quan Đội máy (Fleet Overview - Phần 2.3)
+    # -------------------------------------------------------------
+    try:
+        from dumpanalyzer.engine.fleet import analyze_fleet_crashes
+        from dumpanalyzer.storage.db import Database
+        active_db = db or Database()
+        fleet_res = analyze_fleet_crashes(active_db)
+
+        ws5 = wb.create_sheet(title="Tổng quan đội máy")
+        ws5.views.sheetView[0].showGridLines = True
+        ws5["A1"] = "TỔNG QUAN PHÂN TÍCH ĐỘI MÁY (FLEET OVERVIEW)"
+        ws5["A1"].font = font_title
+
+        ws5.cell(row=3, column=1, value="Cửa sổ thời gian:").font = font_regular
+        ws5.cell(row=3, column=2, value=f"{fleet_res.get('window_days', 30)} ngày").font = font_bold
+
+        ws5.cell(row=4, column=1, value="Ngưỡng phát hiện diện rộng:").font = font_regular
+        ws5.cell(row=4, column=2, value=f">= {fleet_res.get('min_machines', 3)} máy").font = font_bold
+
+        r = 6
+        ws5.cell(row=r, column=1, value="CÁC DRIVER GÂY SẬP DIỆN RỘNG (≥ N MÁY)").font = font_bold
+        r += 1
+        dr_headers = ["STT", "Tên Driver", "Số máy bị ảnh hưởng", "Số vụ sập", "Danh sách máy"]
+        for c_idx, h in enumerate(dr_headers, start=1):
+            c = ws5.cell(row=r, column=c_idx, value=h)
+            c.font = font_header
+            c.fill = fill_header
+            c.alignment = align_center
+            c.border = border_thin
+        r += 1
+        for idx, fd in enumerate(fleet_res.get("fleet_drivers", []), start=1):
+            ws5.cell(row=r, column=1, value=idx).alignment = align_center
+            ws5.cell(row=r, column=2, value=fd.get("driver", "-"))
+            ws5.cell(row=r, column=3, value=fd.get("machine_count", 0)).alignment = align_center
+            ws5.cell(row=r, column=4, value=fd.get("crash_count", 0)).alignment = align_center
+            ws5.cell(row=r, column=5, value=", ".join(fd.get("machines", [])))
+            for c_col in range(1, 6):
+                ws5.cell(row=r, column=c_col).border = border_thin
+            r += 1
+
+        r += 1
+        ws5.cell(row=r, column=1, value="CÁC BUCKET LỖI TRÙNG NHAU (FAILURE_BUCKET_ID)").font = font_bold
+        r += 1
+        b_headers = ["STT", "Failure Bucket ID", "Số máy bị ảnh hưởng", "Số vụ sập", "Danh sách máy"]
+        for c_idx, h in enumerate(b_headers, start=1):
+            c = ws5.cell(row=r, column=c_idx, value=h)
+            c.font = font_header
+            c.fill = fill_header
+            c.alignment = align_center
+            c.border = border_thin
+        r += 1
+        for idx, fb in enumerate(fleet_res.get("fleet_buckets", []), start=1):
+            ws5.cell(row=r, column=1, value=idx).alignment = align_center
+            ws5.cell(row=r, column=2, value=fb.get("bucket_id", "-"))
+            ws5.cell(row=r, column=3, value=fb.get("machine_count", 0)).alignment = align_center
+            ws5.cell(row=r, column=4, value=fb.get("crash_count", 0)).alignment = align_center
+            ws5.cell(row=r, column=5, value=", ".join(fb.get("machines", [])))
+            for c_col in range(1, 6):
+                ws5.cell(row=r, column=c_col).border = border_thin
+            r += 1
+    except Exception:
+        pass
 
     # Tự động căn chỉnh độ rộng cột cho đẹp mắt
     for sheet in wb.worksheets:

@@ -46,20 +46,47 @@ def compute_event_points(
       - Tra cứu event_rules.yaml cho ev.kind == 'eventlog'
       - Hệ số đồng thuận 1.5x nếu suspect nằm trong initial_top_suspects
       - Giới hạn trần 'cap' cho từng quy tắc và suspect
-      - Bằng chứng SMART thật (ev.kind == 'smart'): +30 điểm cho storage
-      - Bằng chứng Update thật (ev.kind == 'update'): +25 điểm cho update
+      - Bằng chứng SMART (ev.kind == 'smart'): +30 điểm cho storage
+      - Bằng chứng Update (ev.kind == 'update'): +25 điểm cho update
+      - Bằng chứng Sysinfo (ev.kind == 'sysinfo'): theo system_rules.yaml
+      - Bằng chứng Thiết bị Asset (ev.kind == 'asset'): hỗ trợ các linh kiện già cỗi
+      - Bằng chứng Đội máy Fleet (ev.kind == 'fleet'): +25 driver, +20 software, KHÔNG cộng phần cứng
+      - Bằng chứng Kiểm tra phần cứng (ev.kind == 'hwtest'):
+          * failed: +35 điểm ủng hộ cho linh kiện
+          * passed / refute: trừ điểm nhóm nghi vấn tương ứng (sàn 0.0)
     Trả về:
       - (points_dict, used_evidence_ids)
     """
     points: Dict[str, float] = {}
     used_ids: Set[int] = set()
     event_rules = rules.get("event_rules", [])
+    sys_rules = rules.get("system_rules", {})
 
     # Theo dõi điểm đã cộng dồn cho mỗi (rule_index, suspect) để áp dụng cap
     rule_pts_accumulated: Dict[Tuple[int, str], float] = {}
 
     for ev in evidences:
         ev_id = ev.id if ev.id is not None else 0
+        polarity = getattr(ev, "polarity", "support") or "support"
+        strength = getattr(ev, "strength", "weak") or "weak"
+
+        if polarity == "refute":
+            # Xử lý bằng chứng phản bác: giảm điểm nhóm tương ứng (sàn 0.0)
+            deduct = 30.0 if strength == "strong" else (20.0 if strength == "medium" else 10.0)
+            gid = (getattr(ev, "group_id", "") or "").lower()
+            ev_desc = f"{ev.source} {ev.summary} {ev.detail}".lower()
+            refute_target = ""
+            for cand in ["ram", "storage", "gpu", "cpu", "psu", "thermal", "driver"]:
+                if cand in gid or f"({cand})" in ev_desc or f" {cand} " in ev_desc or f": {cand}" in ev_desc:
+                    refute_target = cand
+                    break
+            if refute_target:
+                current_p = points.get(refute_target, 0.0)
+                points[refute_target] = max(0.0, current_p - deduct)
+            if ev_id:
+                used_ids.add(ev_id)
+            continue
+
         if ev.kind == "eventlog":
             matched = False
             for idx, rule in enumerate(event_rules):
@@ -97,7 +124,222 @@ def compute_event_points(
             if ev_id:
                 used_ids.add(ev_id)
 
+        elif ev.kind == "sysinfo":
+            gid = getattr(ev, "group_id", "")
+            if gid == "sysinfo_disk_wear":
+                points["storage"] = points.get("storage", 0.0) + 30.0
+            elif gid == "sysinfo_disk_health":
+                points["storage"] = points.get("storage", 0.0) + 35.0
+            elif gid == "sysinfo_disk_io_errors":
+                points["storage"] = points.get("storage", 0.0) + 25.0
+            elif gid == "sysinfo_ram_oc":
+                points["ram"] = points.get("ram", 0.0) + 15.0
+            elif gid == "sysinfo_bios_age":
+                points["cpu"] = points.get("cpu", 0.0) + 10.0
+                points["ram"] = points.get("ram", 0.0) + 10.0
+            elif gid == "sysinfo_gpu_driver_age":
+                points["driver"] = points.get("driver", 0.0) + 15.0
+                points["gpu"] = points.get("gpu", 0.0) + 10.0
+            else:
+                for r_cat in sys_rules.values():
+                    if isinstance(r_cat, dict) and r_cat.get("group_id") == gid:
+                        for s, pts in r_cat.get("adds", {}).items():
+                            points[s] = points.get(s, 0.0) + float(pts)
+            if ev_id:
+                used_ids.add(ev_id)
+
+        elif ev.kind == "asset":
+            gid = getattr(ev, "group_id", "")
+            if gid == "asset_machine_age":
+                points["ram"] = points.get("ram", 0.0) + 10.0
+                points["storage"] = points.get("storage", 0.0) + 10.0
+                points["cpu"] = points.get("cpu", 0.0) + 10.0
+                points["psu"] = points.get("psu", 0.0) + 10.0
+            elif gid == "asset_repair_count":
+                points["ram"] = points.get("ram", 0.0) + 15.0
+                points["storage"] = points.get("storage", 0.0) + 15.0
+                points["psu"] = points.get("psu", 0.0) + 15.0
+            if ev_id:
+                used_ids.add(ev_id)
+
+        elif ev.kind == "fleet":
+            # TUYỆT ĐỐI KHÔNG cộng cho phần cứng
+            points["driver"] = points.get("driver", 0.0) + 25.0
+            points["software"] = points.get("software", 0.0) + 20.0
+            if ev_id:
+                used_ids.add(ev_id)
+
+        elif ev.kind == "hwtest":
+            gid = (getattr(ev, "group_id", "") or "").lower()
+            ev_desc = f"{ev.source} {ev.summary} {ev.detail}".lower()
+            for cand in ["ram", "storage", "cpu", "gpu"]:
+                if cand in gid or cand in ev_desc:
+                    points[cand] = points.get(cand, 0.0) + 35.0
+            if ev_id:
+                used_ids.add(ev_id)
+
     return points, used_ids
+
+
+
+def _enrich_evidences(evidences: List[Evidence], rules: Dict[str, Any]) -> List[Evidence]:
+    """Làm giàu thông tin strength, polarity, group_id cho evidence từ cấu hình rules nếu chưa có."""
+    event_rules = rules.get("event_rules", [])
+    enriched: List[Evidence] = []
+    for ev in evidences:
+        # Tạo bản sao hoặc giữ nguyên
+        pol = getattr(ev, "polarity", "support") or "support"
+        st = getattr(ev, "strength", "weak") or "weak"
+        gid = getattr(ev, "group_id", "") or ""
+
+        # Nếu là eventlog và chưa có strength đặc thù
+        if ev.kind == "eventlog" and (st == "weak" or not gid):
+            matched = False
+            for r in event_rules:
+                r_src = r.get("source", "").lower()
+                if r_src and r_src in (ev.source or "").lower():
+                    r_ids = r.get("ids", [])
+                    if ev.event_id in r_ids or not r_ids:
+                        st = r.get("strength", st)
+                        pol = r.get("polarity", pol)
+                        gid = r.get("group_id", gid)
+                        matched = True
+                        break
+            if not matched and not gid:
+                gid = f"eventlog_{ev.source}_{ev.event_id}"
+
+        elif ev.kind == "smart":
+            st = "strong"
+            gid = gid or "smart_disk"
+        elif ev.kind == "update":
+            st = "medium"
+            gid = gid or "windows_update"
+        elif ev.kind == "fleet":
+            st = "medium"
+            gid = gid or "fleet_cross_machine"
+        elif ev.kind == "sysinfo":
+            st = st if st != "weak" else "medium"
+            gid = gid or "sysinfo"
+
+        enriched_ev = Evidence(
+            id=ev.id,
+            crash_id=ev.crash_id,
+            kind=ev.kind,
+            source=ev.source,
+            event_id=ev.event_id,
+            time_utc=ev.time_utc,
+            summary=ev.summary,
+            detail=ev.detail,
+            strength=st,
+            polarity=pol,
+            group_id=gid or f"{ev.kind}_{ev.source}",
+        )
+        enriched.append(enriched_ev)
+    return enriched
+
+
+def evaluate_confidence(
+    top_suspect: str,
+    top_score: float,
+    evidences: List[Evidence],
+    is_header_only: bool = False,
+    is_log_only: bool = False,
+    crash_count: int = 1,
+    policy: Optional[Dict[str, Any]] = None,
+    bc_code: Optional[str] = None,
+) -> Tuple[str, str]:
+    """
+    Đánh giá độ tin cậy theo Phần 3.2 tách biệt khỏi suspicion_share:
+    - 'cao': >= 2 bằng chứng STRONG ủng hộ nhóm đứng đầu từ >= 2 group_id độc lập và 0 phản bác STRONG.
+    - 'trung bình': 1 bằng chứng STRONG ủng hộ, HOẶC >= 2 bằng chứng MEDIUM độc lập.
+    - 'thấp': các trường hợp còn lại (chỉ có mã bug check, header_only, log_only, hoặc 1 dump đơn lẻ thiếu bằng chứng).
+    """
+    default_policy = {
+        "high_min_strong_evidence": 2,
+        "high_max_refute_strong": 0,
+        "medium_min_strong": 1,
+        "medium_min_medium_groups": 2,
+    }
+    pol = dict(default_policy)
+    if policy:
+        pol.update(policy)
+
+    # Xác định các mục tiêu và từ đồng nghĩa liên quan đến top_suspect
+    clean_top = top_suspect.lower()
+    top_targets = {clean_top, "driver"} if clean_top.startswith("driver:") else {clean_top}
+
+    # Bổ sung từ khóa/từ đồng nghĩa đặc thù theo nhóm
+    synonyms_map = {
+        "gpu": {"display", "card đồ hoạ", "vga", "graphics", "tdr", "nvlddmkm", "amdkmdag", "igdkmd"},
+        "ram": {"memory", "bộ nhớ", "dimm", "ecc", "mdsched", "memtest"},
+        "storage": {"disk", "ssd", "hdd", "nvme", "sata", "smart", "ổ cứng", "chkdsk", "stornvme", "storahci"},
+        "cpu": {"processor", "vi xử lý", "microcode", "errrec"},
+        "psu": {"power", "nguồn", "kernel-power"},
+        "thermal": {"nhiệt", "temperature", "quá nhiệt", "overheating"},
+        "update": {"cập nhật", "windowsupdate", "hotfix", "kb"},
+    }
+    if clean_top in synonyms_map:
+        top_targets.update(synonyms_map[clean_top])
+
+    strong_support_groups: Set[str] = set()
+    medium_support_groups: Set[str] = set()
+    strong_refute_count = 0
+
+    for ev in evidences:
+        pol_type = getattr(ev, "polarity", "support") or "support"
+        strength = getattr(ev, "strength", "weak") or "weak"
+        gid = getattr(ev, "group_id", "") or f"{ev.kind}_{ev.source}_{ev.event_id}"
+
+        # Kiểm tra tính liên quan của bằng chứng
+        ev_text = f"{ev.source} {ev.summary} {ev.detail} {gid}".lower()
+        is_relevant = any(t in ev_text for t in top_targets)
+        if not is_relevant and any(k in ev_text for k in ("cdb", "whea", "dump")):
+            is_relevant = True
+
+        if pol_type == "refute":
+            if is_relevant and strength == "strong":
+                strong_refute_count += 1
+        else:
+            if is_relevant:
+                if strength == "strong":
+                    strong_support_groups.add(gid)
+                elif strength in ("medium", "weak"):
+                    medium_support_groups.add(gid)
+
+
+    # 1. Ràng buộc trần đối với log_only
+    if is_log_only:
+        norm_bc = normalize_bugcheck_code(bc_code or "")
+        if norm_bc in ("0", "0x0", ""):
+            return "thấp", "Trần log_only BugcheckCode=0 (mất nguồn/treo): Không có dump, độ tin cậy 'thấp'."
+        if len(strong_support_groups) >= 1 or len(medium_support_groups) >= 1:
+            return "trung bình", "Trần log_only có event hỗ trợ: Có mã lỗi và sự kiện độc lập củng cố."
+        return "thấp", "Trần log_only không có event hỗ trợ: Độ tin cậy 'thấp'."
+
+
+    # 2. Ràng buộc trần đối với header_only
+    if is_header_only:
+        if len(strong_support_groups) >= 1 or len(medium_support_groups) >= 1:
+            return "trung bình", "Trần header_only: Không có cdb giải mã call stack sâu, tối đa mức 'trung bình'."
+        return "thấp", "Trần header_only: Chỉ đọc thông tin tiêu đề dump, độ tin cậy 'thấp'."
+
+    # 3. Phân tích cdb: Chỉ có 1 dump và không có bằng chứng độc lập (chỉ có mã bug check)
+    if crash_count == 1 and len(strong_support_groups) == 0 and len(medium_support_groups) == 0:
+        return "thấp", "Đánh giá mức THẤP: Chỉ có 1 dump và dữ liệu suy luận chủ yếu từ mã Bug Check."
+
+    # 4. Đánh giá theo chính sách độc lập
+    min_strong_req = int(pol.get("high_min_strong_evidence", 2))
+    max_refute_req = int(pol.get("high_max_refute_strong", 0))
+
+    if len(strong_support_groups) >= min_strong_req and strong_refute_count <= max_refute_req:
+        grps_repr = ", ".join(sorted(list(strong_support_groups)))
+        return "cao", f"Đạt mức CAO vì có {len(strong_support_groups)} nhóm bằng chứng mạnh độc lập ({grps_repr}) ủng hộ và không có bằng chứng phản bác mạnh."
+
+    if len(strong_support_groups) >= int(pol.get("medium_min_strong", 1)) or len(medium_support_groups) >= int(pol.get("medium_min_medium_groups", 2)):
+        return "trung bình", f"Đạt mức TRUNG BÌNH do có bằng chứng độc lập ({len(strong_support_groups)} nhóm mạnh, {len(medium_support_groups)} nhóm vừa) củng cố."
+
+    return "thấp", "Đánh giá mức THẤP do chưa đủ 2 nguồn bằng chứng mạnh độc lập."
+
 
 
 def score_single_crash(
@@ -111,8 +353,10 @@ def score_single_crash(
     Trả về dict chứa:
       - 'suspect_scores': danh sách (suspect, score_pct) đã sắp xếp giảm dần
       - 'top_suspect': nhóm nghi ngờ cao nhất
-      - 'top_score': điểm % cao nhất (0 - 100)
+      - 'top_score': điểm % cao nhất (0 - 100) (suspicion_share)
+      - 'suspicion_share': tỷ trọng nghi ngờ (%)
       - 'confidence': 'thấp', 'trung bình', 'cao', hoặc 'không đủ dữ kiện'
+      - 'confidence_rationale': giải thích vì sao xếp loại độ tin cậy
       - 'used_evidence_ids': danh sách ID các bằng chứng được dùng
       - 'is_log_only': bool
       - 'applied_caps': mô tả trần độ tin cậy đã áp dụng
@@ -166,17 +410,14 @@ def score_single_crash(
                 suspect_driver_in_stack = line.split(":", 1)[1].strip().lower()
                 break
 
-
     if is_log_only:
-        # UPDATE_01: Crash không có dump TUYỆT ĐỐI không kết luận driver cụ thể
-        # Chỉ nhóm thiết bị, trừ khi event log tự nêu rõ
+        # Crash không có dump TUYỆT ĐỐI không kết luận driver cụ thể
         pass
     else:
         # Có dump: phân định Nạn nhân vs Thủ phạm
         is_ms_module = any(active_module.endswith(ms_mod) for ms_mod in ms_core_modules)
 
         if is_ms_module:
-            # Module Microsoft: ĐÂY LÀ NẠN NHÂN, KHÔNG CỘNG ĐIỂM CHO DRIVER NÀY
             notes.append(f"Module sập là '{active_module}' (Microsoft OS Core) - đây là nạn nhân.")
             if suspect_driver_in_stack:
                 notes.append(f"Phát hiện driver bên thứ ba trong stack: '{suspect_driver_in_stack}'.")
@@ -191,7 +432,6 @@ def score_single_crash(
                     )
                     initial_top_suspects.add(f"driver:{suspect_driver_in_stack}")
             else:
-                # Không có driver bên thứ ba nào trong stack: cộng nhẹ cho phần cứng theo bug check
                 if bc_code in ("0x1A", "0x50", "0x4E"):
                     raw_scores["ram"] = raw_scores.get("ram", 0.0) + 20.0
                 elif bc_code in ("0x124", "0x101"):
@@ -199,7 +439,6 @@ def score_single_crash(
                 elif bc_code in ("0x7B", "0x7A", "0x24"):
                     raw_scores["storage"] = raw_scores.get("storage", 0.0) + 20.0
         elif active_module:
-            # Driver bên thứ ba trực tiếp
             drv_info = driver_map.get(active_module)
             if drv_info:
                 dev_type = drv_info.get("type", "driver")
@@ -209,18 +448,15 @@ def score_single_crash(
                 raw_scores[f"driver:{active_module}"] = raw_scores.get(f"driver:{active_module}", 0.0) + 50.0
                 initial_top_suspects.add(f"driver:{active_module}")
 
-
-    # 3. Cộng điểm từ Event Log theo event_rules.yaml
+    # 3. Cộng điểm từ Event Log / Sysinfo / HwTest
     ev_points, ev_used_ids = compute_event_points(evidences, rules, initial_top_suspects)
-    has_supporting_event = False
     for susp, pts in ev_points.items():
         if pts > 0:
             raw_scores[susp] = raw_scores.get(susp, 0.0) + pts
-            has_supporting_event = True
 
     used_evidence_ids.extend(ev_used_ids)
 
-    # 4. Chuẩn hoá điểm về thang 0 - 100
+    # 4. Chuẩn hoá điểm về thang 0 - 100 (suspicion_share)
     total_raw = sum(raw_scores.values())
     scored_list: List[Tuple[str, float]] = []
 
@@ -232,59 +468,61 @@ def score_single_crash(
         scored_list = [("unknown", 0.0)]
 
     scored_list.sort(key=lambda x: x[1], reverse=True)
-
     top_suspect, top_score = scored_list[0] if scored_list else ("unknown", 0.0)
 
-    # 5. Xác định độ tin cậy và Áp dụng trần (Confidence Caps)
-    conf_thresh = settings.get("confidence_thresholds", {"high": 70, "medium": 40})
-    min_verdict_score = settings.get("min_verdict_score", 35)
+    # 5. Đánh giá độ tin cậy tách rời theo Phần 3.2
+    conf_policy = settings.get("confidence_policy")
+    eval_evs = _enrich_evidences(evidences, rules)
+    if not is_log_only and not is_header_only and crash.analyzed_by == "cdb":
+        suspect_drv = active_module if (active_module and not any(active_module.endswith(ms) for ms in ms_core_modules)) else suspect_driver_in_stack
+        if suspect_drv:
+            eval_evs.append(
+                Evidence(
+                    kind="dump",
+                    source="cdb",
+                    summary=f"CDB stack trace phát hiện driver nghi vấn '{suspect_drv}'",
+                    strength="strong",
+                    polarity="support",
+                    group_id=f"cdb_stack_{suspect_drv}",
+                )
+            )
 
-    if top_score < min_verdict_score:
-        confidence = "không đủ dữ kiện"
-    elif top_score >= conf_thresh.get("high", 70):
-        confidence = "cao"
-    elif top_score >= conf_thresh.get("medium", 40):
-        confidence = "trung bình"
-    else:
-        confidence = "thấp"
+    confidence, confidence_rationale = evaluate_confidence(
+        top_suspect=top_suspect,
+        top_score=top_score,
+        evidences=eval_evs,
+        is_header_only=is_header_only,
+        is_log_only=is_log_only,
+        crash_count=1,
+        policy=conf_policy,
+        bc_code=bc_code,
+    )
 
-    applied_cap = ""
-    # Quy tắc trần 1: 1 crash đơn lẻ -> tối đa "trung bình"
-    if confidence == "cao":
-        confidence = "trung bình"
-        applied_cap = "Trần 1 crash: Độ tin cậy tối đa là 'trung bình'."
 
-    # Quy tắc trần 2: header_only -> tối đa "trung bình"
-    if is_header_only and confidence == "cao":
-        confidence = "trung bình"
-        applied_cap = "Trần header_only: Không có cdb phân tích stack trace."
-
-    # Quy tắc trần 3: log_only (UPDATE_01 mục D)
+    applied_caps = ""
     if is_log_only:
-        if bc_code in ("0", "0x0", ""):
-            # BugcheckCode = 0: tối đa "thấp"
-            confidence = "thấp"
-            applied_cap = "Trần log_only BugcheckCode=0 (mất nguồn/treo): Độ tin cậy 'thấp'."
-        elif has_supporting_event:
-            # Có mã Bug Check khác 0 VÀ có event hỗ trợ cùng hướng: tối đa "trung bình"
-            if confidence == "cao":
-                confidence = "trung bình"
-                applied_cap = "Trần log_only có event hỗ trợ: Tối đa 'trung bình'."
-        else:
-            # Có mã Bug Check nhưng KHÔNG có event hỗ trợ: tối đa "thấp"
-            confidence = "thấp"
-            applied_cap = "Trần log_only không có event hỗ trợ: Tối đa 'thấp'."
+        applied_caps = f"Trần log_only: {confidence_rationale}"
+    elif is_header_only:
+        applied_caps = f"Trần header_only: {confidence_rationale}"
+    elif confidence == "trung bình":
+        applied_caps = f"Trần 1 crash: {confidence_rationale}"
+    elif confidence != "cao":
+        applied_caps = confidence_rationale
 
     return {
         "suspect_scores": scored_list,
         "top_suspect": top_suspect,
         "top_score": top_score,
+        "suspicion_share": top_score,
         "confidence": confidence,
+        "confidence_rationale": confidence_rationale,
         "used_evidence_ids": list(set(used_evidence_ids)),
         "is_log_only": is_log_only,
-        "applied_caps": applied_cap,
+        "applied_caps": applied_caps,
         "notes": notes,
     }
+
+
 
 
 def score_machine_crashes(
@@ -509,32 +747,70 @@ def score_machine_crashes(
                     f"(chênh lệch {diff:.1f} điểm < {conflict_threshold} điểm)."
                 )
 
-    # Xác định độ tin cậy của máy
-    conf_thresh = settings.get("confidence_thresholds", {"high": 70, "medium": 40})
-    min_verdict_score = settings.get("min_verdict_score", 35)
+    # Xác định độ tin cậy của máy tách rời khỏi điểm tỷ trọng
+    conf_policy = settings.get("confidence_policy")
+    all_evidences_list: List[Evidence] = _enrich_evidences(
+        [ev for _, evs in normalized_crashes for ev in evs], rules
+    )
+    for c, _ in normalized_crashes:
+        if c.analyzed_by == "cdb":
+            img_c = (c.image_name or c.module_name or getattr(c, "suspect_driver", "") or "").strip().lower()
+            if img_c and not any(img_c.endswith(ms) for ms in ms_core_modules):
+                all_evidences_list.append(
+                    Evidence(
+                        kind="dump",
+                        source="cdb",
+                        summary=f"CDB stack trace phát hiện driver nghi vấn trên crash #{c.id}",
+                        strength="strong",
+                        polarity="support",
+                        group_id=f"cdb_dump_{c.id}",
+                    )
+                )
 
-    if top_score < min_verdict_score:
-        confidence = "không đủ dữ kiện"
-    elif top_score >= conf_thresh.get("high", 70):
-        # Có ít nhất 2 crash đồng thuận và điểm cao -> đạt "cao"
-        most_common_cnt = suspect_counts.get(top_suspect, 0)
-        if most_common_cnt >= 2 and not is_conflicted:
-            confidence = "cao"
-        else:
-            confidence = "trung bình"
-    elif top_score >= conf_thresh.get("medium", 40):
+    # Thêm bằng chứng từ các mẫu hình pattern matched
+    for pat in rules.get("patterns", []):
+        p_name = pat.get("name", "")
+        if p_name in patterns_matched:
+            all_evidences_list.append(
+                Evidence(
+                    kind="pattern",
+                    source="patterns",
+                    summary=f"Mẫu hình: {p_name}",
+                    strength=pat.get("strength", "medium"),
+                    polarity="support",
+                    group_id=pat.get("group_id", f"pattern_{p_name}"),
+                )
+            )
+
+    all_is_log_only = all(c.dump_type in ("none", "") or c.analyzed_by == "log_only" for c, _ in normalized_crashes)
+    all_is_header_only = all(c.analyzed_by == "header_only" for c, _ in normalized_crashes)
+
+    confidence, confidence_rationale = evaluate_confidence(
+        top_suspect=top_suspect,
+        top_score=top_score,
+        evidences=all_evidences_list,
+        is_header_only=all_is_header_only,
+        is_log_only=all_is_log_only,
+        crash_count=total_crashes,
+        policy=conf_policy,
+    )
+
+
+    if is_conflicted and confidence == "cao":
         confidence = "trung bình"
-    else:
-        confidence = "thấp"
+        confidence_rationale += " [Hạ xuống 'trung bình' do phát hiện mâu thuẫn giữa Dump và Event Log]"
 
     return {
         "suspect_scores": final_scored,
         "top_suspect": top_suspect,
         "top_score": top_score,
+        "suspicion_share": top_score,
         "confidence": confidence,
+        "confidence_rationale": confidence_rationale,
         "used_evidence_ids": list(all_evidence_ids),
         "is_conflicted": is_conflicted,
         "conflict_note": conflict_note,
         "patterns_matched": patterns_matched,
         "crash_count": total_crashes,
     }
+

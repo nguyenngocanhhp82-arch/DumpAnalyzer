@@ -1,0 +1,75 @@
+# ==============================================================================
+# QUY TẮC GỢI Ý CÁC BƯỚC KIỂM TRA TIẾP THEO (next_steps.yaml)
+# Đợt Cập nhật 03 (v1.1.0)
+# Định nghĩa các khuyến nghị hành động theo nhóm nghi ngờ và dữ liệu còn thiếu.
+# ==============================================================================
+
+# 1. Phát hiện dữ liệu còn thiếu (Missing Data Hints)
+missing_data_hints:
+  missing_cdb:
+    condition: "no_cdb"
+    text: "Cài đặt Windows Debugging Tools (cdb.exe) để giải mã chính xác tên driver và call stack."
+  mini_dump_only:
+    condition: "minidump_only"
+    text: "Chuyển cấu hình CrashControl sang 'Kernel memory dump' hoặc 'Automatic dump' để có đầy đủ thông tin stack và bộ nhớ."
+  single_crash_only:
+    condition: "single_crash"
+    text: "Hiện mới chỉ ghi nhận 1 vụ sập. Cần theo dõi thêm thời gian hoạt động của máy để thu thập dữ liệu lặp lại."
+  missing_hwtest_ram:
+    condition: "suspect_ram_no_test"
+    text: "Chưa có kết quả kiểm tra RAM. Hãy mở Tab 'Kiểm tra phần cứng' và chạy Windows Memory Diagnostic hoặc MemTest86."
+  missing_hwtest_storage:
+    condition: "suspect_storage_no_test"
+    text: "Chưa có kết quả kiểm tra ổ đĩa. Hãy mở Tab 'Kiểm tra phần cứng' và chạy bài test 'storage_health' (SMART & chkdsk /scan)."
+
+# 2. Các bước xử lý theo từng nhóm nghi vấn (Suspect Next Steps)
+suspect_steps:
+  ram:
+    - "Mở Tab 'Kiểm tra phần cứng' và chạy bài kiểm tra Windows Memory Diagnostic (mdsched.exe)."
+    - "Khởi động máy từ USB và chạy MemTest86 kiểm tra kỹ lưỡng (khuyến nghị tối thiểu 4 lượt pass)."
+    - "Kiểm tra cấu hình BIOS: tắt chế độ ép xung RAM (XMP / DOCP / EXPO) để kiểm tra độ ổn định."
+    - "Vệ sinh chân cắm RAM; nếu máy có nhiều thanh RAM, thử tháo bớt từng thanh để kiểm tra loại trừ."
+
+  storage:
+    - "Mở Tab 'Kiểm tra phần cứng' và chạy bài test 'storage_health' (kiểm tra SMART và chkdsk /scan chỉ đọc)."
+    - "Cập nhật firmware mới nhất cho ổ đĩa SSD / NVMe từ trang chủ nhà sản xuất."
+    - "Cập nhật driver bộ điều khiển lưu trữ (Intel RST, AMD RAID, hoặc driver NVMe chuẩn)."
+    - "Kiểm tra cáp kết nối SATA / nguồn ổ cứng hoặc cắm lại ổ NVMe vào khe cắm M.2 khác."
+
+  gpu:
+    - "Dùng công cụ DDU (Display Driver Uninstaller) gỡ sạch driver card màn hình trong chế độ Safe Mode."
+    - "Cài đặt phiên bản driver GPU bản sạch (Clean Installation) mới nhất từ NVIDIA / AMD / Intel."
+    - "Kiểm tra nhiệt độ card màn hình khi chơi game / tải nặng để tránh hiện tượng quá nhiệt gây TDR."
+    - "Kiểm tra cáp cấp nguồn phụ PCIe (8-pin/12VHPWR) đã cắm chặt vào card đồ họa chưa."
+
+  driver:
+    - "Cập nhật hoặc gỡ cài đặt driver/phần mềm bên thứ ba vừa xuất hiện trong stack trace."
+    - "Kiểm tra phiên bản BIOS bo mạch chủ để đảm bảo tương thích tốt nhất với phần cứng và driver mới."
+    - "CẢNH BÁO NÂNG CAO: Có thể bật Driver Verifier cho riêng driver nghi vấn để ép crash bắt lỗi (lệnh: 'verifier /standard /driver <tên.sys>'). Lưu ý: có thể gây BSOD vòng lặp, cách tắt khẩn cấp trong Safe Mode là 'verifier /reset'. Phần mềm tuyệt đối không tự bật tính năng này."
+
+  cpu:
+    - "Kiểm tra nhiệt độ CPU khi vận hành; vệ sinh quạt tản nhiệt và tra lại keo tản nhiệt nếu cần."
+    - "Khôi phục thiết lập BIOS về mặc định (Load Optimized Defaults), tắt PBO hoặc ép xung CPU."
+    - "Cập nhật BIOS bo mạch chủ để sửa lỗi microcode CPU (đặc biệt quan trọng với CPU Intel Gen 13/14)."
+
+  psu:
+    - "Kiểm tra nguồn điện lưới, ổ cắm và dây nguồn máy tính; đảm bảo không bị sụt áp đột ngột."
+    - "Kiểm tra công suất bộ nguồn (PSU) có đủ đáp ứng công suất tiêu thụ tối đa của CPU và GPU không."
+    - "Thử nghiệm thay thế bằng một bộ nguồn (PSU) chuẩn khác để kiểm tra loại trừ lỗi tụ nguồn."
+
+  thermal:
+    - "Vệ sinh toàn bộ quạt tản nhiệt CPU, GPU và quạt hút/thổi thông gió thùng máy."
+    - "Thay keo tản nhiệt mới có chất lượng tốt cho CPU và GPU."
+    - "Kiểm tra hệ thống tản nhiệt nước (nếu có): xác nhận máy bơm AIO vẫn hoạt động, không bị tắc dòng."
+
+  update:
+    - "Kiểm tra lịch sử Windows Update: gỡ bỏ bản cập nhật KB cài đặt gần nhất nếu lỗi xuất hiện ngay sau đó."
+    - "Chạy lệnh kiểm tra tính toàn vẹn hệ thống: 'sfc /scannow' và 'DISM /Online /Cleanup-Image /RestoreHealth'."
+
+  software:
+    - "Gỡ bỏ phần mềm xung đột hoặc phần mềm diệt virus bên thứ ba vừa cài gần đây."
+    - "Cập nhật phần mềm bị lỗi lên bản phát hành mới nhất."
+
+  unknown:
+    - "Chưa đủ dữ liệu để kết luận chắc chắn. Hãy thu thập thêm các file dump và kiểm tra Windows Event Log."
+    - "Bật tính năng Kernel Memory Dump để lưu trữ đầy đủ bộ nhớ cho các lần crash tiếp theo."
