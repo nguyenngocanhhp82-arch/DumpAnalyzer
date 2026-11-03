@@ -156,13 +156,16 @@ def score_single_crash(
     mod = (crash.module_name or "").strip().lower()
     active_module = img if img else mod
 
-    # Trích xuất suspect driver nếu cdb parser đã phát hiện trong call stack
+    # Trích xuất suspect driver nếu cdb parser đã phát hiện trong call stack (ưu tiên crash.suspect_driver)
     suspect_driver_in_stack = ""
-    if crash.cdb_raw_output and "Driver nghi vấn trong stack:" in crash.cdb_raw_output:
+    if getattr(crash, "suspect_driver", ""):
+        suspect_driver_in_stack = crash.suspect_driver.strip().lower()
+    elif crash.cdb_raw_output and "Driver nghi vấn trong stack:" in crash.cdb_raw_output:
         for line in crash.cdb_raw_output.splitlines():
             if "Driver nghi vấn trong stack:" in line:
                 suspect_driver_in_stack = line.split(":", 1)[1].strip().lower()
                 break
+
 
     if is_log_only:
         # UPDATE_01: Crash không có dump TUYỆT ĐỐI không kết luận driver cụ thể

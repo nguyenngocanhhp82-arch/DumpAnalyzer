@@ -35,6 +35,36 @@ def calculate_sha256(file_path: Union[str, Path], chunk_size: int = 65536) -> st
     return sha256.hexdigest().lower()
 
 
+def calculate_fast_hash(file_path: Union[str, Path]) -> str:
+    """
+    Tính mã băm nhanh cho file dump rất lớn:
+    kích thước + mtime + SHA256 của 1 MB đầu và 1 MB cuối.
+    Trả về chuỗi dạng 'fast_<size>_<mtime>_<hexdigest>'.
+    """
+    path_obj = Path(file_path)
+    if not path_obj.exists() or not path_obj.is_file():
+        raise FileNotFoundError(f"File không tồn tại: {file_path}")
+
+    stat = path_obj.stat()
+    size = stat.st_size
+    mtime = int(stat.st_mtime)
+
+    sha = hashlib.sha256()
+    one_mb = 1024 * 1024
+
+    with open(path_obj, "rb") as f:
+        head = f.read(one_mb)
+        sha.update(head)
+        if size > one_mb:
+            seek_pos = max(one_mb, size - one_mb)
+            f.seek(seek_pos)
+            tail = f.read(one_mb)
+            sha.update(tail)
+
+    digest = sha.hexdigest()[:16]
+    return f"fast_{size}_{mtime}_{digest}"
+
+
 def find_dumps(
     search_paths: List[str],
     from_date: Optional[Union[str, datetime]] = None,
@@ -125,11 +155,16 @@ def copy_dump_safely(
     src_file: Union[str, Path],
     working_dir: Union[str, Path],
     file_sha256: Optional[str] = None,
+    max_copy_gb: Optional[float] = None,
 ) -> Path:
     """
     Sao chép an toàn file dump sang thư mục làm việc (working_dir).
     Tuyệt đối không sửa file gốc.
     Đặt tên file đích kèm tiền tố SHA256 ngắn gọn để tránh ghi đè khi trùng tên.
+
+    Kiểm tra an toàn file lớn:
+    - Nếu file vượt quá max_copy_gb (mặc định đọc từ settings.yaml, fallback 8 GB): không copy, trả về src_path.
+    - Nếu dung lượng trống của thư mục làm việc < 1.2 * kích thước file: không copy, trả về src_path.
     """
     src_path = Path(src_file).resolve()
     if not src_path.exists():
@@ -137,6 +172,40 @@ def copy_dump_safely(
 
     target_dir = Path(working_dir).resolve()
     target_dir.mkdir(parents=True, exist_ok=True)
+
+    stat = src_path.stat()
+    src_size = stat.st_size
+
+    if max_copy_gb is None:
+        try:
+            from dumpanalyzer.core.config import load_settings
+            settings = load_settings()
+            max_copy_gb = float(settings.get("max_copy_gb", 8.0))
+        except Exception:
+            max_copy_gb = 8.0
+
+    max_copy_bytes = int(max_copy_gb * 1024 * 1024 * 1024)
+
+    # 1. Kiểm tra giới hạn max_copy_gb
+    if src_size > max_copy_bytes:
+        logger.warning(
+            f"File dump '{src_path.name}' ({src_size / (1024**3):.2f} GB) vượt quá max_copy_gb ({max_copy_gb} GB). "
+            "Bỏ qua bước copy, phân tích trực tiếp file gốc ở chế độ chỉ đọc."
+        )
+        return src_path
+
+    # 2. Kiểm tra dung lượng trống (cần >= kích thước file * 1.2)
+    try:
+        free_bytes = shutil.disk_usage(target_dir).free
+        needed_bytes = int(src_size * 1.2)
+        if free_bytes < needed_bytes:
+            logger.warning(
+                f"Thư mục làm việc '{target_dir}' không đủ dung lượng trống ({free_bytes / (1024**3):.2f} GB "
+                f"< {needed_bytes / (1024**3):.2f} GB yêu cầu). Bỏ qua bước copy, phân tích trực tiếp file gốc."
+            )
+            return src_path
+    except Exception as e:
+        logger.debug(f"Không thể kiểm tra disk_usage tại {target_dir}: {e}")
 
     if not file_sha256:
         file_sha256 = calculate_sha256(src_path)
@@ -146,13 +215,14 @@ def copy_dump_safely(
     dest_path = target_dir / safe_name
 
     # Nếu file đã tồn tại trong thư mục làm việc và đủ dung lượng thì tái sử dụng
-    if dest_path.exists() and dest_path.stat().st_size == src_path.stat().st_size:
+    if dest_path.exists() and dest_path.stat().st_size == src_size:
         logger.debug(f"File copy đã tồn tại trong workspace: {dest_path}")
         return dest_path
 
     logger.info(f"Đang sao chép dump: {src_path.name} -> {dest_path}")
     shutil.copy2(src_path, dest_path)
     return dest_path
+
 
 
 def cleanup_workspace(

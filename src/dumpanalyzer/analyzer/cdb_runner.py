@@ -399,5 +399,7 @@ def build_crash_from_dump(
         uptime_seconds=getattr(cdb_res, "uptime_seconds", None) or getattr(h_info, "uptime_seconds", 0) or 0,
         cdb_raw_output=res.get("raw_output"),
         analyzed_by=analyzed_by,
+        suspect_driver=getattr(cdb_res, "suspect_driver", "") or "",
     )
+
 

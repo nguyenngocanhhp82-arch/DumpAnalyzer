@@ -41,7 +41,9 @@ DEFAULT_SETTINGS: Dict[str, Any] = {
         "C:\\Windows\\LiveKernelReports",
     ],
     "auto_cleanup_copied_dumps": False,
+    "max_copy_gb": 8,
     "event_window_minutes": 10,
+
     "eventlog_timeout_seconds": 120,
     "update_history_days": 7,
     "confidence_thresholds": {

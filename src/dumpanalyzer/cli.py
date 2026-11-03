@@ -499,6 +499,7 @@ def cmd_verdict(args):
             uptime_seconds=crash_data.get("uptime_seconds", 0),
             cdb_raw_output=crash_data.get("cdb_raw_output", ""),
             analyzed_by=crash_data.get("analyzed_by", "none"),
+            suspect_driver=crash_data.get("suspect_driver", ""),
         )
         ev_objs = [
             Evidence(
@@ -566,6 +567,7 @@ def cmd_verdict(args):
             uptime_seconds=cd.get("uptime_seconds", 0),
             cdb_raw_output=cd.get("cdb_raw_output", ""),
             analyzed_by=cd.get("analyzed_by", "none"),
+            suspect_driver=cd.get("suspect_driver", ""),
         )
         ev_dicts = db.get_evidences_by_crash(cd["id"])
         ev_objs = [
@@ -682,6 +684,7 @@ def cmd_analyze(args):
             uptime_seconds=cdb_res.uptime_seconds,
             cdb_raw_output=res["raw_output"],
             analyzed_by=analyzed_by,
+            suspect_driver=cdb_res.suspect_driver,
         )
 
         results.append({

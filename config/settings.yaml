@@ -30,6 +30,11 @@ dump_search_paths:
 # Tự động xoá file dump copy trong thư mục làm việc sau khi phân tích xong (true/false)
 auto_cleanup_copied_dumps: false
 
+# Dung lượng tối đa của file dump (GB) được phép copy vào thư mục làm việc (mặc định 8 GB)
+# Nếu file lớn hơn hoặc ổ đĩa không đủ dung lượng (cần >= kích thước file x 1.2), sẽ phân tích trực tiếp file gốc
+max_copy_gb: 8
+
+
 # 3. Cấu hình tương quan Event Log
 # Khoảng thời gian (phút) trước khi sập để quét các sự kiện nghi ngờ trong Event Log
 event_window_minutes: 10

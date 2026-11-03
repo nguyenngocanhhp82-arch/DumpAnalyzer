@@ -46,7 +46,8 @@ def build():
     print(f"[*] Đang sao chép thư mục cấu hình: {config_src} -> {config_dest}")
     if config_dest.exists():
         shutil.rmtree(config_dest)
-    shutil.copytree(config_src, config_dest)
+    shutil.copytree(config_src, config_dest, ignore=shutil.ignore_patterns("*.db", "*.sqlite", "workspace*", "logs*"))
+
 
     # 3. Tạo file run_gui.bat và run_cli.bat
     run_gui_bat = dist_dir / "run_gui.bat"
