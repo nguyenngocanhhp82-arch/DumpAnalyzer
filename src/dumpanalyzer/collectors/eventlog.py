@@ -144,10 +144,31 @@ def parse_kernel_power_41(event_data: Dict[str, Any]) -> Dict[str, Any]:
     }
 
 
-def parse_bugcheck_1001_message(message: str) -> Dict[str, Any]:
+def is_kernel_bugcheck_1001_provider(provider: str) -> bool:
+    """Kiểm tra xem provider của Event 1001 có phải là từ Kernel WER / BugCheck hay không."""
+    if not provider:
+        return False
+    norm = provider.strip().lower()
+    valid_exact = {
+        "microsoft-windows-wer-systemerrorreporting",
+        "wer-systemerrorreporting",
+        "bugcheck",
+    }
+    if norm in valid_exact:
+        return True
+    if "wer-systemerrorreporting" in norm or "bugcheck" in norm:
+        return True
+    return False
+
+
+def parse_bugcheck_1001_message(
+    message: str = "",
+    event_data: Optional[Dict[str, Any]] = None,
+) -> Dict[str, Any]:
     """
-    Trích xuất mã lỗi và đường dẫn dump từ nội dung mô tả của Event 1001 (WER/BugCheck).
-    Ví dụ: 'The computer has rebooted from a bugcheck. The bugcheck was: 0x0000001a... A dump was saved in: C:\\Windows\\MEMORY.DMP'
+    Trích xuất mã lỗi và đường dẫn dump từ Event 1001:
+    - Đọc từ EventData (param1, param2...) không phụ thuộc ngôn ngữ Windows.
+    - Dự phòng bằng regex trên nội dung raw_message tiếng Anh.
     """
     res = {
         "bugcheck_code": "",
@@ -158,6 +179,51 @@ def parse_bugcheck_1001_message(message: str) -> Dict[str, Any]:
         "dump_file": "",
     }
 
+    # 1. Thử bóc tách từ event_data trước (độc lập ngôn ngữ)
+    if event_data and isinstance(event_data, dict):
+        param1 = str(event_data.get("param1", "")).strip()
+        if param1:
+            # Dạng param1: '0x0000009f (0x3, 0xffffe0, 0xffffd0, 0xffffc0)'
+            m_full = re.search(r"(0x[0-9a-fA-F]+)\s*\(([^)]+)\)", param1)
+            if m_full:
+                raw_code = m_full.group(1)
+                try:
+                    res["bugcheck_code"] = f"0x{int(raw_code, 16):X}"
+                except ValueError:
+                    res["bugcheck_code"] = raw_code
+
+                params = [p.strip() for p in m_full.group(2).split(",")]
+                if len(params) >= 1:
+                    res["p1"] = params[0]
+                if len(params) >= 2:
+                    res["p2"] = params[1]
+                if len(params) >= 3:
+                    res["p3"] = params[2]
+                if len(params) >= 4:
+                    res["p4"] = params[3]
+            else:
+                m_hex = re.search(r"^(0x[0-9a-fA-F]+)$", param1)
+                if m_hex:
+                    try:
+                        res["bugcheck_code"] = f"0x{int(m_hex.group(1), 16):X}"
+                    except ValueError:
+                        res["bugcheck_code"] = m_hex.group(1)
+
+        param2 = str(event_data.get("param2", "")).strip()
+        if param2 and (".dmp" in param2.lower() or "\\" in param2):
+            res["dump_file"] = param2
+        else:
+            for val in event_data.values():
+                val_str = str(val).strip()
+                if val_str.lower().endswith(".dmp"):
+                    res["dump_file"] = val_str
+                    break
+
+    # Nếu đã lấy được bugcheck_code và dump_file từ event_data thì trả về ngay
+    if res["bugcheck_code"]:
+        return res
+
+    # 2. Phương án dự phòng: Regex trên raw_message (tiếng Anh)
     if not message:
         return res
 
@@ -182,6 +248,7 @@ def parse_bugcheck_1001_message(message: str) -> Dict[str, Any]:
         res["dump_file"] = m_dump.group(1).strip().rstrip(".,")
 
     return res
+
 
 
 from dumpanalyzer.core.config import load_settings
@@ -327,7 +394,13 @@ def read_system_events(
 
             # Xử lý đặc biệt nếu là Event 1001
             elif ev["event_id"] == 1001:
-                ev["wer1001_info"] = parse_bugcheck_1001_message(ev["raw_message"])
+                prov = ev.get("provider", "")
+                if is_kernel_bugcheck_1001_provider(prov):
+                    ev["wer1001_info"] = parse_bugcheck_1001_message(ev.get("raw_message", ""), ev.get("event_data"))
+                else:
+                    # Bỏ qua Event 1001 từ Application WER
+                    continue
+
 
             parsed_events.append(ev)
 
