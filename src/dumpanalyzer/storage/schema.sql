@@ -114,6 +114,42 @@ CREATE TABLE IF NOT EXISTS test_run (
     raw_output TEXT
 );
 
+-- Trạng thái sẵn sàng ghi dump của các máy (Đợt 04 - Phần 9.1)
+CREATE TABLE IF NOT EXISTS dump_readiness (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    hostname TEXT NOT NULL,
+    collected_at_utc TEXT NOT NULL,
+    source TEXT NOT NULL,                  -- local | share_json | remote
+    status TEXT NOT NULL,                  -- READY | READY_PENDING_REBOOT | ATTENTION | BLOCKED | UNKNOWN
+    proof_level TEXT NOT NULL DEFAULT 'none',
+    crash_dump_enabled INTEGER,            -- NULL nếu không tồn tại hoặc không đọc được
+    registry_read_ok INTEGER NOT NULL DEFAULT 1,
+    pagefile_state TEXT,                   -- ok | missing | unknown
+    free_disk_gb REAL,
+    ram_gb REAL,
+    last_boot_time_utc TEXT,
+    pending_reboot INTEGER NOT NULL DEFAULT 0,
+    reason_codes_json TEXT,
+    raw_json TEXT,
+    UNIQUE(hostname, collected_at_utc)
+);
+
+-- Nhật ký thay đổi cấu hình ghi dump (Đợt 04 - Phần 9.1)
+CREATE TABLE IF NOT EXISTS dump_config_change (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    hostname TEXT NOT NULL,
+    changed_at_utc TEXT NOT NULL,
+    actor TEXT,
+    method TEXT NOT NULL,                  -- local | remote | package
+    action TEXT NOT NULL,                  -- enable | rollback | upgrade_small_to_auto | pagefile_fix
+    old_values_json TEXT,
+    new_values_json TEXT,
+    backup_path TEXT,
+    result TEXT NOT NULL,                  -- success | failed | cancelled | blocked
+    message TEXT,
+    reboot_required INTEGER NOT NULL DEFAULT 0
+);
+
 CREATE INDEX IF NOT EXISTS idx_crash_sha256 ON crash(dump_sha256);
 CREATE INDEX IF NOT EXISTS idx_crash_time ON crash(crash_time_utc);
 CREATE INDEX IF NOT EXISTS idx_evidence_crash ON evidence(crash_id);
@@ -123,4 +159,8 @@ CREATE INDEX IF NOT EXISTS idx_sysinfo_machine ON system_info(machine_id);
 CREATE INDEX IF NOT EXISTS idx_asset_hostname ON asset_info(hostname);
 CREATE INDEX IF NOT EXISTS idx_feedback_machine ON feedback(machine_id);
 CREATE INDEX IF NOT EXISTS idx_testrun_machine ON test_run(machine_id);
+CREATE INDEX IF NOT EXISTS idx_dump_readiness_host ON dump_readiness(hostname);
+CREATE INDEX IF NOT EXISTS idx_dump_readiness_time ON dump_readiness(collected_at_utc);
+CREATE INDEX IF NOT EXISTS idx_dump_config_change_host ON dump_config_change(hostname);
+
 
