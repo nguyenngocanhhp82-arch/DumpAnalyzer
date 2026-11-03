@@ -26,6 +26,7 @@ from PySide6.QtWidgets import (
 
 from dumpanalyzer.core.models import Crash, Evidence, Finding, MachineInfo
 from dumpanalyzer.gui.tab_detail import DetailTab
+from dumpanalyzer.gui.tab_dump_readiness import DumpReadinessTab
 from dumpanalyzer.gui.tab_hwtests import HardwareTestsTab
 from dumpanalyzer.gui.tab_overview import OverviewTab
 from dumpanalyzer.gui.tab_settings import SettingsTab
@@ -184,16 +185,23 @@ class MainWindow(QMainWindow):
         self.tab_detail = DetailTab()
         self.tab_verdict = VerdictTab()
         self.tab_hwtests = HardwareTestsTab()
+        self.tab_readiness = DumpReadinessTab()
         self.tab_settings = SettingsTab()
 
         self.tabs.addTab(self.tab_overview, "Tổng quan")
         self.tabs.addTab(self.tab_detail, "Chi tiết crash")
         self.tabs.addTab(self.tab_verdict, "Kết luận")
+        self.tabs.addTab(self.tab_readiness, "Sẵn sàng ghi dump")
         self.tabs.addTab(self.tab_hwtests, "Kiểm tra phần cứng")
         self.tabs.addTab(self.tab_settings, "Cài đặt")
 
         # Kết nối tín hiệu chuyển tab khi double click dòng ở Tab Tổng quan
         self.tab_overview.crash_selected.connect(self._on_crash_selected_from_overview)
+
+        # Kết nối tín hiệu chuyển sang tab Sẵn sàng ghi dump từ cảnh báo ở tab Kết luận
+        self.tab_verdict.open_readiness_tab_requested.connect(
+            lambda: self.tabs.setCurrentWidget(self.tab_readiness)
+        )
 
         main_layout.addWidget(self.tabs, 1)
 
