@@ -2,6 +2,31 @@
 
 Mọi thay đổi quan trọng của dự án DumpAnalyzer được ghi lại tại tài liệu này theo từng phiên bản và ngày tháng thực hiện.
 
+## [v1.1.1] - 2026-11-03
+
+### Bản vá HOTFIX 01 — Sửa lỗi đóng gói thiếu schema.sql
+- **Cấu hình đóng gói PyInstaller (`DumpAnalyzer.spec`):**
+  - Khai báo biến `SCHEMA_SQL` trỏ tới `src/dumpanalyzer/storage/schema.sql`.
+  - Bổ sung `datas=[(SCHEMA_SQL, 'dumpanalyzer/storage')]` cho cả hai cấu hình `Analysis` (GUI `a_gui` và CLI `a_cli`).
+  - Đảm bảo file được đóng gói vào `_internal/dumpanalyzer/storage/schema.sql`.
+  - Bổ sung các hiddenimports cần thiết (`dumpanalyzer.storage.db`, `dumpanalyzer.hwtests`, `dumpanalyzer.gui.tab_hwtests`, `dumpanalyzer.engine.fleet`, `dumpanalyzer.collectors.sysinfo`, `dumpanalyzer.collectors.asset_info`).
+- **Cơ chế tìm kiếm schema bền vững (`src/dumpanalyzer/storage/db.py`):**
+  - Triển khai hàm `_find_schema_file() -> Path` thử lần lượt:
+    1. `sys._MEIPASS / dumpanalyzer / storage / schema.sql` (bản build đóng gói PyInstaller 6.x).
+    2. `sys._MEIPASS / storage / schema.sql` (phương án dự phòng đóng gói trực tiếp).
+    3. `__file__.parent / schema.sql` (môi trường phát triển từ mã nguồn).
+  - Báo lỗi chi tiết bằng tiếng Việt liệt kê toàn bộ các đường dẫn đã thử kèm gợi ý khắc phục khi không tìm thấy.
+- **Khai báo package data (`pyproject.toml`):**
+  - Bổ sung cấu hình `[tool.setuptools.package-data]` cho `dumpanalyzer = ["storage/schema.sql"]` hỗ trợ cài đặt bằng `pip install`.
+- **Tự động hóa CI/CD GitHub Actions (`.github/workflows/build.yml`):**
+  - Bổ sung bước kiểm tra sự hiện diện của `schema.sql` trong thư mục `dist/DumpAnalyzer` bằng PowerShell `Get-ChildItem`.
+  - Bổ sung bước chạy thử nghiệm lệnh CLI khởi tạo CSDL `DumpAnalyzer-cli.exe feedback stats` để xác thực gói build thực tế.
+  - Chuẩn hoá lệnh gọi `python -m pytest -v` theo quy tắc `python-windows-ci-guard`.
+- **Bộ kiểm thử tự động (`tests/test_packaging.py`):**
+  - Bổ sung 7 test case kiểm thử toàn diện: chạy từ mã nguồn, giả lập `sys._MEIPASS`, giả lập lỗi thiếu file, kiểm tra khai báo trong `DumpAnalyzer.spec`, kiểm tra `pyproject.toml`, và kiểm tra khởi tạo CSDL thực tế. Chạy xanh 100% trên Linux.
+
+---
+
 ## [v1.1.0] - 2026-11-03
 
 ### Đợt Cập nhật 03 — Nâng Độ Chính Xác Kết Luận + Khung Test Phần Cứng
