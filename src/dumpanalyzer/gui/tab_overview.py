@@ -37,26 +37,28 @@ class KPICard(QFrame):
         super().__init__(parent)
         self.setObjectName("CardFrame")
         self.setFrameShape(QFrame.StyledPanel)
+        self.setMinimumHeight(96)
 
         layout = QVBoxLayout(self)
-        layout.setContentsMargins(14, 12, 14, 12)
-        layout.setSpacing(6)
+        layout.setContentsMargins(18, 16, 18, 16)
+        layout.setSpacing(8)
 
         self.lbl_title = QLabel(title)
-        self.lbl_title.setStyleSheet(f"color: {COLOR_TEXT_MUTED}; font-size: 12px; font-weight: 600; text-transform: uppercase;")
+        self.lbl_title.setStyleSheet(f"color: {COLOR_TEXT_MUTED}; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px;")
         layout.addWidget(self.lbl_title)
 
         self.lbl_value = QLabel(initial_value)
-        self.lbl_value.setStyleSheet(f"color: {COLOR_TEXT_PRIMARY}; font-size: 20px; font-weight: bold;")
+        self.lbl_value.setStyleSheet(f"color: {COLOR_TEXT_PRIMARY}; font-size: 19px; font-weight: bold;")
+        self.lbl_value.setWordWrap(True)
         layout.addWidget(self.lbl_value)
 
     def set_value(self, val: str, color_override: Optional[str] = None) -> None:
         """Cập nhật giá trị hiển thị trên thẻ."""
         self.lbl_value.setText(val)
         if color_override:
-            self.lbl_value.setStyleSheet(f"color: {color_override}; font-size: 20px; font-weight: bold;")
+            self.lbl_value.setStyleSheet(f"color: {color_override}; font-size: 19px; font-weight: bold;")
         else:
-            self.lbl_value.setStyleSheet(f"color: {COLOR_TEXT_PRIMARY}; font-size: 20px; font-weight: bold;")
+            self.lbl_value.setStyleSheet(f"color: {COLOR_TEXT_PRIMARY}; font-size: 19px; font-weight: bold;")
 
 
 class OverviewTab(QWidget):
@@ -73,11 +75,11 @@ class OverviewTab(QWidget):
     def _init_ui(self) -> None:
         main_layout = QVBoxLayout(self)
         main_layout.setContentsMargins(20, 20, 20, 20)
-        main_layout.setSpacing(16)
+        main_layout.setSpacing(18)
 
         # 1. Hàng 4 thẻ KPI thống kê
         kpi_layout = QHBoxLayout()
-        kpi_layout.setSpacing(16)
+        kpi_layout.setSpacing(18)
 
         self.card_total = KPICard("Tổng số sự cố", "0 lần")
         self.card_dumps = KPICard("Dump đã phân tích", "0 / 0")
@@ -92,19 +94,22 @@ class OverviewTab(QWidget):
 
         # 2. Thanh tìm kiếm và bộ lọc nhanh
         filter_layout = QHBoxLayout()
-        filter_layout.setSpacing(12)
+        filter_layout.setSpacing(14)
 
         lbl_filter = QLabel("Lọc dữ liệu:")
-        lbl_filter.setStyleSheet(f"font-weight: 600; color: {COLOR_TEXT_MUTED};")
+        lbl_filter.setStyleSheet(f"font-weight: 600; color: {COLOR_TEXT_MUTED}; font-size: 13px;")
         filter_layout.addWidget(lbl_filter)
 
         self.txt_search = QLineEdit()
-        self.txt_search.setPlaceholderText("Tìm kiếm theo mã lỗi (0x124...), tên lỗi hoặc module/driver...")
+        self.txt_search.setPlaceholderText("🔍 Tìm kiếm theo mã lỗi (0x124...), tên lỗi hoặc module/driver...")
+        self.txt_search.setMinimumHeight(34)
         self.txt_search.textChanged.connect(self._apply_filter)
         filter_layout.addWidget(self.txt_search, 1)
 
         self.combo_type_filter = QComboBox()
         self.combo_type_filter.addItems(["Tất cả sự cố", "Chỉ có file dump", "Không có dump (log_only)"])
+        self.combo_type_filter.setMinimumHeight(34)
+        self.combo_type_filter.setMinimumWidth(220)
         self.combo_type_filter.currentIndexChanged.connect(self._apply_filter)
         filter_layout.addWidget(self.combo_type_filter)
 
@@ -133,10 +138,11 @@ class OverviewTab(QWidget):
         self.table.setEditTriggers(QTableWidget.NoEditTriggers)
         self.table.setAlternatingRowColors(True)
         self.table.verticalHeader().setVisible(False)
+        self.table.verticalHeader().setDefaultSectionSize(40)
         self.table.itemDoubleClicked.connect(self._on_item_double_clicked)
         self.table.itemSelectionChanged.connect(self._on_selection_changed)
 
-        main_layout.addWidget(self.table)
+        main_layout.addWidget(self.table, 1)
 
     def set_data(
         self,

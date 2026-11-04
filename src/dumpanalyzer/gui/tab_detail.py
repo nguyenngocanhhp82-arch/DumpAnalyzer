@@ -16,6 +16,7 @@ from PySide6.QtWidgets import (
     QHeaderView,
     QLabel,
     QPlainTextEdit,
+    QScrollArea,
     QSplitter,
     QTableWidget,
     QTableWidgetItem,
@@ -46,17 +47,18 @@ class DetailTab(QWidget):
     def _init_ui(self) -> None:
         main_layout = QVBoxLayout(self)
         main_layout.setContentsMargins(20, 20, 20, 20)
-        main_layout.setSpacing(14)
+        main_layout.setSpacing(16)
 
         # 1. Hàng trên cùng: Selector chọn crash + Badge trạng thái
         top_bar = QHBoxLayout()
-        top_bar.setSpacing(12)
+        top_bar.setSpacing(14)
 
         lbl_select = QLabel("Chọn lần sập cần xem:")
-        lbl_select.setStyleSheet(f"font-weight: bold; color: {COLOR_TEXT_PRIMARY};")
+        lbl_select.setStyleSheet(f"font-weight: bold; color: {COLOR_TEXT_PRIMARY}; font-size: 13px;")
         top_bar.addWidget(lbl_select)
 
         self.combo_crashes = QComboBox()
+        self.combo_crashes.setMinimumHeight(34)
         self.combo_crashes.currentIndexChanged.connect(self._on_crash_combo_changed)
         top_bar.addWidget(self.combo_crashes, 1)
 
@@ -71,19 +73,24 @@ class DetailTab(QWidget):
         splitter.setHandleWidth(8)
 
         # ==================== CỘT TRÁI: THÔNG SỐ VÀ THAM SỐ ====================
+        scroll_left = QScrollArea()
+        scroll_left.setWidgetResizable(True)
+        scroll_left.setFrameShape(QFrame.NoFrame)
+
         left_card = QFrame()
         left_card.setObjectName("CardFrame")
         left_layout = QVBoxLayout(left_card)
-        left_layout.setContentsMargins(14, 14, 14, 14)
-        left_layout.setSpacing(12)
+        left_layout.setContentsMargins(18, 16, 18, 16)
+        left_layout.setSpacing(14)
 
         lbl_meta_title = QLabel("THÔNG TIN DUMP & THAM SỐ LỖI")
         lbl_meta_title.setStyleSheet(f"font-size: 13px; font-weight: bold; color: {COLOR_TEXT_PRIMARY}; border-bottom: 2px solid {COLOR_BORDER}; padding-bottom: 6px;")
         left_layout.addWidget(lbl_meta_title)
 
         grid = QGridLayout()
-        grid.setVerticalSpacing(8)
-        grid.setHorizontalSpacing(10)
+        grid.setVerticalSpacing(12)
+        grid.setHorizontalSpacing(16)
+        grid.setColumnMinimumWidth(0, 190)
 
         # Định nghĩa các trường thông tin
         fields = [
@@ -120,14 +127,15 @@ class DetailTab(QWidget):
         left_layout.addWidget(lbl_params_title)
 
         grid_p = QGridLayout()
-        grid_p.setSpacing(6)
+        grid_p.setHorizontalSpacing(12)
+        grid_p.setVerticalSpacing(10)
         self.lbl_p1 = QLabel("P1: -")
         self.lbl_p2 = QLabel("P2: -")
         self.lbl_p3 = QLabel("P3: -")
         self.lbl_p4 = QLabel("P4: -")
 
         for p_lbl in (self.lbl_p1, self.lbl_p2, self.lbl_p3, self.lbl_p4):
-            p_lbl.setStyleSheet("background-color: #0b1120; color: #38bdf8; font-family: monospace; font-size: 11px; padding: 6px; border-radius: 4px; border: 1px solid #1e293b;")
+            p_lbl.setStyleSheet("background-color: #0b1120; color: #38bdf8; font-family: monospace; font-size: 12px; padding: 8px 12px; border-radius: 6px; border: 1px solid #1e293b;")
 
         grid_p.addWidget(self.lbl_p1, 0, 0)
         grid_p.addWidget(self.lbl_p2, 0, 1)
@@ -136,20 +144,21 @@ class DetailTab(QWidget):
         left_layout.addLayout(grid_p)
 
         left_layout.addStretch()
-        splitter.addWidget(left_card)
+        scroll_left.setWidget(left_card)
+        splitter.addWidget(scroll_left)
 
         # ==================== CỘT PHẢI: STACK & SỰ KIỆN 10 PHÚT ====================
         right_container = QWidget()
         right_layout = QVBoxLayout(right_container)
         right_layout.setContentsMargins(0, 0, 0, 0)
-        right_layout.setSpacing(14)
+        right_layout.setSpacing(16)
 
         # 1. Khung Call Stack (STACK_TEXT)
         stack_card = QFrame()
         stack_card.setObjectName("CardFrame")
         stack_layout = QVBoxLayout(stack_card)
-        stack_layout.setContentsMargins(14, 14, 14, 14)
-        stack_layout.setSpacing(8)
+        stack_layout.setContentsMargins(18, 16, 18, 16)
+        stack_layout.setSpacing(10)
 
         lbl_stack_title = QLabel("CALL STACK TRACE (!analyze -v STACK_TEXT)")
         lbl_stack_title.setStyleSheet(f"font-size: 13px; font-weight: bold; color: {COLOR_TEXT_PRIMARY}; border-bottom: 2px solid {COLOR_BORDER}; padding-bottom: 6px;")
@@ -158,6 +167,7 @@ class DetailTab(QWidget):
         self.txt_stack = QPlainTextEdit()
         self.txt_stack.setReadOnly(True)
         self.txt_stack.setPlaceholderText("Không có dữ liệu Call Stack (chế độ header_only hoặc không có dump).")
+        self.txt_stack.setMinimumHeight(140)
         stack_layout.addWidget(self.txt_stack)
 
         right_layout.addWidget(stack_card, 1)
@@ -166,8 +176,8 @@ class DetailTab(QWidget):
         events_card = QFrame()
         events_card.setObjectName("CardFrame")
         events_layout = QVBoxLayout(events_card)
-        events_layout.setContentsMargins(14, 14, 14, 14)
-        events_layout.setSpacing(8)
+        events_layout.setContentsMargins(18, 16, 18, 16)
+        events_layout.setSpacing(10)
 
         lbl_events_title = QLabel("SỰ KIỆN WINDOWS EVENT LOG TRONG CỬA SỔ 10 PHÚT TRƯỚC SẬP")
         lbl_events_title.setStyleSheet(f"font-size: 13px; font-weight: bold; color: {COLOR_TEXT_PRIMARY}; border-bottom: 2px solid {COLOR_BORDER}; padding-bottom: 6px;")
@@ -188,22 +198,24 @@ class DetailTab(QWidget):
         self.table_events.setSelectionBehavior(QTableWidget.SelectRows)
         self.table_events.setEditTriggers(QTableWidget.NoEditTriggers)
         self.table_events.verticalHeader().setVisible(False)
+        self.table_events.verticalHeader().setDefaultSectionSize(36)
         events_layout.addWidget(self.table_events)
 
         right_layout.addWidget(events_card, 1)
 
         splitter.addWidget(right_container)
-        splitter.setSizes([380, 620])
+        splitter.setSizes([420, 580])
 
         main_layout.addWidget(splitter, 1)
 
         # 3. Khung Dòng thời gian Crash của máy (Crash Timeline - Phần 2.2)
         timeline_card = QFrame()
         timeline_card.setObjectName("CardFrame")
-        timeline_card.setFixedHeight(170)
+        timeline_card.setMinimumHeight(160)
+        timeline_card.setFixedHeight(180)
         tl_layout = QVBoxLayout(timeline_card)
-        tl_layout.setContentsMargins(12, 8, 12, 8)
-        tl_layout.setSpacing(6)
+        tl_layout.setContentsMargins(18, 14, 18, 14)
+        tl_layout.setSpacing(8)
 
         lbl_tl_title = QLabel("DÒNG THỜI GIAN SỰ CỐ CỦA MÁY (CRASH TIMELINE - PHẦN 2.2)")
         lbl_tl_title.setStyleSheet(f"font-size: 12px; font-weight: bold; color: {COLOR_TEXT_PRIMARY};")
@@ -226,6 +238,7 @@ class DetailTab(QWidget):
         self.table_timeline.setSelectionBehavior(QTableWidget.SelectRows)
         self.table_timeline.setEditTriggers(QTableWidget.NoEditTriggers)
         self.table_timeline.verticalHeader().setVisible(False)
+        self.table_timeline.verticalHeader().setDefaultSectionSize(36)
         self.table_timeline.cellClicked.connect(self._on_timeline_row_clicked)
         tl_layout.addWidget(self.table_timeline)
 

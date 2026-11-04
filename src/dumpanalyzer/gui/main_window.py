@@ -73,10 +73,10 @@ class MainWindow(QMainWindow):
         header_frame = QFrame()
         header_frame.setObjectName("HeaderBar")
         header_layout = QHBoxLayout(header_frame)
-        header_layout.setContentsMargins(20, 12, 20, 12)
+        header_layout.setContentsMargins(20, 14, 20, 14)
 
         title_layout = QVBoxLayout()
-        title_layout.setSpacing(2)
+        title_layout.setSpacing(4)
         lbl_title = QLabel("DumpAnalyzer – Phân tích màn hình xanh & khởi động lại")
         lbl_title.setObjectName("HeaderTitle")
         title_layout.addWidget(lbl_title)
@@ -91,11 +91,11 @@ class MainWindow(QMainWindow):
         # 2. Hàng công cụ điều khiển (Toolbar)
         toolbar_frame = QFrame()
         toolbar_frame.setStyleSheet(
-            f"background-color: {COLOR_BG_SURFACE}; border-bottom: 1px solid {COLOR_BORDER}; padding: 10px 20px;"
+            f"background-color: {COLOR_BG_SURFACE}; border-bottom: 1px solid {COLOR_BORDER}; padding: 12px 20px;"
         )
         toolbar_layout = QHBoxLayout(toolbar_frame)
         toolbar_layout.setContentsMargins(0, 0, 0, 0)
-        toolbar_layout.setSpacing(12)
+        toolbar_layout.setSpacing(14)
 
         # Nguồn dữ liệu
         lbl_src = QLabel("Nguồn dữ liệu:")
@@ -105,6 +105,8 @@ class MainWindow(QMainWindow):
         self.combo_source = QComboBox()
         self.combo_source.addItem("Máy cục bộ này (Quét tự động)", userData="local")
         self.combo_source.addItem("Thư mục dump đã thu về", userData="folder")
+        self.combo_source.setMinimumHeight(34)
+        self.combo_source.setMinimumWidth(230)
         self.combo_source.currentIndexChanged.connect(self._on_source_changed)
         toolbar_layout.addWidget(self.combo_source)
 
@@ -112,7 +114,7 @@ class MainWindow(QMainWindow):
         self.folder_container = QWidget()
         folder_layout = QHBoxLayout(self.folder_container)
         folder_layout.setContentsMargins(0, 0, 0, 0)
-        folder_layout.setSpacing(8)
+        folder_layout.setSpacing(10)
 
         lbl_folder = QLabel("Thư mục:")
         lbl_folder.setStyleSheet(f"font-weight: 600; color: {COLOR_TEXT_MUTED};")
@@ -120,10 +122,12 @@ class MainWindow(QMainWindow):
 
         self.txt_folder = QLineEdit()
         self.txt_folder.setPlaceholderText("Đường dẫn thư mục chứa file dump...")
+        self.txt_folder.setMinimumHeight(34)
         self.txt_folder.setEnabled(False)
         folder_layout.addWidget(self.txt_folder, 1)
 
         self.btn_browse_folder = QPushButton("📁 Duyệt thư mục...")
+        self.btn_browse_folder.setMinimumHeight(34)
         self.btn_browse_folder.setEnabled(False)
         self.btn_browse_folder.clicked.connect(self._on_browse_folder)
         folder_layout.addWidget(self.btn_browse_folder)
@@ -147,6 +151,8 @@ class MainWindow(QMainWindow):
         self.date_from = QDateEdit()
         self.date_from.setCalendarPopup(True)
         self.date_from.setDate(QDate.currentDate().addDays(-30))
+        self.date_from.setMinimumHeight(34)
+        self.date_from.setMinimumWidth(125)
         toolbar_layout.addWidget(self.date_from)
 
         lbl_to = QLabel("Đến:")
@@ -156,24 +162,30 @@ class MainWindow(QMainWindow):
         self.date_to = QDateEdit()
         self.date_to.setCalendarPopup(True)
         self.date_to.setDate(QDate.currentDate())
+        self.date_to.setMinimumHeight(34)
+        self.date_to.setMinimumWidth(125)
         toolbar_layout.addWidget(self.date_to)
 
         # Nút Phân tích (Primary)
         self.btn_analyze = QPushButton("Phân tích")
         self.btn_analyze.setObjectName("PrimaryButton")
+        self.btn_analyze.setMinimumHeight(34)
+        self.btn_analyze.setMinimumWidth(110)
         self.btn_analyze.clicked.connect(self._on_start_analysis)
         toolbar_layout.addWidget(self.btn_analyze)
 
         # Nút Huỷ (ẩn khi không chạy)
         self.btn_cancel = QPushButton("Huỷ")
         self.btn_cancel.setObjectName("DangerButton")
+        self.btn_cancel.setMinimumHeight(34)
         self.btn_cancel.setVisible(False)
         self.btn_cancel.clicked.connect(self._on_cancel_analysis)
         toolbar_layout.addWidget(self.btn_cancel)
 
         # Nút Xuất báo cáo
         self.btn_export = QPushButton("Xuất báo cáo ▾")
-        self.btn_export.setStyleSheet("font-weight: bold; padding: 8px 14px;")
+        self.btn_export.setStyleSheet("font-weight: bold; padding: 8px 16px;")
+        self.btn_export.setMinimumHeight(34)
         self.btn_export.clicked.connect(self._on_export_menu_clicked)
         toolbar_layout.addWidget(self.btn_export)
 

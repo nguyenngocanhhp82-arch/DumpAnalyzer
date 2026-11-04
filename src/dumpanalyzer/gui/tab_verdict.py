@@ -43,8 +43,8 @@ class SuspectBarWidget(QWidget):
     def __init__(self, label: str, percentage: float, parent: Optional[QWidget] = None):
         super().__init__(parent)
         layout = QVBoxLayout(self)
-        layout.setContentsMargins(0, 4, 0, 4)
-        layout.setSpacing(4)
+        layout.setContentsMargins(0, 6, 0, 6)
+        layout.setSpacing(6)
 
         header_layout = QHBoxLayout()
         lbl_name = QLabel(label)
@@ -60,7 +60,7 @@ class SuspectBarWidget(QWidget):
         bar.setRange(0, 100)
         bar.setValue(int(percentage))
         bar.setTextVisible(False)
-        bar.setFixedHeight(8)
+        bar.setFixedHeight(10)
         layout.addWidget(bar)
 
 
@@ -123,17 +123,21 @@ class VerdictTab(QWidget):
         splitter.setHandleWidth(8)
 
         # ==================== CỘT TRÁI: XẾP HẠNG & BẰNG CHỨNG ====================
+        scroll_left = QScrollArea()
+        scroll_left.setWidgetResizable(True)
+        scroll_left.setFrameShape(QFrame.NoFrame)
+
         left_container = QWidget()
         left_layout = QVBoxLayout(left_container)
-        left_layout.setContentsMargins(0, 0, 0, 0)
-        left_layout.setSpacing(14)
+        left_layout.setContentsMargins(0, 0, 10, 0)
+        left_layout.setSpacing(16)
 
         # 1. Thẻ Kết luận đứng đầu & Độ tin cậy
         top_card = QFrame()
         top_card.setObjectName("CardFrame")
         top_layout = QVBoxLayout(top_card)
-        top_layout.setContentsMargins(14, 14, 14, 14)
-        top_layout.setSpacing(10)
+        top_layout.setContentsMargins(18, 16, 18, 16)
+        top_layout.setSpacing(12)
 
         header_row = QHBoxLayout()
         lbl_top_title = QLabel("KẾT LUẬN NGUYÊN NHÂN CHÍNH")
@@ -158,7 +162,7 @@ class VerdictTab(QWidget):
         # Cảnh báo mâu thuẫn (Conflict Warning) nếu dump vs log không thống nhất
         self.conflict_banner = QFrame()
         self.conflict_banner.setStyleSheet(
-            f"background-color: #451a03; border: 1px solid {COLOR_WARNING}; border-radius: 6px; padding: 8px;"
+            f"background-color: #451a03; border: 1px solid {COLOR_WARNING}; border-radius: 6px; padding: 10px;"
         )
         conf_layout = QHBoxLayout(self.conflict_banner)
         conf_layout.setContentsMargins(8, 6, 8, 6)
@@ -180,15 +184,15 @@ class VerdictTab(QWidget):
         ranking_card = QFrame()
         ranking_card.setObjectName("CardFrame")
         ranking_layout = QVBoxLayout(ranking_card)
-        ranking_layout.setContentsMargins(14, 14, 14, 14)
-        ranking_layout.setSpacing(10)
+        ranking_layout.setContentsMargins(18, 16, 18, 16)
+        ranking_layout.setSpacing(12)
 
         lbl_rank_title = QLabel("XẾP HẠNG XÁC SUẤT NGHI VẤN")
         lbl_rank_title.setStyleSheet(f"font-size: 13px; font-weight: bold; color: {COLOR_TEXT_PRIMARY}; border-bottom: 2px solid {COLOR_BORDER}; padding-bottom: 6px;")
         ranking_layout.addWidget(lbl_rank_title)
 
         self.ranking_container = QVBoxLayout()
-        self.ranking_container.setSpacing(8)
+        self.ranking_container.setSpacing(10)
         ranking_layout.addLayout(self.ranking_container)
 
         left_layout.addWidget(ranking_card)
@@ -197,8 +201,8 @@ class VerdictTab(QWidget):
         evidence_card = QFrame()
         evidence_card.setObjectName("CardFrame")
         ev_layout = QVBoxLayout(evidence_card)
-        ev_layout.setContentsMargins(14, 14, 14, 14)
-        ev_layout.setSpacing(8)
+        ev_layout.setContentsMargins(18, 16, 18, 16)
+        ev_layout.setSpacing(12)
 
         lbl_ev_title = QLabel("BẰNG CHỨNG THU THẬP ĐƯỢC (ỦNG HỘ & PHẢN BÁC)")
         lbl_ev_title.setStyleSheet(f"font-size: 13px; font-weight: bold; color: {COLOR_TEXT_PRIMARY}; border-bottom: 2px solid {COLOR_BORDER}; padding-bottom: 6px;")
@@ -207,35 +211,41 @@ class VerdictTab(QWidget):
         scroll_ev = QScrollArea()
         scroll_ev.setWidgetResizable(True)
         scroll_ev.setFrameShape(QFrame.NoFrame)
+        scroll_ev.setMinimumHeight(180)
         self.ev_widget = QWidget()
         self.ev_container = QVBoxLayout(self.ev_widget)
         self.ev_container.setContentsMargins(0, 0, 0, 0)
-        self.ev_container.setSpacing(6)
+        self.ev_container.setSpacing(8)
         scroll_ev.setWidget(self.ev_widget)
         ev_layout.addWidget(scroll_ev, 1)
 
         left_layout.addWidget(evidence_card, 1)
-        splitter.addWidget(left_container)
+        scroll_left.setWidget(left_container)
+        splitter.addWidget(scroll_left)
 
         # ==================== CỘT PHẢI: RATIONALE, KHUYẾN NGHỊ & FEEDBACK ====================
+        scroll_right = QScrollArea()
+        scroll_right.setWidgetResizable(True)
+        scroll_right.setFrameShape(QFrame.NoFrame)
+
         right_container = QWidget()
         right_layout = QVBoxLayout(right_container)
         right_layout.setContentsMargins(0, 0, 0, 0)
-        right_layout.setSpacing(14)
+        right_layout.setSpacing(16)
 
         # 1. Thẻ Giải thích nguyên nhân (Rationale)
         rat_card = QFrame()
         rat_card.setObjectName("CardFrame")
         rat_layout = QVBoxLayout(rat_card)
-        rat_layout.setContentsMargins(14, 14, 14, 14)
-        rat_layout.setSpacing(8)
+        rat_layout.setContentsMargins(18, 16, 18, 16)
+        rat_layout.setSpacing(12)
 
         lbl_rat_title = QLabel("GIẢI THÍCH NGUYÊN NHÂN (RATIONALE)")
         lbl_rat_title.setStyleSheet(f"font-size: 13px; font-weight: bold; color: {COLOR_TEXT_PRIMARY}; border-bottom: 2px solid {COLOR_BORDER}; padding-bottom: 6px;")
         rat_layout.addWidget(lbl_rat_title)
 
         self.lbl_rationale = QLabel("Chưa có dữ liệu phân tích.")
-        self.lbl_rationale.setStyleSheet("color: #e2e8f0; font-size: 13px; line-height: 1.5; padding: 8px 0;")
+        self.lbl_rationale.setStyleSheet("color: #f1f5f9; font-size: 13px; line-height: 1.6; padding: 6px 0;")
         self.lbl_rationale.setWordWrap(True)
         rat_layout.addWidget(self.lbl_rationale)
 
@@ -245,8 +255,8 @@ class VerdictTab(QWidget):
         steps_card = QFrame()
         steps_card.setObjectName("CardFrame")
         steps_layout = QVBoxLayout(steps_card)
-        steps_layout.setContentsMargins(14, 14, 14, 14)
-        steps_layout.setSpacing(10)
+        steps_layout.setContentsMargins(18, 16, 18, 16)
+        steps_layout.setSpacing(12)
 
         lbl_steps_title = QLabel("VIỆC CẦN KIỂM TRA (SẮP XẾP TỪ DỄ ĐẾN KHÓ)")
         lbl_steps_title.setStyleSheet(f"font-size: 13px; font-weight: bold; color: {COLOR_TEXT_PRIMARY}; border-bottom: 2px solid {COLOR_BORDER}; padding-bottom: 6px;")
@@ -255,6 +265,7 @@ class VerdictTab(QWidget):
         scroll_steps = QScrollArea()
         scroll_steps.setWidgetResizable(True)
         scroll_steps.setFrameShape(QFrame.NoFrame)
+        scroll_steps.setMinimumHeight(180)
         self.steps_widget = QWidget()
         self.steps_container = QVBoxLayout(self.steps_widget)
         self.steps_container.setContentsMargins(0, 0, 0, 0)
@@ -267,9 +278,9 @@ class VerdictTab(QWidget):
         # 3. Thẻ Phản hồi của Kỹ thuật viên IT (Feedback - Phần 2.1)
         feedback_card = QFrame()
         feedback_card.setObjectName("CardFrame")
-        feedback_card.setStyleSheet("background-color: #0b1120; border: 1px solid #1e293b; border-radius: 8px; padding: 14px;")
+        feedback_card.setStyleSheet("background-color: #0b1120; border: 1px solid #1e293b; border-radius: 8px; padding: 16px;")
         fb_layout = QVBoxLayout(feedback_card)
-        fb_layout.setSpacing(10)
+        fb_layout.setSpacing(12)
 
         lbl_fb_title = QLabel("ĐÁNH GIÁ ĐỘ CHÍNH XÁC KẾT LUẬN (FEEDBACK)")
         lbl_fb_title.setStyleSheet(f"font-size: 13px; font-weight: bold; color: {COLOR_TEXT_PRIMARY}; border-bottom: 2px solid {COLOR_BORDER}; padding-bottom: 6px;")
@@ -285,20 +296,20 @@ class VerdictTab(QWidget):
 
         self.btn_group_verdict = QButtonGroup(self)
         self.btn_fb_dung = QPushButton("✓ Đúng")
-        self.btn_fb_dung.setStyleSheet("background-color: #1e293b; color: #4ade80; font-weight: bold; padding: 5px 12px; border: 1px solid #4ade80; border-radius: 4px;")
+        self.btn_fb_dung.setStyleSheet("background-color: #1e293b; color: #4ade80; font-weight: bold; padding: 6px 14px; border: 1px solid #4ade80; border-radius: 4px;")
         self.btn_fb_dung.setCheckable(True)
-        self.btn_fb_dung.setMinimumWidth(75)
+        self.btn_fb_dung.setMinimumWidth(80)
 
         self.btn_fb_sai = QPushButton("✗ Sai")
-        self.btn_fb_sai.setStyleSheet("background-color: #1e293b; color: #f87171; font-weight: bold; padding: 5px 12px; border: 1px solid #f87171; border-radius: 4px;")
+        self.btn_fb_sai.setStyleSheet("background-color: #1e293b; color: #f87171; font-weight: bold; padding: 6px 14px; border: 1px solid #f87171; border-radius: 4px;")
         self.btn_fb_sai.setCheckable(True)
-        self.btn_fb_sai.setMinimumWidth(75)
+        self.btn_fb_sai.setMinimumWidth(80)
 
         self.btn_fb_chua_ro = QPushButton("? Chưa rõ")
-        self.btn_fb_chua_ro.setStyleSheet("background-color: #1e293b; color: #facc15; font-weight: bold; padding: 5px 12px; border: 1px solid #facc15; border-radius: 4px;")
+        self.btn_fb_chua_ro.setStyleSheet("background-color: #1e293b; color: #facc15; font-weight: bold; padding: 6px 14px; border: 1px solid #facc15; border-radius: 4px;")
         self.btn_fb_chua_ro.setCheckable(True)
         self.btn_fb_chua_ro.setChecked(True)
-        self.btn_fb_chua_ro.setMinimumWidth(75)
+        self.btn_fb_chua_ro.setMinimumWidth(80)
 
         self.btn_group_verdict.addButton(self.btn_fb_dung)
         self.btn_group_verdict.addButton(self.btn_fb_sai)
@@ -308,7 +319,7 @@ class VerdictTab(QWidget):
         row_eval.addWidget(self.btn_fb_sai)
         row_eval.addWidget(self.btn_fb_chua_ro)
 
-        row_eval.addSpacing(12)
+        row_eval.addSpacing(14)
 
         lbl_cause = QLabel("Nguyên nhân:")
         lbl_cause.setStyleSheet(f"color: {COLOR_TEXT_MUTED}; font-size: 12px; font-weight: 500;")
@@ -317,6 +328,7 @@ class VerdictTab(QWidget):
         self.combo_actual_cause = QComboBox()
         self.combo_actual_cause.addItems(["ram", "storage", "driver", "gpu", "psu", "cpu", "thermal", "software", "Khác"])
         self.combo_actual_cause.setMinimumWidth(110)
+        self.combo_actual_cause.setMinimumHeight(32)
         row_eval.addWidget(self.combo_actual_cause)
 
         row_eval.addStretch()
@@ -332,6 +344,7 @@ class VerdictTab(QWidget):
 
         self.txt_feedback_note = QLineEdit()
         self.txt_feedback_note.setPlaceholderText("Ghi chú kinh nghiệm xử lý thực tế của KTV...")
+        self.txt_feedback_note.setMinimumHeight(32)
         row_note.addWidget(self.txt_feedback_note, 1)
 
         fb_layout.addLayout(row_note)
@@ -341,12 +354,13 @@ class VerdictTab(QWidget):
         row_actions.setSpacing(12)
 
         self.btn_save_feedback = QPushButton("💾 Lưu phản hồi của KTV")
-        self.btn_save_feedback.setStyleSheet("background-color: #0284c7; color: #ffffff; font-weight: bold; padding: 6px 18px; border-radius: 4px;")
+        self.btn_save_feedback.setStyleSheet("background-color: #0284c7; color: #ffffff; font-weight: bold; padding: 7px 20px; border-radius: 4px;")
+        self.btn_save_feedback.setMinimumHeight(34)
         self.btn_save_feedback.clicked.connect(self._on_save_feedback)
         row_actions.addWidget(self.btn_save_feedback)
 
         self.lbl_feedback_msg = QLabel("")
-        self.lbl_feedback_msg.setStyleSheet("color: #4ade80; font-size: 11px; font-weight: 500;")
+        self.lbl_feedback_msg.setStyleSheet("color: #4ade80; font-size: 12px; font-weight: 500;")
         row_actions.addWidget(self.lbl_feedback_msg, 1)
 
         fb_layout.addLayout(row_actions)
@@ -355,15 +369,17 @@ class VerdictTab(QWidget):
 
         # 4. Hàng nút xuất báo cáo & Lưu ý kỹ thuật
         bottom_actions = QHBoxLayout()
-        bottom_actions.setSpacing(12)
+        bottom_actions.setSpacing(14)
 
         self.btn_export_html = QPushButton("Xuất báo cáo HTML")
-        self.btn_export_html.setStyleSheet("background-color: #2563eb; color: #ffffff; font-weight: bold; padding: 9px 18px; border-radius: 6px;")
+        self.btn_export_html.setStyleSheet("background-color: #2563eb; color: #ffffff; font-weight: bold; padding: 9px 20px; border-radius: 6px;")
+        self.btn_export_html.setMinimumHeight(36)
         self.btn_export_html.clicked.connect(self._on_export_html_clicked)
         bottom_actions.addWidget(self.btn_export_html)
 
         self.btn_export_excel = QPushButton("Xuất báo cáo Excel (.xlsx)")
-        self.btn_export_excel.setStyleSheet("background-color: #15803d; color: #ffffff; font-weight: bold; padding: 9px 18px; border-radius: 6px;")
+        self.btn_export_excel.setStyleSheet("background-color: #15803d; color: #ffffff; font-weight: bold; padding: 9px 20px; border-radius: 6px;")
+        self.btn_export_excel.setMinimumHeight(36)
         self.btn_export_excel.clicked.connect(self._on_export_excel_clicked)
         bottom_actions.addWidget(self.btn_export_excel)
 
@@ -371,10 +387,11 @@ class VerdictTab(QWidget):
         right_layout.addLayout(bottom_actions)
 
         lbl_disclaimer = QLabel("Lưu ý: Kết luận là khoanh vùng xác suất theo quy tắc, không phải khẳng định tuyệt đối.")
-        lbl_disclaimer.setStyleSheet(f"color: {COLOR_TEXT_MUTED}; font-size: 11px; font-style: italic;")
+        lbl_disclaimer.setStyleSheet(f"color: {COLOR_TEXT_MUTED}; font-size: 12px; font-style: italic;")
         right_layout.addWidget(lbl_disclaimer)
 
-        splitter.addWidget(right_container)
+        scroll_right.setWidget(right_container)
+        splitter.addWidget(scroll_right)
         splitter.setSizes([450, 550])
 
         main_layout.addWidget(splitter)
@@ -528,10 +545,10 @@ class VerdictTab(QWidget):
         ev_card = QFrame()
         bg_col = "#1c1917" if is_refute else "#0b1120"
         border_col = "#78350f" if is_refute else "#1e293b"
-        ev_card.setStyleSheet(f"background-color: {bg_col}; border: 1px solid {border_col}; border-radius: 6px; padding: 6px;")
+        ev_card.setStyleSheet(f"background-color: {bg_col}; border: 1px solid {border_col}; border-radius: 6px; padding: 10px 12px;")
         card_l = QVBoxLayout(ev_card)
-        card_l.setContentsMargins(6, 4, 6, 4)
-        card_l.setSpacing(2)
+        card_l.setContentsMargins(10, 8, 10, 8)
+        card_l.setSpacing(6)
 
         top_l = QHBoxLayout()
         ev_type = getattr(ev, "kind", getattr(ev, "evidence_type", "eventlog"))
@@ -546,20 +563,20 @@ class VerdictTab(QWidget):
             badge_color = "#38bdf8"
 
         lbl_badge = QLabel(badge_text)
-        lbl_badge.setStyleSheet(f"color: {badge_color}; font-weight: bold; font-size: 11px;")
+        lbl_badge.setStyleSheet(f"color: {badge_color}; font-weight: bold; font-size: 12px;")
         top_l.addWidget(lbl_badge)
 
         weight = getattr(ev, "weight", 10)
         sign = "-" if is_refute else "+"
         w_color = "#fb923c" if is_refute else "#4ade80"
         lbl_w = QLabel(f"{sign}{weight}")
-        lbl_w.setStyleSheet(f"color: {w_color}; font-weight: bold; font-size: 11px;")
+        lbl_w.setStyleSheet(f"color: {w_color}; font-weight: bold; font-size: 12px;")
         top_l.addWidget(lbl_w, alignment=Qt.AlignRight)
         card_l.addLayout(top_l)
 
         detail = getattr(ev, "detail", getattr(ev, "details", getattr(ev, "summary", "-")))
         lbl_d = QLabel(detail)
-        lbl_d.setStyleSheet("color: #cbd5e1; font-size: 11px;")
+        lbl_d.setStyleSheet("color: #e2e8f0; font-size: 12px; line-height: 1.4;")
         lbl_d.setWordWrap(True)
         card_l.addWidget(lbl_d)
         return ev_card
@@ -567,21 +584,21 @@ class VerdictTab(QWidget):
     def _create_step_widget(self, index: int, step_text: str) -> QWidget:
         """Tạo widget cho một bước kiểm tra kèm huy hiệu phân loại độ khó."""
         w = QFrame()
-        w.setStyleSheet("background-color: #0b1120; border: 1px solid #1e293b; border-radius: 6px; padding: 8px;")
+        w.setStyleSheet("background-color: #0b1120; border: 1px solid #1e293b; border-radius: 6px; padding: 10px 14px;")
         l = QHBoxLayout(w)
-        l.setContentsMargins(8, 6, 8, 6)
-        l.setSpacing(10)
+        l.setContentsMargins(10, 8, 10, 8)
+        l.setSpacing(12)
 
         # Huy hiệu độ khó
         badge_style, badge_text = self._get_tier_badge_info(step_text)
         lbl_tier = QLabel(badge_text)
         lbl_tier.setStyleSheet(badge_style)
-        lbl_tier.setFixedHeight(20)
+        lbl_tier.setFixedHeight(22)
         l.addWidget(lbl_tier)
 
         # Nội dung bước
         lbl_text = QLabel(f"<b>{index}.</b> {step_text}")
-        lbl_text.setStyleSheet("color: #e2e8f0; font-size: 12px;")
+        lbl_text.setStyleSheet("color: #f1f5f9; font-size: 13px; line-height: 1.4;")
         lbl_text.setWordWrap(True)
         l.addWidget(lbl_text, 1)
 

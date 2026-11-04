@@ -83,14 +83,14 @@ QFrame#CardFrame {{
     background-color: {COLOR_BG_SURFACE};
     border: 1px solid {COLOR_BORDER};
     border-radius: 8px;
-    padding: 12px;
+    padding: 16px;
 }}
 
 /* Toolbar & Header Controls */
 QFrame#HeaderBar {{
     background-color: {COLOR_BG_SURFACE};
     border-bottom: 2px solid {COLOR_BORDER};
-    padding: 12px 16px;
+    padding: 14px 20px;
 }}
 
 QLabel#HeaderTitle {{
@@ -100,7 +100,7 @@ QLabel#HeaderTitle {{
 }}
 
 QLabel#HeaderSubtitle {{
-    font-size: 12px;
+    font-size: 13px;
     color: {COLOR_TEXT_MUTED};
 }}
 
@@ -114,7 +114,7 @@ QTabWidget::pane {{
 QTabBar::tab {{
     background-color: {COLOR_BG_SURFACE};
     color: {COLOR_TEXT_MUTED};
-    padding: 10px 24px;
+    padding: 10px 22px;
     margin-right: 4px;
     border-top-left-radius: 6px;
     border-top-right-radius: 6px;
@@ -141,9 +141,9 @@ QPushButton {{
     color: {COLOR_TEXT_PRIMARY};
     border: 1px solid {COLOR_BORDER_LIGHT};
     border-radius: 6px;
-    padding: 8px 16px;
+    padding: 8px 18px;
     font-weight: 600;
-    min-height: 20px;
+    min-height: 22px;
 }}
 
 QPushButton:hover {{
@@ -160,7 +160,7 @@ QPushButton#PrimaryButton {{
     border: 1px solid {COLOR_ACCENT_HOVER};
     font-weight: bold;
     font-size: 13px;
-    padding: 9px 20px;
+    padding: 9px 22px;
 }}
 
 QPushButton#PrimaryButton:hover {{
@@ -184,9 +184,9 @@ QLineEdit, QComboBox, QDateTimeEdit, QDateEdit, QSpinBox {{
     color: {COLOR_TEXT_PRIMARY};
     border: 1px solid {COLOR_BORDER_LIGHT};
     border-radius: 6px;
-    padding: 6px 10px;
+    padding: 7px 12px;
     selection-background-color: {COLOR_ACCENT};
-    min-height: 20px;
+    min-height: 24px;
 }}
 
 QLineEdit:focus, QComboBox:focus, QDateTimeEdit:focus, QDateEdit:focus {{
@@ -219,7 +219,7 @@ QTableWidget {{
 }}
 
 QTableWidget::item {{
-    padding: 8px 10px;
+    padding: 9px 12px;
     border-bottom: 1px solid {COLOR_BORDER};
 }}
 
@@ -227,9 +227,9 @@ QHeaderView::section {{
     background-color: #0b1120;
     color: {COLOR_TEXT_MUTED};
     font-weight: bold;
-    font-size: 11px;
+    font-size: 12px;
     text-transform: uppercase;
-    padding: 8px 10px;
+    padding: 10px 12px;
     border: none;
     border-right: 1px solid {COLOR_BORDER};
     border-bottom: 2px solid {COLOR_BORDER};

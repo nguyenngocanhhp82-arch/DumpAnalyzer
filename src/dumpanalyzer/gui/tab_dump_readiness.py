@@ -120,8 +120,8 @@ class DumpReadinessTab(QWidget):
 
     def _init_ui(self) -> None:
         main_layout = QVBoxLayout(self)
-        main_layout.setContentsMargins(12, 12, 12, 12)
-        main_layout.setSpacing(10)
+        main_layout.setContentsMargins(18, 16, 18, 16)
+        main_layout.setSpacing(14)
 
         # Tab widget phân chia Máy cục bộ và Đội máy
         self.sub_tabs = QTabWidget()
@@ -146,33 +146,33 @@ class DumpReadinessTab(QWidget):
 
         inner = QWidget()
         inner_layout = QVBoxLayout(inner)
-        inner_layout.setContentsMargins(10, 10, 10, 10)
-        inner_layout.setSpacing(14)
+        inner_layout.setContentsMargins(16, 16, 16, 16)
+        inner_layout.setSpacing(18)
 
         # 1. Huy hiệu trạng thái lớn ở trên cùng (Badge)
         self.badge_frame = QFrame()
         self.badge_frame.setObjectName("CardFrame")
         badge_layout = QVBoxLayout(self.badge_frame)
-        badge_layout.setContentsMargins(16, 16, 16, 16)
-        badge_layout.setSpacing(8)
+        badge_layout.setContentsMargins(20, 18, 20, 18)
+        badge_layout.setSpacing(12)
 
         top_row = QHBoxLayout()
         self.lbl_status_badge = QLabel("ĐANG KIỂM TRA...")
         self.lbl_status_badge.setAlignment(Qt.AlignCenter)
         self.lbl_status_badge.setStyleSheet(
-            f"background-color: {COLOR_BG_INPUT}; color: {COLOR_TEXT_PRIMARY}; font-weight: bold; padding: 8px 16px; border-radius: 8px; font-size: 15px;"
+            f"background-color: {COLOR_BG_INPUT}; color: {COLOR_TEXT_PRIMARY}; font-weight: bold; padding: 10px 24px; border-radius: 8px; font-size: 15px; min-height: 24px;"
         )
         top_row.addWidget(self.lbl_status_badge)
 
         self.lbl_proof_badge = QLabel("Mức chứng minh: Chưa rõ")
         self.lbl_proof_badge.setStyleSheet(
-            f"color: {COLOR_TEXT_MUTED}; font-size: 12px; font-weight: 600; padding: 4px 8px;"
+            f"color: {COLOR_TEXT_MUTED}; font-size: 12px; font-weight: 600; padding: 6px 10px;"
         )
         top_row.addWidget(self.lbl_proof_badge, alignment=Qt.AlignRight)
         badge_layout.addLayout(top_row)
 
         self.lbl_status_summary = QLabel("Đang tải dữ liệu kiểm tra khả năng ghi dump...")
-        self.lbl_status_summary.setStyleSheet(f"font-size: 13px; color: {COLOR_TEXT_PRIMARY};")
+        self.lbl_status_summary.setStyleSheet(f"font-size: 13px; color: {COLOR_TEXT_PRIMARY}; line-height: 1.4;")
         self.lbl_status_summary.setWordWrap(True)
         badge_layout.addWidget(self.lbl_status_summary)
 
@@ -180,7 +180,8 @@ class DumpReadinessTab(QWidget):
 
         # 2. Lưới 4 Thẻ con chi tiết (2x2 Grid)
         grid_cards = QGridLayout()
-        grid_cards.setSpacing(12)
+        grid_cards.setHorizontalSpacing(16)
+        grid_cards.setVerticalSpacing(16)
 
         # Card 1: Registry CrashControl
         self.card_registry = self._create_card("1. Cấu hình Registry (CrashControl)")
@@ -235,7 +236,7 @@ class DumpReadinessTab(QWidget):
         # 3. Hộp Lý do và Khuyến nghị
         reasons_card = self._create_card("Lý do chi tiết & Khuyến nghị hành động")
         self.txt_reasons = QLabel("Không có cảnh báo.")
-        self.txt_reasons.setStyleSheet(f"color: {COLOR_TEXT_PRIMARY}; font-size: 13px;")
+        self.txt_reasons.setStyleSheet(f"color: {COLOR_TEXT_PRIMARY}; font-size: 13px; line-height: 1.5; padding: 4px 0;")
         self.txt_reasons.setWordWrap(True)
         reasons_card.layout().addWidget(self.txt_reasons)
         inner_layout.addWidget(reasons_card)
@@ -244,32 +245,37 @@ class DumpReadinessTab(QWidget):
         actions_frame = QFrame()
         actions_layout = QHBoxLayout(actions_frame)
         actions_layout.setContentsMargins(0, 0, 0, 0)
-        actions_layout.setSpacing(10)
+        actions_layout.setSpacing(12)
 
         self.btn_refresh = QPushButton("🔄 Kiểm tra lại (F5)")
-        self.btn_refresh.setStyleSheet("font-weight: bold; padding: 8px 14px;")
+        self.btn_refresh.setStyleSheet("font-weight: bold; padding: 8px 16px;")
+        self.btn_refresh.setMinimumHeight(34)
         self.btn_refresh.clicked.connect(self.refresh_local)
         actions_layout.addWidget(self.btn_refresh)
 
         self.btn_enable = QPushButton("⚡ Bật ghi dump an toàn")
         self.btn_enable.setStyleSheet(
-            f"background-color: {COLOR_SUCCESS}; color: #ffffff; font-weight: bold; padding: 8px 16px; border-radius: 6px;"
+            f"background-color: {COLOR_SUCCESS}; color: #ffffff; font-weight: bold; padding: 8px 18px; border-radius: 6px;"
         )
+        self.btn_enable.setMinimumHeight(34)
         self.btn_enable.clicked.connect(self._on_enable_clicked)
         actions_layout.addWidget(self.btn_enable)
 
         self.btn_rollback = QPushButton("↩ Hoàn tác thay đổi")
-        self.btn_rollback.setStyleSheet("font-weight: bold; padding: 8px 14px;")
+        self.btn_rollback.setStyleSheet("font-weight: bold; padding: 8px 16px;")
+        self.btn_rollback.setMinimumHeight(34)
         self.btn_rollback.clicked.connect(self._on_rollback_clicked)
         actions_layout.addWidget(self.btn_rollback)
 
         self.btn_package = QPushButton("📦 Xuất gói triển khai (.ps1)")
-        self.btn_package.setStyleSheet("font-weight: bold; padding: 8px 14px;")
+        self.btn_package.setStyleSheet("font-weight: bold; padding: 8px 16px;")
+        self.btn_package.setMinimumHeight(34)
         self.btn_package.clicked.connect(self._on_package_clicked)
         actions_layout.addWidget(self.btn_package)
 
         self.btn_open_dir = QPushButton("📁 Mở thư mục sao lưu")
-        self.btn_open_dir.setStyleSheet("font-weight: bold; padding: 8px 14px;")
+        self.btn_open_dir.setStyleSheet("font-weight: bold; padding: 8px 16px;")
+        self.btn_open_dir.setMinimumHeight(34)
         self.btn_open_dir.clicked.connect(self._on_open_backup_dir)
         actions_layout.addWidget(self.btn_open_dir)
 
@@ -286,11 +292,11 @@ class DumpReadinessTab(QWidget):
         card = QFrame()
         card.setObjectName("CardFrame")
         card_layout = QVBoxLayout(card)
-        card_layout.setContentsMargins(14, 12, 14, 12)
-        card_layout.setSpacing(6)
+        card_layout.setContentsMargins(18, 16, 18, 16)
+        card_layout.setSpacing(10)
         lbl_t = QLabel(title)
         lbl_t.setStyleSheet(
-            f"font-size: 13px; font-weight: bold; color: {COLOR_TEXT_PRIMARY}; border-bottom: 1px solid {COLOR_BORDER}; padding-bottom: 4px;"
+            f"font-size: 13px; font-weight: bold; color: {COLOR_TEXT_PRIMARY}; border-bottom: 1px solid {COLOR_BORDER}; padding-bottom: 8px; margin-bottom: 4px;"
         )
         card_layout.addWidget(lbl_t)
         return card
@@ -300,12 +306,12 @@ class DumpReadinessTab(QWidget):
     def _build_fleet_tab(self) -> QWidget:
         container = QWidget()
         layout = QVBoxLayout(container)
-        layout.setContentsMargins(10, 10, 10, 10)
-        layout.setSpacing(12)
+        layout.setContentsMargins(20, 20, 20, 20)
+        layout.setSpacing(16)
 
         # Toolbar trên cùng
         tb = QHBoxLayout()
-        tb.setSpacing(10)
+        tb.setSpacing(12)
 
         lbl_dir = QLabel("Thư mục chia sẻ báo cáo:")
         lbl_dir.setStyleSheet(f"font-weight: 600; color: {COLOR_TEXT_MUTED};")
@@ -313,23 +319,27 @@ class DumpReadinessTab(QWidget):
 
         self.txt_fleet_dir = QLineEdit()
         self.txt_fleet_dir.setPlaceholderText("Đường dẫn UNC (\\\\server\\share) hoặc thư mục local...")
+        self.txt_fleet_dir.setMinimumHeight(34)
         tb.addWidget(self.txt_fleet_dir, 1)
 
         btn_browse_fleet = QPushButton("Duyệt...")
+        btn_browse_fleet.setMinimumHeight(34)
         btn_browse_fleet.clicked.connect(self._on_browse_fleet_dir)
         tb.addWidget(btn_browse_fleet)
 
         self.btn_load_fleet = QPushButton("📥 Nạp báo cáo đội máy")
         self.btn_load_fleet.setStyleSheet(
-            f"background-color: {COLOR_ACCENT}; color: #ffffff; font-weight: bold; padding: 6px 14px; border-radius: 4px;"
+            f"background-color: {COLOR_ACCENT}; color: #ffffff; font-weight: bold; padding: 7px 16px; border-radius: 6px;"
         )
+        self.btn_load_fleet.setMinimumHeight(34)
         self.btn_load_fleet.clicked.connect(self._on_load_fleet_clicked)
         tb.addWidget(self.btn_load_fleet)
 
         self.btn_export_fleet_excel = QPushButton("📊 Xuất báo cáo Excel (.xlsx)")
         self.btn_export_fleet_excel.setStyleSheet(
-            f"background-color: {COLOR_SUCCESS}; color: #ffffff; font-weight: bold; padding: 6px 14px; border-radius: 4px;"
+            f"background-color: {COLOR_SUCCESS}; color: #ffffff; font-weight: bold; padding: 7px 16px; border-radius: 6px;"
         )
+        self.btn_export_fleet_excel.setMinimumHeight(34)
         self.btn_export_fleet_excel.clicked.connect(self._on_export_fleet_excel_clicked)
         tb.addWidget(self.btn_export_fleet_excel)
 
@@ -339,8 +349,8 @@ class DumpReadinessTab(QWidget):
         kpi_frame = QFrame()
         kpi_frame.setObjectName("CardFrame")
         kpi_layout = QHBoxLayout(kpi_frame)
-        kpi_layout.setContentsMargins(12, 10, 12, 10)
-        kpi_layout.setSpacing(20)
+        kpi_layout.setContentsMargins(18, 16, 18, 16)
+        kpi_layout.setSpacing(24)
 
         self.lbl_kpi_total = QLabel("Tổng số máy: 0")
         self.lbl_kpi_total.setStyleSheet("font-weight: bold; font-size: 13px;")
@@ -367,23 +377,26 @@ class DumpReadinessTab(QWidget):
 
         # Thanh tìm kiếm & lọc
         filter_row = QHBoxLayout()
-        filter_row.setSpacing(10)
+        filter_row.setSpacing(12)
 
         lbl_filter = QLabel("Lọc trạng thái:")
-        lbl_filter.setStyleSheet(f"color: {COLOR_TEXT_MUTED}; font-size: 12px;")
+        lbl_filter.setStyleSheet(f"color: {COLOR_TEXT_MUTED}; font-size: 12px; font-weight: 500;")
         filter_row.addWidget(lbl_filter)
 
         self.combo_fleet_filter = QComboBox()
         self.combo_fleet_filter.addItems(["Tất cả", "READY", "READY_PENDING_REBOOT", "ATTENTION", "BLOCKED", "UNKNOWN", "Quá hạn (>14 ngày)"])
+        self.combo_fleet_filter.setMinimumHeight(34)
+        self.combo_fleet_filter.setMinimumWidth(180)
         self.combo_fleet_filter.currentTextChanged.connect(self._apply_fleet_filter)
         filter_row.addWidget(self.combo_fleet_filter)
 
         lbl_search = QLabel("Tìm tên máy:")
-        lbl_search.setStyleSheet(f"color: {COLOR_TEXT_MUTED}; font-size: 12px;")
+        lbl_search.setStyleSheet(f"color: {COLOR_TEXT_MUTED}; font-size: 12px; font-weight: 500;")
         filter_row.addWidget(lbl_search)
 
         self.txt_fleet_search = QLineEdit()
         self.txt_fleet_search.setPlaceholderText("Nhập hostname...")
+        self.txt_fleet_search.setMinimumHeight(34)
         self.txt_fleet_search.textChanged.connect(self._apply_fleet_filter)
         filter_row.addWidget(self.txt_fleet_search, 1)
 
@@ -396,6 +409,7 @@ class DumpReadinessTab(QWidget):
         ])
         self.table_fleet.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeToContents)
         self.table_fleet.horizontalHeader().setStretchLastSection(True)
+        self.table_fleet.verticalHeader().setDefaultSectionSize(36)
         self.table_fleet.setAlternatingRowColors(True)
         layout.addWidget(self.table_fleet, 1)
 
