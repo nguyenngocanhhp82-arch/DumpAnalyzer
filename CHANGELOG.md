@@ -2,6 +2,36 @@
 
 Mọi thay đổi quan trọng của dự án DumpAnalyzer được ghi lại tại tài liệu này theo từng phiên bản và ngày tháng thực hiện.
 
+## [v1.2.1] - 2026-11-04
+
+### Bản vá HOTFIX 03 — Sửa lỗi luồng phân tích GUI & Chuẩn hóa Pipeline Tập trung
+- **Chuẩn hóa Bộ tìm kiếm Dump (`src/dumpanalyzer/collectors/dump_finder.py`):**
+  - Khắc phục triệt để lỗi `'WindowsPath' object is not iterable` (hoặc `PosixPath` trên Linux) khi truyền đối tượng `Path` hoặc `str` đơn lẻ vào `find_dumps`.
+  - Tự động bọc tham số `search_paths` thành `[search_paths]` nếu là `str` hoặc `os.PathLike`.
+  - Ngăn ngừa duyệt từng ký tự chuỗi đường dẫn gây quét nhầm toàn bộ ổ đĩa gốc và phát sinh lỗi quyền truy cập.
+- **Tách Pipeline Phân tích Tập trung (`src/dumpanalyzer/engine/pipeline.py`):**
+  - Xây dựng module mới `run_analysis(...)` chuẩn hoá toàn bộ luồng phân tích đầu-cuối: quét dump, nạp cache CSDL SQLite, trích xuất cdb/header, thu thập Windows Event Log và lịch sử cập nhật Windows, tổng hợp bằng chứng, tính toán điểm nghi ngờ và sinh kết luận Finding.
+  - Đảm bảo tính nhất quán 100% giữa giao diện đồ hoạ GUI và dòng lệnh CLI.
+  - Sửa toàn diện 5 điểm gọi sai trong pipeline:
+    1. Dump collection: truyền danh sách `[folder_path]` / danh sách đường dẫn hợp lệ.
+    2. Truy cập kết quả `find_dumps`: coi kết quả là dictionary và truy xuất `item["path"]` (đối tượng `Path`), không dùng trực tiếp thuộc tính của dict.
+    3. Tương quan cập nhật Windows: gọi `correlator.correlate_recent_updates(crashes, updates)` 1 lần duy nhất cho toàn bộ danh sách crash thay vì gọi lặp trong vòng lặp từng crash.
+    4. Chấm điểm sự cố máy: gọi `score_machine_crashes(crashes_with_evs, rules, settings)` với danh sách tuple `[(Crash, List[Evidence])]` và trả về kết quả chấm điểm có cấu trúc.
+    5. Sinh kết luận: gọi `generate_machine_finding(machine_id, scored_result, rules)` đúng chữ ký hàm engine.
+  - Xử lý êm thuận khi không tìm thấy file dump nào trên máy: trả về Finding mức `"không đủ dữ kiện"` kèm thông điệp tiếng Việt thân thiện, không ném ngoại lệ.
+- **Tái cấu trúc Luồng GUI Worker & Cải tiến Báo lỗi (`src/dumpanalyzer/gui/worker.py`, `src/dumpanalyzer/gui/main_window.py`):**
+  - `AnalysisWorker` ủy quyền toàn bộ cho `run_analysis`, đồng bộ hoá thanh tiến trình và thông báo trạng thái qua callback.
+  - Hỗ trợ kiểm tra cờ huỷ an toàn `_is_cancelled` ngay từ bước 0 và xuyên suốt pipeline.
+  - Tín hiệu lỗi `error = Signal(str, str)` chuyển đầy đủ tóm tắt lỗi có tên loại lỗi `(TênLoạiLỗi)` và chi tiết kỹ thuật (`traceback`).
+  - Hộp thoại báo lỗi của `MainWindow` hiển thị chi tiết kỹ thuật có thể mở rộng (collapsible detailed text), đường dẫn file log `logs/dumpanalyzer.log`, và nút chức năng **Sao chép chi tiết** để người dùng dễ dàng báo cáo cho bộ phận phát triển.
+- **Bộ Kiểm thử Tự động Bổ sung:**
+  - `tests/test_dump_finder.py`: kiểm tra `find_dumps` chấp nhận `Path`, `str`, danh sách `Path`/`str`, file đơn lẻ và đường dẫn không tồn tại.
+  - `tests/test_pipeline.py`: kiểm thử đầu-cuối nguồn `folder`, nguồn `local` giả lập, trường hợp 0 dump, huỷ phân tích và đối chiếu tương đồng 100% giữa kết luận GUI và CLI.
+  - `tests/test_gui_worker.py`: kiểm thử worker chạy đồng bộ, worker phát tín hiệu lỗi kèm chi tiết, worker huỷ tiến trình an toàn.
+  - `tests/test_gui.py`: bổ sung smoke test toàn diện nạp payload pipeline, chuyển qua lại 6 tab, xuất báo cáo HTML và Excel không văng lỗi.
+
+---
+
 ## [v1.2.0] - 2026-11-03
 
 ### Đợt Cập nhật 04 — Củng cố Sẵn sàng Ghi Dump & Quản lý Cấu hình Toàn đội
