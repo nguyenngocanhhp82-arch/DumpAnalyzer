@@ -414,8 +414,15 @@ class VerdictTab(QWidget):
             top_text = "Chưa rõ"
             if self._suspect_ranking:
                 s0 = self._suspect_ranking[0]
-                label = s0.get("label", s0.get("suspect", "Khác"))
-                pct = float(s0.get("percentage", s0.get("score", 0.0)))
+                if isinstance(s0, dict):
+                    label = s0.get("label", s0.get("suspect", "Khác"))
+                    pct = float(s0.get("percentage", s0.get("score", 0.0)))
+                elif isinstance(s0, (list, tuple)) and len(s0) >= 2:
+                    label = str(s0[0])
+                    pct = float(s0[1])
+                else:
+                    label = str(s0)
+                    pct = 0.0
                 top_text = f"{label} ({pct:.1f}%)"
             elif hasattr(finding, "suspect"):
                 top_text = f"{finding.suspect} ({finding.score:.1f}%)"
@@ -443,8 +450,15 @@ class VerdictTab(QWidget):
         self._clear_layout(self.ranking_container)
         if self._suspect_ranking:
             for s in self._suspect_ranking:
-                label = s.get("label", s.get("suspect", "Khác"))
-                pct = float(s.get("percentage", s.get("score", 0.0)))
+                if isinstance(s, dict):
+                    label = s.get("label", s.get("suspect", "Khác"))
+                    pct = float(s.get("percentage", s.get("score", 0.0)))
+                elif isinstance(s, (list, tuple)) and len(s) >= 2:
+                    label = str(s[0])
+                    pct = float(s[1])
+                else:
+                    label = str(s)
+                    pct = 0.0
                 bar_item = SuspectBarWidget(label, pct)
                 self.ranking_container.addWidget(bar_item)
         else:

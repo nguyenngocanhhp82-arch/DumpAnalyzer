@@ -74,3 +74,37 @@ def test_cleanup_workspace(tmp_path):
     assert keep_file.exists()
     assert original.exists()
 
+
+def test_find_dumps_accepts_path_object():
+    """Tái hiện lỗi: truyền Path object vào find_dumps ném TypeError trên code cũ."""
+    fixtures_dir = Path(__file__).resolve().parent / "fixtures"
+    dumps = find_dumps(fixtures_dir)
+    assert len(dumps) >= 4
+    filenames = [d["filename"] for d in dumps]
+    assert "kernel_sample_124.dmp" in filenames
+
+
+def test_find_dumps_accepts_single_str():
+    """Tái hiện lỗi: truyền chuỗi str đơn lẻ lặp từng ký tự trên code cũ."""
+    fixtures_dir = Path(__file__).resolve().parent / "fixtures"
+    dumps = find_dumps(str(fixtures_dir))
+    assert len(dumps) >= 4
+    filenames = [d["filename"] for d in dumps]
+    assert "kernel_sample_124.dmp" in filenames
+
+
+def test_find_dumps_single_file_and_nonexistent(tmp_path):
+    """Kiểm tra truyền đường dẫn file đơn lẻ và đường dẫn không tồn tại."""
+    dmp_file = tmp_path / "single.dmp"
+    dmp_file.write_bytes(b"DUMP")
+
+    # 1. Truyền 1 file đơn lẻ dạng Path
+    dumps = find_dumps(dmp_file)
+    assert len(dumps) == 1
+    assert dumps[0]["filename"] == "single.dmp"
+
+    # 2. Truyền đường dẫn không tồn tại (không ném ngoại lệ)
+    no_dumps = find_dumps(tmp_path / "does_not_exist")
+    assert no_dumps == []
+
+

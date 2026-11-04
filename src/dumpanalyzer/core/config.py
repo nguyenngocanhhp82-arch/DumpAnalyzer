@@ -8,7 +8,7 @@ import sys
 import shutil
 import ctypes
 from pathlib import Path
-from typing import Dict, Any, List, Optional
+from typing import Dict, Any, List, Optional, Union
 import yaml
 
 
@@ -106,7 +106,7 @@ def get_settings_path() -> Path:
     return get_project_root() / "config" / "settings.yaml"
 
 
-def load_settings(config_path: Optional[str] = None) -> Dict[str, Any]:
+def load_settings(config_path: Optional[Union[str, Path]] = None) -> Dict[str, Any]:
     """Nạp file settings.yaml, tự động kết hợp với giá trị mặc định an toàn."""
     settings = dict(DEFAULT_SETTINGS)
 

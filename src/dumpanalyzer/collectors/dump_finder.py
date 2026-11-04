@@ -11,7 +11,7 @@ import shutil
 import hashlib
 from pathlib import Path
 from datetime import datetime, timezone
-from typing import List, Dict, Any, Optional, Union
+from typing import List, Dict, Any, Optional, Sequence, Union
 from dumpanalyzer.core.timeutil import parse_to_utc
 from dumpanalyzer.core.logging_setup import get_logger
 
@@ -66,12 +66,13 @@ def calculate_fast_hash(file_path: Union[str, Path]) -> str:
 
 
 def find_dumps(
-    search_paths: List[str],
+    search_paths: Union[Sequence[Union[str, Path]], str, Path],
     from_date: Optional[Union[str, datetime]] = None,
     to_date: Optional[Union[str, datetime]] = None,
 ) -> List[Dict[str, Any]]:
     """
     Quét tìm các file dump (*.dmp, *.DMP) trong danh sách thư mục hoặc file đơn lẻ.
+    Hỗ trợ tham số là str, Path đơn lẻ hoặc danh sách các đường dẫn.
     Hỗ trợ lọc theo khoảng thời gian sửa đổi (mtime).
 
     Trả về danh sách dict:
@@ -85,6 +86,10 @@ def find_dumps(
         }, ...
     ]
     """
+    # Chuẩn hoá tham số đầu vào: bọc chuỗi hoặc Path thành list 1 phần tử
+    if isinstance(search_paths, (str, os.PathLike)):
+        search_paths = [search_paths]
+
     from_utc = parse_to_utc(from_date) if from_date else None
     to_utc = parse_to_utc(to_date) if to_date else None
 
