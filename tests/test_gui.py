@@ -310,3 +310,30 @@ def test_main_window_full_smoke_pipeline_and_export(qapp, mock_msgbox, monkeypat
     # Kiểm tra xử lý lỗi và hộp thoại chi tiết
     win._on_worker_error("Lỗi kiểm thử khói", "Traceback mô phỏng cho kiểm thử smoke")
 
+
+def test_author_credits_and_ui_toolbar_folder_toggle(qapp):
+    """Kiểm tra quyền tác giả Lilbow và cơ chế ẩn/hiện chọn thư mục trên Toolbar."""
+    from dumpanalyzer import __author__
+    assert __author__ == "Lilbow"
+
+    win = MainWindow()
+    win.show()
+
+    # Kiểm tra mặc định nguồn 'local': ẩn ô nhập thư mục, hiện thông báo quét mặc định
+    assert win.combo_source.currentData() == "local"
+    assert win.folder_container.isHidden() is True
+    assert win.lbl_local_info.isHidden() is False
+
+    # Chuyển sang nguồn 'folder': hiện ô chọn thư mục, ẩn thông báo quét mặc định
+    idx_folder = win.combo_source.findData("folder")
+    win.combo_source.setCurrentIndex(idx_folder)
+    assert win.folder_container.isHidden() is False
+    assert win.lbl_local_info.isHidden() is True
+
+    # Chuyển lại 'local'
+    idx_local = win.combo_source.findData("local")
+    win.combo_source.setCurrentIndex(idx_local)
+    assert win.folder_container.isHidden() is True
+    assert win.lbl_local_info.isHidden() is False
+
+

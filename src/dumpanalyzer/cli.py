@@ -1409,14 +1409,14 @@ def build_parser() -> argparse.ArgumentParser:
     """Xây dựng bộ phân tích tham số dòng lệnh."""
     parser = argparse.ArgumentParser(
         prog="dumpanalyzer",
-        description="DumpAnalyzer - Phân tích BSOD dump kết hợp Windows Event Log",
+        description="DumpAnalyzer - Phân tích BSOD dump kết hợp Windows Event Log\nTác giả phát triển: Lilbow",
         formatter_class=argparse.RawTextHelpFormatter,
     )
 
     parser.add_argument(
         "-v", "--version",
         action="version",
-        version=f"DumpAnalyzer v{__version__}",
+        version=f"DumpAnalyzer v{__version__} - Tác giả phát triển: Lilbow",
         help="Hiển thị phiên bản hiện tại của phần mềm",
     )
 

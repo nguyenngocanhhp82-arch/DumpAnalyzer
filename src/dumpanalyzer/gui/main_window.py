@@ -81,7 +81,7 @@ class MainWindow(QMainWindow):
         lbl_title.setObjectName("HeaderTitle")
         title_layout.addWidget(lbl_title)
 
-        lbl_subtitle = QLabel("Chẩn đoán nguyên nhân sự cố BSOD & Windows Event Log dành cho Kỹ thuật viên IT")
+        lbl_subtitle = QLabel("Chẩn đoán nguyên nhân sự cố BSOD & Windows Event Log dành cho Kỹ thuật viên IT • Tác giả phát triển: Lilbow")
         lbl_subtitle.setObjectName("HeaderSubtitle")
         title_layout.addWidget(lbl_subtitle)
         header_layout.addLayout(title_layout, 1)
@@ -108,16 +108,36 @@ class MainWindow(QMainWindow):
         self.combo_source.currentIndexChanged.connect(self._on_source_changed)
         toolbar_layout.addWidget(self.combo_source)
 
-        # Ô chọn thư mục (khi chọn folder)
+        # Container chọn thư mục (chỉ hiện khi chọn 'folder')
+        self.folder_container = QWidget()
+        folder_layout = QHBoxLayout(self.folder_container)
+        folder_layout.setContentsMargins(0, 0, 0, 0)
+        folder_layout.setSpacing(8)
+
+        lbl_folder = QLabel("Thư mục:")
+        lbl_folder.setStyleSheet(f"font-weight: 600; color: {COLOR_TEXT_MUTED};")
+        folder_layout.addWidget(lbl_folder)
+
         self.txt_folder = QLineEdit()
         self.txt_folder.setPlaceholderText("Đường dẫn thư mục chứa file dump...")
         self.txt_folder.setEnabled(False)
-        toolbar_layout.addWidget(self.txt_folder, 1)
+        folder_layout.addWidget(self.txt_folder, 1)
 
-        self.btn_browse_folder = QPushButton("Duyệt...")
+        self.btn_browse_folder = QPushButton("📁 Duyệt thư mục...")
         self.btn_browse_folder.setEnabled(False)
         self.btn_browse_folder.clicked.connect(self._on_browse_folder)
-        toolbar_layout.addWidget(self.btn_browse_folder)
+        folder_layout.addWidget(self.btn_browse_folder)
+
+        toolbar_layout.addWidget(self.folder_container, 1)
+
+        # Nhãn thông báo khi chọn quét máy cục bộ
+        self.lbl_local_info = QLabel("⚡ Tự động quét các vị trí mặc định của Windows (%SystemRoot%\\Minidump và MEMORY.DMP)")
+        self.lbl_local_info.setStyleSheet("color: #38bdf8; font-size: 12px; font-weight: 500;")
+        toolbar_layout.addWidget(self.lbl_local_info, 1)
+
+        # Mặc định ban đầu: ẩn folder_container, hiện thông báo quét cục bộ
+        self.folder_container.setVisible(False)
+        self.lbl_local_info.setVisible(True)
 
         # Khoảng ngày (Từ - Đến)
         lbl_from = QLabel("Từ:")
@@ -208,8 +228,10 @@ class MainWindow(QMainWindow):
         main_layout.addWidget(self.tabs, 1)
 
     def _on_source_changed(self, index: int) -> None:
-        """Kích hoạt hoặc vô hiệu hoá chọn thư mục tuỳ theo nguồn dữ liệu."""
+        """Kích hoạt hoặc ẩn hiện chọn thư mục tuỳ theo nguồn dữ liệu."""
         is_folder = self.combo_source.currentData() == "folder"
+        self.folder_container.setVisible(is_folder)
+        self.lbl_local_info.setVisible(not is_folder)
         self.txt_folder.setEnabled(is_folder)
         self.btn_browse_folder.setEnabled(is_folder)
 

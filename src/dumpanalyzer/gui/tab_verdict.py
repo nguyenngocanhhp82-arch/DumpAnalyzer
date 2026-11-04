@@ -267,68 +267,89 @@ class VerdictTab(QWidget):
         # 3. Thẻ Phản hồi của Kỹ thuật viên IT (Feedback - Phần 2.1)
         feedback_card = QFrame()
         feedback_card.setObjectName("CardFrame")
-        feedback_card.setStyleSheet("background-color: #0b1120; border: 1px solid #1e293b; border-radius: 8px; padding: 12px;")
+        feedback_card.setStyleSheet("background-color: #0b1120; border: 1px solid #1e293b; border-radius: 8px; padding: 14px;")
         fb_layout = QVBoxLayout(feedback_card)
-        fb_layout.setSpacing(8)
+        fb_layout.setSpacing(10)
 
         lbl_fb_title = QLabel("ĐÁNH GIÁ ĐỘ CHÍNH XÁC KẾT LUẬN (FEEDBACK)")
-        lbl_fb_title.setStyleSheet(f"font-size: 13px; font-weight: bold; color: {COLOR_TEXT_PRIMARY}; border-bottom: 2px solid {COLOR_BORDER}; padding-bottom: 4px;")
+        lbl_fb_title.setStyleSheet(f"font-size: 13px; font-weight: bold; color: {COLOR_TEXT_PRIMARY}; border-bottom: 2px solid {COLOR_BORDER}; padding-bottom: 6px;")
         fb_layout.addWidget(lbl_fb_title)
 
-        fb_btn_row = QHBoxLayout()
-        fb_btn_row.setSpacing(8)
+        # Hàng 1: Đánh giá đúng/sai/chưa rõ VÀ Nguyên nhân thực tế
+        row_eval = QHBoxLayout()
+        row_eval.setSpacing(10)
+
+        lbl_eval = QLabel("Đánh giá:")
+        lbl_eval.setStyleSheet(f"color: {COLOR_TEXT_MUTED}; font-size: 12px; font-weight: 500;")
+        row_eval.addWidget(lbl_eval)
 
         self.btn_group_verdict = QButtonGroup(self)
         self.btn_fb_dung = QPushButton("✓ Đúng")
         self.btn_fb_dung.setStyleSheet("background-color: #1e293b; color: #4ade80; font-weight: bold; padding: 5px 12px; border: 1px solid #4ade80; border-radius: 4px;")
         self.btn_fb_dung.setCheckable(True)
+        self.btn_fb_dung.setMinimumWidth(75)
 
         self.btn_fb_sai = QPushButton("✗ Sai")
         self.btn_fb_sai.setStyleSheet("background-color: #1e293b; color: #f87171; font-weight: bold; padding: 5px 12px; border: 1px solid #f87171; border-radius: 4px;")
         self.btn_fb_sai.setCheckable(True)
+        self.btn_fb_sai.setMinimumWidth(75)
 
         self.btn_fb_chua_ro = QPushButton("? Chưa rõ")
         self.btn_fb_chua_ro.setStyleSheet("background-color: #1e293b; color: #facc15; font-weight: bold; padding: 5px 12px; border: 1px solid #facc15; border-radius: 4px;")
         self.btn_fb_chua_ro.setCheckable(True)
         self.btn_fb_chua_ro.setChecked(True)
+        self.btn_fb_chua_ro.setMinimumWidth(75)
 
         self.btn_group_verdict.addButton(self.btn_fb_dung)
         self.btn_group_verdict.addButton(self.btn_fb_sai)
         self.btn_group_verdict.addButton(self.btn_fb_chua_ro)
 
-        fb_btn_row.addWidget(self.btn_fb_dung)
-        fb_btn_row.addWidget(self.btn_fb_sai)
-        fb_btn_row.addWidget(self.btn_fb_chua_ro)
-        fb_btn_row.addStretch()
-        fb_layout.addLayout(fb_btn_row)
+        row_eval.addWidget(self.btn_fb_dung)
+        row_eval.addWidget(self.btn_fb_sai)
+        row_eval.addWidget(self.btn_fb_chua_ro)
 
-        fb_form_row = QHBoxLayout()
-        lbl_cause = QLabel("Nguyên nhân thực tế:")
-        lbl_cause.setStyleSheet(f"color: {COLOR_TEXT_MUTED}; font-size: 12px;")
-        fb_form_row.addWidget(lbl_cause)
+        row_eval.addSpacing(12)
+
+        lbl_cause = QLabel("Nguyên nhân:")
+        lbl_cause.setStyleSheet(f"color: {COLOR_TEXT_MUTED}; font-size: 12px; font-weight: 500;")
+        row_eval.addWidget(lbl_cause)
 
         self.combo_actual_cause = QComboBox()
         self.combo_actual_cause.addItems(["ram", "storage", "driver", "gpu", "psu", "cpu", "thermal", "software", "Khác"])
-        fb_form_row.addWidget(self.combo_actual_cause)
+        self.combo_actual_cause.setMinimumWidth(110)
+        row_eval.addWidget(self.combo_actual_cause)
+
+        row_eval.addStretch()
+        fb_layout.addLayout(row_eval)
+
+        # Hàng 2: Ghi chú kinh nghiệm thực tế
+        row_note = QHBoxLayout()
+        row_note.setSpacing(10)
 
         lbl_fb_note = QLabel("Ghi chú:")
-        lbl_fb_note.setStyleSheet(f"color: {COLOR_TEXT_MUTED}; font-size: 12px;")
-        fb_form_row.addWidget(lbl_fb_note)
+        lbl_fb_note.setStyleSheet(f"color: {COLOR_TEXT_MUTED}; font-size: 12px; font-weight: 500;")
+        row_note.addWidget(lbl_fb_note)
 
         self.txt_feedback_note = QLineEdit()
-        self.txt_feedback_note.setPlaceholderText("Ghi chú kinh nghiệm xử lý thực tế...")
-        fb_form_row.addWidget(self.txt_feedback_note, 1)
+        self.txt_feedback_note.setPlaceholderText("Ghi chú kinh nghiệm xử lý thực tế của KTV...")
+        row_note.addWidget(self.txt_feedback_note, 1)
 
-        self.btn_save_feedback = QPushButton("Lưu phản hồi")
-        self.btn_save_feedback.setStyleSheet("background-color: #0284c7; color: #ffffff; font-weight: bold; padding: 5px 14px; border-radius: 4px;")
+        fb_layout.addLayout(row_note)
+
+        # Hàng 3: Nút Lưu phản hồi & Thông báo trạng thái
+        row_actions = QHBoxLayout()
+        row_actions.setSpacing(12)
+
+        self.btn_save_feedback = QPushButton("💾 Lưu phản hồi của KTV")
+        self.btn_save_feedback.setStyleSheet("background-color: #0284c7; color: #ffffff; font-weight: bold; padding: 6px 18px; border-radius: 4px;")
         self.btn_save_feedback.clicked.connect(self._on_save_feedback)
-        fb_form_row.addWidget(self.btn_save_feedback)
-
-        fb_layout.addLayout(fb_form_row)
+        row_actions.addWidget(self.btn_save_feedback)
 
         self.lbl_feedback_msg = QLabel("")
-        self.lbl_feedback_msg.setStyleSheet("color: #4ade80; font-size: 11px;")
-        fb_layout.addWidget(self.lbl_feedback_msg)
+        self.lbl_feedback_msg.setStyleSheet("color: #4ade80; font-size: 11px; font-weight: 500;")
+        row_actions.addWidget(self.lbl_feedback_msg, 1)
+
+        fb_layout.addLayout(row_actions)
 
         right_layout.addWidget(feedback_card)
 

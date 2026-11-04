@@ -29,6 +29,11 @@ Mọi thay đổi quan trọng của dự án DumpAnalyzer được ghi lại t�
   - `tests/test_pipeline.py`: kiểm thử đầu-cuối nguồn `folder`, nguồn `local` giả lập, trường hợp 0 dump, huỷ phân tích và đối chiếu tương đồng 100% giữa kết luận GUI và CLI.
   - `tests/test_gui_worker.py`: kiểm thử worker chạy đồng bộ, worker phát tín hiệu lỗi kèm chi tiết, worker huỷ tiến trình an toàn.
   - `tests/test_gui.py`: bổ sung smoke test toàn diện nạp payload pipeline, chuyển qua lại 6 tab, xuất báo cáo HTML và Excel không văng lỗi.
+- **Ghi nhận Quyền Tác Giả & Tối ưu hoá Bố cục Giao diện Người dùng:**
+  - **Quyền tác giả phát triển phần mềm:** Ghi nhận chính thức tác giả **Lilbow** trên `pyproject.toml`, `__init__.py`, giao diện dòng lệnh `cli.py` (`dumpanalyzer --version`), tiêu đề chính ứng dụng và Thẻ Thông tin phần mềm & Bản quyền.
+  - **Cân đối lại Tab Cài đặt (`src/dumpanalyzer/gui/tab_settings.py`):** Bọc toàn bộ giao diện trong `QScrollArea` cuộn mượt mà; cấu trúc lại bảng cấu hình với cột nhãn tối thiểu 240px, tách bạch các trường nhập liệu và spinbox trên từng hàng độc lập kèm giải thích trực quan, giải quyết triệt để tình trạng nhãn và ô chọn bị dồn ép sát nhau.
+  - **Tái cấu trúc Tab Kết luận (`src/dumpanalyzer/gui/tab_verdict.py`):** Phân chia mục Đánh giá độ chính xác kết luận (Feedback) thành 3 hàng thoáng mát: hàng 1 chọn kết luận và nguyên nhân thực tế, hàng 2 nhập ghi chú kinh nghiệm rộng rãi chiếm trọn chiều ngang, hàng 3 nút Lưu phản hồi và trạng thái thông báo.
+  - **Tối ưu Thanh công cụ Toolbar (`src/dumpanalyzer/gui/main_window.py`):** Khi chọn "Máy cục bộ này", tự động ẩn ô nhập đường dẫn thư mục và hiển thị thông điệp quét tự động thư mục hệ thống mặc định; chỉ hiển thị ô nhập và nút "📁 Duyệt thư mục..." khi người dùng chọn nguồn "Thư mục dump đã thu về".
 
 ---
 

@@ -170,5 +170,11 @@ DumpAnalyzer/
 │   ├── report/                 # Bộ xuất báo cáo HTML & Excel (.xlsx)
 │   └── cli.py                  # Điểm vào dòng lệnh
 ├── tests/                      # Bộ 85+ kiểm thử tự động (pytest)
-└── docs/                       # Tài liệu hướng dẫn chuyên sâu
 ```
+
+---
+
+## 5. TÁC GIẢ & BẢN QUYỀN
+
+- **Tác giả phát triển:** **Lilbow**
+- **Bản quyền & Mục đích:** Phần mềm mã nguồn mở chuyên dụng phục vụ cộng đồng kỹ thuật viên IT, quản trị viên hệ thống chẩn đoán tự động sự cố sập nguồn và màn hình xanh (BSOD) trên Windows.

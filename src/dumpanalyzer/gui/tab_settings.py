@@ -24,6 +24,7 @@ from PySide6.QtWidgets import (
     QLineEdit,
     QMessageBox,
     QPushButton,
+    QScrollArea,
     QSpinBox,
     QTableWidget,
     QTableWidgetItem,
@@ -64,7 +65,16 @@ class SettingsTab(QWidget):
         self.refresh_dump_config()
 
     def _init_ui(self) -> None:
-        main_layout = QVBoxLayout(self)
+        root_layout = QVBoxLayout(self)
+        root_layout.setContentsMargins(0, 0, 0, 0)
+        root_layout.setSpacing(0)
+
+        scroll_area = QScrollArea()
+        scroll_area.setWidgetResizable(True)
+        scroll_area.setFrameShape(QFrame.NoFrame)
+
+        container_widget = QWidget()
+        main_layout = QVBoxLayout(container_widget)
         main_layout.setContentsMargins(20, 20, 20, 20)
         main_layout.setSpacing(18)
 
@@ -126,22 +136,25 @@ class SettingsTab(QWidget):
         cfg_card = QFrame()
         cfg_card.setObjectName("CardFrame")
         cfg_layout = QVBoxLayout(cfg_card)
-        cfg_layout.setContentsMargins(16, 14, 16, 14)
-        cfg_layout.setSpacing(12)
+        cfg_layout.setContentsMargins(18, 16, 18, 16)
+        cfg_layout.setSpacing(14)
 
         lbl_cfg_title = QLabel("CẤU HÌNH PHÂN TÍCH & ĐƯỜNG DẪN HỆ THỐNG")
         lbl_cfg_title.setStyleSheet(f"font-size: 13px; font-weight: bold; color: {COLOR_TEXT_PRIMARY}; border-bottom: 2px solid {COLOR_BORDER}; padding-bottom: 6px;")
         cfg_layout.addWidget(lbl_cfg_title)
 
         grid_cfg = QGridLayout()
-        grid_cfg.setVerticalSpacing(10)
-        grid_cfg.setHorizontalSpacing(12)
+        grid_cfg.setVerticalSpacing(14)
+        grid_cfg.setHorizontalSpacing(16)
+        grid_cfg.setColumnMinimumWidth(0, 240)
 
         # CDB Path
-        lbl_cdb = QLabel("Đường dẫn cdb.exe:")
+        lbl_cdb = QLabel("Đường dẫn WinDbg (cdb.exe):")
         lbl_cdb.setStyleSheet(f"color: {COLOR_TEXT_MUTED}; font-weight: 500;")
         self.txt_cdb = QLineEdit(self._settings.get("cdb_path", "") or "")
-        btn_browse_cdb = QPushButton("Duyệt...")
+        self.txt_cdb.setPlaceholderText("Đường dẫn tới tệp thực thi cdb.exe...")
+        btn_browse_cdb = QPushButton("📁 Duyệt...")
+        btn_browse_cdb.setFixedWidth(100)
         btn_browse_cdb.clicked.connect(self._browse_cdb)
         grid_cfg.addWidget(lbl_cdb, 0, 0)
         grid_cfg.addWidget(self.txt_cdb, 0, 1)
@@ -151,6 +164,7 @@ class SettingsTab(QWidget):
         lbl_sym = QLabel("Máy chủ Symbol Microsoft:")
         lbl_sym.setStyleSheet(f"color: {COLOR_TEXT_MUTED}; font-weight: 500;")
         self.txt_sym = QLineEdit(self._settings.get("symbol_path", "") or "")
+        self.txt_sym.setPlaceholderText("srv*https://msdl.microsoft.com/download/symbols...")
         grid_cfg.addWidget(lbl_sym, 1, 0)
         grid_cfg.addWidget(self.txt_sym, 1, 1, 1, 2)
 
@@ -158,43 +172,57 @@ class SettingsTab(QWidget):
         lbl_ws = QLabel("Thư mục làm việc (Workspace):")
         lbl_ws.setStyleSheet(f"color: {COLOR_TEXT_MUTED}; font-weight: 500;")
         self.txt_ws = QLineEdit(self._settings.get("workspace_dir", "workspace"))
-        btn_browse_ws = QPushButton("Duyệt...")
+        self.txt_ws.setPlaceholderText("Thư mục lưu trữ CSDL tạm và mẫu dump...")
+        btn_browse_ws = QPushButton("📁 Duyệt...")
+        btn_browse_ws.setFixedWidth(100)
         btn_browse_ws.clicked.connect(self._browse_workspace)
         grid_cfg.addWidget(lbl_ws, 2, 0)
         grid_cfg.addWidget(self.txt_ws, 2, 1)
         grid_cfg.addWidget(btn_browse_ws, 2, 2)
 
-        # Numeric spinboxes: Cửa sổ thời gian & Luồng song song
-        row_spin = QHBoxLayout()
-        row_spin.setSpacing(20)
-
-        lbl_win = QLabel("Cửa sổ tìm kiếm sự kiện trước crash:")
+        # Numeric spinbox: Cửa sổ thời gian tìm kiếm sự kiện
+        lbl_win = QLabel("Cửa sổ sự kiện trước crash:")
         lbl_win.setStyleSheet(f"color: {COLOR_TEXT_MUTED}; font-weight: 500;")
-        row_spin.addWidget(lbl_win)
+        row_win = QHBoxLayout()
+        row_win.setSpacing(10)
         self.spin_window = QSpinBox()
         self.spin_window.setRange(1, 120)
         self.spin_window.setValue(int(self._settings.get("time_window_minutes", 10)))
         self.spin_window.setSuffix(" phút")
-        row_spin.addWidget(self.spin_window)
+        self.spin_window.setFixedWidth(110)
+        lbl_win_hint = QLabel("(Khoảng thời gian quét Windows Event Log trước mỗi lần sập máy)")
+        lbl_win_hint.setStyleSheet(f"color: {COLOR_TEXT_MUTED}; font-size: 12px; font-style: italic;")
+        row_win.addWidget(self.spin_window)
+        row_win.addWidget(lbl_win_hint)
+        row_win.addStretch()
+        grid_cfg.addWidget(lbl_win, 3, 0)
+        grid_cfg.addLayout(row_win, 3, 1, 1, 2)
 
-        lbl_conc = QLabel("Số tiến trình phân tích song song:")
+        # Numeric spinbox: Số tiến trình phân tích song song
+        lbl_conc = QLabel("Tiến trình phân tích song song:")
         lbl_conc.setStyleSheet(f"color: {COLOR_TEXT_MUTED}; font-weight: 500;")
-        row_spin.addWidget(lbl_conc)
+        row_conc = QHBoxLayout()
+        row_conc.setSpacing(10)
         self.spin_conc = QSpinBox()
         self.spin_conc.setRange(1, 16)
         self.spin_conc.setValue(int(self._settings.get("concurrency", 2)))
         self.spin_conc.setSuffix(" luồng")
-        row_spin.addWidget(self.spin_conc)
-        row_spin.addStretch()
+        self.spin_conc.setFixedWidth(110)
+        lbl_conc_hint = QLabel("(Số luồng CPU tối đa dùng để phân tích file dump đồng thời)")
+        lbl_conc_hint.setStyleSheet(f"color: {COLOR_TEXT_MUTED}; font-size: 12px; font-style: italic;")
+        row_conc.addWidget(self.spin_conc)
+        row_conc.addWidget(lbl_conc_hint)
+        row_conc.addStretch()
+        grid_cfg.addWidget(lbl_conc, 4, 0)
+        grid_cfg.addLayout(row_conc, 4, 1, 1, 2)
 
-        grid_cfg.addLayout(row_spin, 3, 0, 1, 3)
         cfg_layout.addLayout(grid_cfg)
 
         # Nút lưu cấu hình
         actions_cfg = QHBoxLayout()
-        self.btn_save_settings = QPushButton("Lưu cấu hình hệ thống")
+        self.btn_save_settings = QPushButton("💾 Lưu cấu hình hệ thống")
         self.btn_save_settings.setStyleSheet(
-            f"background-color: {COLOR_ACCENT}; color: #ffffff; font-weight: bold; padding: 7px 18px; border-radius: 6px;"
+            f"background-color: {COLOR_ACCENT}; color: #ffffff; font-weight: bold; padding: 7px 20px; border-radius: 6px;"
         )
         self.btn_save_settings.clicked.connect(self._on_save_settings_clicked)
         actions_cfg.addWidget(self.btn_save_settings)
@@ -209,7 +237,7 @@ class SettingsTab(QWidget):
         rules_card = QFrame()
         rules_card.setObjectName("CardFrame")
         rules_layout = QVBoxLayout(rules_card)
-        rules_layout.setContentsMargins(16, 14, 16, 14)
+        rules_layout.setContentsMargins(18, 16, 18, 16)
         rules_layout.setSpacing(10)
 
         lbl_rules_title = QLabel("QUẢN LÝ BỘ QUY TẮC CHẨN ĐOÁN (YAML RULES)")
@@ -240,7 +268,65 @@ class SettingsTab(QWidget):
         rules_layout.addLayout(actions_rules)
 
         main_layout.addWidget(rules_card)
+
+        # =====================================================================
+        # MỤC 4: THÔNG TIN PHẦN MỀM & BẢN QUYỀN (ABOUT & CREDITS)
+        # =====================================================================
+        about_card = QFrame()
+        about_card.setObjectName("CardFrame")
+        about_layout = QVBoxLayout(about_card)
+        about_layout.setContentsMargins(18, 16, 18, 16)
+        about_layout.setSpacing(10)
+
+        lbl_about_title = QLabel("THÔNG TIN PHẦN MỀM & BẢN QUYỀN")
+        lbl_about_title.setStyleSheet(f"font-size: 13px; font-weight: bold; color: {COLOR_TEXT_PRIMARY}; border-bottom: 2px solid {COLOR_BORDER}; padding-bottom: 6px;")
+        about_layout.addWidget(lbl_about_title)
+
+        grid_about = QGridLayout()
+        grid_about.setVerticalSpacing(8)
+        grid_about.setHorizontalSpacing(16)
+        grid_about.setColumnMinimumWidth(0, 240)
+
+        lbl_app_name = QLabel("Tên phần mềm:")
+        lbl_app_name.setStyleSheet(f"color: {COLOR_TEXT_MUTED}; font-weight: 500;")
+        lbl_app_val = QLabel("DumpAnalyzer")
+        lbl_app_val.setStyleSheet("font-weight: bold; color: #38bdf8;")
+        grid_about.addWidget(lbl_app_name, 0, 0)
+        grid_about.addWidget(lbl_app_val, 0, 1)
+
+        lbl_app_ver = QLabel("Phiên bản hiện tại:")
+        lbl_app_ver.setStyleSheet(f"color: {COLOR_TEXT_MUTED}; font-weight: 500;")
+        from dumpanalyzer import __version__
+        lbl_ver_val = QLabel(f"v{__version__}")
+        lbl_ver_val.setStyleSheet("font-weight: bold; color: #4ade80;")
+        grid_about.addWidget(lbl_app_ver, 1, 0)
+        grid_about.addWidget(lbl_ver_val, 1, 1)
+
+        lbl_author = QLabel("Tác giả phát triển:")
+        lbl_author.setStyleSheet(f"color: {COLOR_TEXT_MUTED}; font-weight: 500;")
+        lbl_author_val = QLabel("Lilbow")
+        lbl_author_val.setStyleSheet("font-weight: bold; color: #f59e0b; font-size: 14px;")
+        grid_about.addWidget(lbl_author, 2, 0)
+        grid_about.addWidget(lbl_author_val, 2, 1)
+
+        lbl_purpose = QLabel("Mục đích ứng dụng:")
+        lbl_purpose.setStyleSheet(f"color: {COLOR_TEXT_MUTED}; font-weight: 500;")
+        lbl_purpose_val = QLabel(
+            "Chẩn đoán và phân tích nguyên nhân sự cố BSOD (màn hình xanh), tự động tương quan "
+            "với Windows Event Log trước thời điểm crash nhằm hỗ trợ kỹ thuật viên IT sửa chữa nhanh chóng, chính xác."
+        )
+        lbl_purpose_val.setWordWrap(True)
+        lbl_purpose_val.setStyleSheet("color: #cbd5e1; font-size: 12px;")
+        grid_about.addWidget(lbl_purpose, 3, 0)
+        grid_about.addWidget(lbl_purpose_val, 3, 1)
+
+        about_layout.addLayout(grid_about)
+        main_layout.addWidget(about_card)
+
         main_layout.addStretch()
+
+        scroll_area.setWidget(container_widget)
+        root_layout.addWidget(scroll_area)
 
     def refresh_dump_config(self) -> None:
         """Đọc lại cấu hình registry và cập nhật bảng kiểm tra khả năng ghi dump."""
