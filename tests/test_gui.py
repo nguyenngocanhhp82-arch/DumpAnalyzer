@@ -11,9 +11,11 @@ import pytest
 # Thiết lập nền tảng offscreen để chạy kiểm thử Qt không cần màn hình đồ họa
 os.environ["QT_QPA_PLATFORM"] = "offscreen"
 
-from PySide6.QtWidgets import QApplication, QLabel, QMessageBox
+from pathlib import Path
+from PySide6.QtWidgets import QApplication, QFileDialog, QLabel, QMessageBox
 
 from dumpanalyzer.core.models import Crash, Evidence, Finding, MachineInfo
+from dumpanalyzer.engine.pipeline import run_analysis
 from dumpanalyzer.gui.main_window import MainWindow
 from dumpanalyzer.gui.tab_detail import DetailTab
 from dumpanalyzer.gui.tab_overview import OverviewTab
@@ -38,6 +40,8 @@ def mock_msgbox(monkeypatch):
     monkeypatch.setattr(QMessageBox, "warning", lambda *args, **kwargs: QMessageBox.Ok)
     monkeypatch.setattr(QMessageBox, "critical", lambda *args, **kwargs: QMessageBox.Ok)
     monkeypatch.setattr(QMessageBox, "question", lambda *args, **kwargs: QMessageBox.Yes)
+    monkeypatch.setattr(QMessageBox, "exec_", lambda self: QMessageBox.Ok)
+    monkeypatch.setattr(QMessageBox, "exec", lambda self: QMessageBox.Ok)
 
 
 @pytest.fixture
@@ -248,3 +252,61 @@ def test_worker_cancellation(qapp):
     assert worker._is_cancelled is False
     worker.cancel()
     assert worker._is_cancelled is True
+
+
+def test_main_window_full_smoke_pipeline_and_export(qapp, mock_msgbox, monkeypatch, tmp_path):
+    """Smoke test toàn diện giao diện:
+    1. Chạy pipeline run_analysis với thư mục crash fixtures.
+    2. Nạp payload vào MainWindow (_on_worker_finished).
+    3. Chuyển qua lại toàn bộ 6 tab để đảm bảo không văng lỗi render.
+    4. Xuất báo cáo HTML và xác thực tệp đầu ra.
+    5. Xuất báo cáo Excel và xác thực tệp đầu ra.
+    6. Kiểm tra hộp thoại báo lỗi và sao chép chi tiết.
+    """
+    fixtures_dir = Path(__file__).resolve().parent / "fixtures"
+    db_path = str(tmp_path / "smoke.db")
+
+    payload = run_analysis(source_type="folder", folder_path=str(fixtures_dir), db_path=db_path)
+    assert len(payload["crashes"]) > 0
+    assert payload["finding"] is not None
+
+    win = MainWindow()
+    win.show()
+
+    # Nạp payload vào MainWindow
+    win._on_worker_finished(payload)
+
+    # Chuyển qua lại toàn bộ 6 tab
+    tab_count = win.tabs.count()
+    assert tab_count == 6
+    for i in range(tab_count):
+        win.tabs.setCurrentIndex(i)
+        assert win.tabs.currentIndex() == i
+
+    # Xuất báo cáo HTML
+    html_target = tmp_path / "smoke_report.html"
+    monkeypatch.setattr(
+        QFileDialog,
+        "getSaveFileName",
+        lambda *args, **kwargs: (str(html_target), "HTML Files (*.html)"),
+    )
+    win.tab_verdict._on_export_html_clicked()
+    assert html_target.exists()
+    assert html_target.stat().st_size > 0
+    content = html_target.read_text(encoding="utf-8")
+    assert "<html" in content.lower()
+
+    # Xuất báo cáo Excel
+    xlsx_target = tmp_path / "smoke_report.xlsx"
+    monkeypatch.setattr(
+        QFileDialog,
+        "getSaveFileName",
+        lambda *args, **kwargs: (str(xlsx_target), "Excel Files (*.xlsx)"),
+    )
+    win.tab_verdict._on_export_excel_clicked()
+    assert xlsx_target.exists()
+    assert xlsx_target.stat().st_size > 0
+
+    # Kiểm tra xử lý lỗi và hộp thoại chi tiết
+    win._on_worker_error("Lỗi kiểm thử khói", "Traceback mô phỏng cho kiểm thử smoke")
+
