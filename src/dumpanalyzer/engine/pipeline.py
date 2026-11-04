@@ -14,7 +14,7 @@ from typing import Any, Callable, Dict, List, Optional, Tuple, Union
 from dumpanalyzer.analyzer.cdb_runner import build_crash_from_dump
 from dumpanalyzer.collectors.drivers_updates import collect_recent_windows_updates
 from dumpanalyzer.collectors.dump_finder import calculate_sha256, copy_dump_safely, find_dumps
-from dumpanalyzer.collectors.eventlog import read_system_events
+from dumpanalyzer.collectors.eventlog import get_last_eventlog_warning, read_system_events
 from dumpanalyzer.collectors.hardware import collect_machine_info
 from dumpanalyzer.core.config import get_settings_path, load_settings
 from dumpanalyzer.core.models import Crash, Evidence, MachineInfo
@@ -190,8 +190,13 @@ def run_analysis(
         # 5. Quét Event Log và tương quan (Sửa lỗi 3: correlate_recent_updates gọi 1 lần với list)
         _emit_progress(70, "Đang truy vấn Windows Event Log và tương quan sự kiện...")
         evidences: List[Evidence] = []
+        eventlog_warning: Optional[str] = None
         if source_type == "local":
             events = read_system_events(from_date=from_date, to_date=to_date)
+            eventlog_warning = get_last_eventlog_warning()
+            if eventlog_warning:
+                logger.warning(f"Cảnh báo Event Log: {eventlog_warning}")
+                _emit_progress(72, f"Cảnh báo: {eventlog_warning}")
             updates = collect_recent_windows_updates(days=30)
             correlator = Correlator(window_minutes=settings.get("time_window_minutes", 10))
 
@@ -285,6 +290,7 @@ def run_analysis(
             "suspect_ranking": suspect_ranking,
             "conflict_detected": conflict_detected,
             "patterns_matched": patterns_matched,
+            "eventlog_warning": eventlog_warning,
         }
         return payload
 

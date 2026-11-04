@@ -330,16 +330,34 @@ try {{
     return ps_script
 
 
+_last_eventlog_warning: Optional[str] = None
+
+
+def get_last_eventlog_warning() -> Optional[str]:
+    """Trả về thông báo cảnh báo/lỗi gần nhất khi đọc Windows Event Log (nếu có)."""
+    return _last_eventlog_warning
+
+
 def read_system_events(
     from_date: Optional[Union[str, datetime]] = None,
     to_date: Optional[Union[str, datetime]] = None,
     mock_events: Optional[List[Dict[str, Any]]] = None,
     debug_ps: bool = False,
+    warnings: Optional[List[str]] = None,
 ) -> List[Dict[str, Any]]:
     """
     Thu thập các sự kiện trọng yếu từ Windows System Log trong khoảng thời gian chỉ định.
     Nếu có mock_events (dùng trong unit test / Linux), trả về trực tiếp dữ liệu mock đã xử lý.
+
+    Phân biệt rõ 3 trạng thái:
+    (a) Không có sự kiện khớp: trả về [], không ghi cảnh báo.
+    (b) PowerShell lỗi (returncode != 0 hoặc stderr có nội dung): ghi log WARNING kèm stderr và lưu cảnh báo.
+    (c) Timeout: ghi log WARNING và lưu cảnh báo.
     """
+    global _last_eventlog_warning
+    _last_eventlog_warning = None
+    read_system_events.last_warning = None  # type: ignore[attr-defined]
+
     if mock_events is not None:
         return mock_events
 
@@ -375,11 +393,19 @@ def read_system_events(
             print(f"Output (500 chars):\n{proc.stdout[:500]}")
             print("========================\n")
 
-        if proc.returncode != 0:
-            err_msg = proc.stderr.strip() or f"Mã lỗi {proc.returncode}"
+        stderr_msg = proc.stderr.strip()
+        # Trạng thái (b): PowerShell lỗi (returncode khác 0 hoặc stderr có nội dung)
+        if proc.returncode != 0 or bool(stderr_msg):
+            err_msg = stderr_msg or f"Mã lỗi {proc.returncode}"
+            warn_msg = f"Không đọc được Event Log: {err_msg}"
             logger.warning(f"Lỗi khi thực thi PowerShell đọc Event Log: {err_msg}")
+            _last_eventlog_warning = warn_msg
+            read_system_events.last_warning = warn_msg  # type: ignore[attr-defined]
+            if warnings is not None:
+                warnings.append(warn_msg)
             return []
 
+        # Trạng thái (a): Thành công, không có sự kiện khớp
         raw_json = proc.stdout.strip()
         if not raw_json or raw_json == "[]":
             return []
@@ -407,7 +433,6 @@ def read_system_events(
                     # Bỏ qua Event 1001 từ Application WER
                     continue
 
-
             parsed_events.append(ev)
 
         # Sắp xếp sự kiện tăng dần theo thời gian (chuỗi UTC ISO)
@@ -415,7 +440,13 @@ def read_system_events(
         return parsed_events
 
     except subprocess.TimeoutExpired:
+        # Trạng thái (c): Timeout
+        warn_msg = f"Không đọc được Event Log: Quá thời gian chờ ({timeout}s)"
         logger.warning(f"Lệnh PowerShell đọc Event Log bị quá thời gian ({timeout}s).")
+        _last_eventlog_warning = warn_msg
+        read_system_events.last_warning = warn_msg  # type: ignore[attr-defined]
+        if warnings is not None:
+            warnings.append(warn_msg)
         if debug_ps:
             print("\n=== DEBUG POWERSHELL ===")
             print(f"Script:\n{ps_script.strip()}")
@@ -423,8 +454,17 @@ def read_system_events(
             print("========================\n")
         return []
     except Exception as e:
+        err_msg = str(e)
+        warn_msg = f"Không đọc được Event Log: {err_msg}"
         logger.error(f"Lỗi khi đọc Windows Event Log: {e}")
+        _last_eventlog_warning = warn_msg
+        read_system_events.last_warning = warn_msg  # type: ignore[attr-defined]
+        if warnings is not None:
+            warnings.append(warn_msg)
         return []
+
+
+read_system_events.last_warning = None  # type: ignore[attr-defined]
 
 
 def read_application_crashes(

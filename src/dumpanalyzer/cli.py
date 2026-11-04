@@ -48,7 +48,7 @@ from dumpanalyzer.analyzer.cdb_runner import (
     analyze_dump_file,
     warmup_symbols,
 )
-from dumpanalyzer.collectors.eventlog import read_system_events
+from dumpanalyzer.collectors.eventlog import get_last_eventlog_warning, read_system_events
 from dumpanalyzer.engine.correlator import Correlator
 from dumpanalyzer.core.models import Evidence, Finding
 from dumpanalyzer.engine.rule_loader import validate_rules_and_settings, load_all_rules
@@ -774,8 +774,13 @@ def cmd_events(args):
         debug_ps=getattr(args, "debug_ps", False),
     )
 
+    ev_warn = get_last_eventlog_warning()
+    if ev_warn:
+        print(f"[CẢNH BÁO] {ev_warn}")
+
     if not events:
-        print("[!] Không tìm thấy sự kiện nghi vấn nào trong khoảng thời gian đã chọn (hoặc đang chạy trên Linux).")
+        if not ev_warn:
+            print("[!] Không tìm thấy sự kiện nghi vấn nào trong khoảng thời gian đã chọn (hoặc đang chạy trên Linux).")
         db.close()
         return 0
 
