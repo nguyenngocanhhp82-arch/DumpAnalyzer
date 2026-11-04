@@ -159,8 +159,15 @@ class OverviewTab(QWidget):
             top_name = "-"
             if suspect_ranking:
                 s0 = suspect_ranking[0]
-                label = s0.get("label", s0.get("suspect", "Khác"))
-                pct = float(s0.get("percentage", s0.get("score", 0.0)))
+                if isinstance(s0, dict):
+                    label = s0.get("label", s0.get("suspect", "Khác"))
+                    pct = float(s0.get("percentage", s0.get("score", 0.0)))
+                elif isinstance(s0, (list, tuple)) and len(s0) >= 2:
+                    label = str(s0[0])
+                    pct = float(s0[1])
+                else:
+                    label = str(s0)
+                    pct = 0.0
                 top_name = f"{label} ({pct:.1f}%)"
             elif hasattr(finding, "suspect"):
                 top_name = f"{finding.suspect} ({finding.score:.1f}%)"

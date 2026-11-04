@@ -7,6 +7,7 @@ thanh tiến trình động, và 4 Tab chức năng: Tổng quan | Chi tiết cr
 from typing import Any, Dict, List, Optional
 from PySide6.QtCore import QDate
 from PySide6.QtWidgets import (
+    QApplication,
     QComboBox,
     QDateEdit,
     QFileDialog,
@@ -24,6 +25,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+from dumpanalyzer.core.config import get_project_root
 from dumpanalyzer.core.models import Crash, Evidence, Finding, MachineInfo
 from dumpanalyzer.gui.tab_detail import DetailTab
 from dumpanalyzer.gui.tab_dump_readiness import DumpReadinessTab
@@ -308,12 +310,31 @@ class MainWindow(QMainWindow):
                 "Không phát hiện file dump hoặc sự cố nào trong khoảng thời gian đã chọn.",
             )
 
-    def _on_worker_error(self, err_msg: str) -> None:
+    def _on_worker_error(self, err_msg: str, details: str = "") -> None:
         """Xử lý khi luồng phân tích gặp lỗi nghiêm trọng."""
         self.btn_analyze.setEnabled(True)
         self.btn_cancel.setVisible(False)
         self.progress_frame.setVisible(False)
-        QMessageBox.critical(self, "Lỗi phân tích", err_msg)
+
+        box = QMessageBox(self)
+        box.setIcon(QMessageBox.Critical)
+        box.setWindowTitle("Lỗi phân tích")
+        box.setText(err_msg)
+
+        log_path = get_project_root() / "logs" / "dumpanalyzer.log"
+        detailed_text = f"Tệp nhật ký log: {log_path}\n\n"
+        if details:
+            detailed_text += f"Chi tiết kỹ thuật (Traceback):\n{details}\n"
+        box.setDetailedText(detailed_text)
+
+        btn_copy = box.addButton("Sao chép chi tiết", QMessageBox.ActionRole)
+        box.addButton(QMessageBox.Ok)
+
+        box.exec_()
+        if box.clickedButton() == btn_copy:
+            clipboard = QApplication.clipboard()
+            if clipboard:
+                clipboard.setText(f"{err_msg}\n\n{detailed_text}")
 
     def _on_crash_selected_from_overview(self, crash: Crash) -> None:
         """Xử lý khi người dùng chọn/nhấp đúp một dòng ở tab Tổng quan -> chuyển sang tab Chi tiết."""
