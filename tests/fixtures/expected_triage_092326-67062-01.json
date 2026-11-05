@@ -1,0 +1,1399 @@
+{
+  "ok": true,
+  "warnings": [],
+  "file_size": 3394211,
+  "header": {
+    "os_major": 15,
+    "os_build": 26100,
+    "machine": "0x8664",
+    "processors": 8,
+    "bugcheck_code": "0x23",
+    "params": [
+      "0xE0121",
+      "0xFFFFBB8A25D467C8",
+      "0xFFFFBB8A25D45FB0",
+      "0xFFFFF80585ED8334"
+    ],
+    "dump_type": 4,
+    "dump_type_name": "triage",
+    "system_time_utc": "2026-09-23T10:59:30Z"
+  },
+  "exception": {
+    "code": "0xC0000005",
+    "flags": 0,
+    "address": "0xFFFFF80585ED8334",
+    "module": "ntoskrnl.exe",
+    "module_offset": "0x2D8334",
+    "parameters": [
+      "0x0",
+      "0x218"
+    ],
+    "meaning": "Access violation: ĐỌC địa chỉ 0x218 (con trỏ NULL + offset nhỏ)"
+  },
+  "context": {
+    "rip": "0xFFFFF80585ED8334",
+    "rsp": "0xFFFFBB8A25D46A00",
+    "rip_module": "ntoskrnl.exe",
+    "rip_module_offset": "0x2D8334"
+  },
+  "modules": [
+    {
+      "name": "ntoskrnl.exe",
+      "base": "0xFFFFF80585C00000",
+      "size": 21295104
+    },
+    {
+      "name": "hal.dll",
+      "base": "0xFFFFF80587400000",
+      "size": 24576
+    },
+    {
+      "name": "kdcom.dll",
+      "base": "0xFFFFF80517460000",
+      "size": 45056
+    },
+    {
+      "name": "mcupdate.dll",
+      "base": "0xFFFFF805142E0000",
+      "size": 3612672
+    },
+    {
+      "name": "symcryptk.dll",
+      "base": "0xFFFFF80517470000",
+      "size": 49152
+    },
+    {
+      "name": "cng.sys",
+      "base": "0xFFFFF80517540000",
+      "size": 856064
+    },
+    {
+      "name": "CLFS.SYS",
+      "base": "0xFFFFF805174B0000",
+      "size": 565248
+    },
+    {
+      "name": "tm.sys",
+      "base": "0xFFFFF80517480000",
+      "size": 172032
+    },
+    {
+      "name": "winaccel.sys",
+      "base": "0xFFFFF80517620000",
+      "size": 86016
+    },
+    {
+      "name": "PSHED.dll",
+      "base": "0xFFFFF80517640000",
+      "size": 110592
+    },
+    {
+      "name": "BOOTVID.dll",
+      "base": "0xFFFFF80517660000",
+      "size": 53248
+    },
+    {
+      "name": "FLTMGR.SYS",
+      "base": "0xFFFFF80517790000",
+      "size": 610304
+    },
+    {
+      "name": "msrpc.sys",
+      "base": "0xFFFFF80517870000",
+      "size": 401408
+    },
+    {
+      "name": "ksecdd.sys",
+      "base": "0xFFFFF80517830000",
+      "size": 200704
+    },
+    {
+      "name": "clipsp.sys",
+      "base": "0xFFFFF80517670000",
+      "size": 1118208
+    },
+    {
+      "name": "cmimcext.sys",
+      "base": "0xFFFFF805178E0000",
+      "size": 65536
+    },
+    {
+      "name": "werkernel.sys",
+      "base": "0xFFFFF80517900000",
+      "size": 90112
+    },
+    {
+      "name": "ntosext.sys",
+      "base": "0xFFFFF80517920000",
+      "size": 53248
+    },
+    {
+      "name": "watchdog.sys",
+      "base": "0xFFFFF80517A00000",
+      "size": 131072
+    },
+    {
+      "name": "WMILIB.SYS",
+      "base": "0xFFFFF80517F30000",
+      "size": 53248
+    },
+    {
+      "name": "dxgkrnl.sys",
+      "base": "0xFFFFF80517A30000",
+      "size": 5173248
+    },
+    {
+      "name": "win32k.sys",
+      "base": "0xFFFFF80517930000",
+      "size": 811008
+    },
+    {
+      "name": "CI.dll",
+      "base": "0xFFFFF80517F40000",
+      "size": 1081344
+    },
+    {
+      "name": "globmerger.sys",
+      "base": "0xFFFFF80518050000",
+      "size": 131072
+    },
+    {
+      "name": "Wdf01000.sys",
+      "base": "0xFFFFF80518080000",
+      "size": 983040
+    },
+    {
+      "name": "WppRecorder.sys",
+      "base": "0xFFFFF805181A0000",
+      "size": 81920
+    },
+    {
+      "name": "WDFLDR.SYS",
+      "base": "0xFFFFF80518180000",
+      "size": 94208
+    },
+    {
+      "name": "PRM.sys",
+      "base": "0xFFFFF805181C0000",
+      "size": 61440
+    },
+    {
+      "name": "acpiex.sys",
+      "base": "0xFFFFF805181E0000",
+      "size": 172032
+    },
+    {
+      "name": "msseccore.sys",
+      "base": "0xFFFFF80518210000",
+      "size": 61440
+    },
+    {
+      "name": "ACPI.sys",
+      "base": "0xFFFFF80518230000",
+      "size": 876544
+    },
+    {
+      "name": "msisadrv.sys",
+      "base": "0xFFFFF80518310000",
+      "size": 49152
+    },
+    {
+      "name": "pci.sys",
+      "base": "0xFFFFF80518320000",
+      "size": 606208
+    },
+    {
+      "name": "tpm.sys",
+      "base": "0xFFFFF805183C0000",
+      "size": 368640
+    },
+    {
+      "name": "amdwps.sys",
+      "base": "0xFFFFF80518830000",
+      "size": 57344
+    },
+    {
+      "name": "WindowsTrustedRT.sys",
+      "base": "0xFFFFF80518850000",
+      "size": 102400
+    },
+    {
+      "name": "intelpep.sys",
+      "base": "0xFFFFF80518870000",
+      "size": 634880
+    },
+    {
+      "name": "WindowsTrustedRTProxy.sys",
+      "base": "0xFFFFF80518910000",
+      "size": 49152
+    },
+    {
+      "name": "IntelPMT.sys",
+      "base": "0xFFFFF80518920000",
+      "size": 77824
+    },
+    {
+      "name": "pcw.sys",
+      "base": "0xFFFFF80518940000",
+      "size": 90112
+    },
+    {
+      "name": "vdrvroot.sys",
+      "base": "0xFFFFF80518960000",
+      "size": 114688
+    },
+    {
+      "name": "pdc.sys",
+      "base": "0xFFFFF80518980000",
+      "size": 225280
+    },
+    {
+      "name": "CEA.sys",
+      "base": "0xFFFFF805189C0000",
+      "size": 98304
+    },
+    {
+      "name": "partmgr.sys",
+      "base": "0xFFFFF805189E0000",
+      "size": 217088
+    },
+    {
+      "name": "spaceport.sys",
+      "base": "0xFFFFF80518A20000",
+      "size": 1011712
+    },
+    {
+      "name": "volmgr.sys",
+      "base": "0xFFFFF80518B20000",
+      "size": 122880
+    },
+    {
+      "name": "volmgrx.sys",
+      "base": "0xFFFFF80518B50000",
+      "size": 409600
+    },
+    {
+      "name": "mountmgr.sys",
+      "base": "0xFFFFF80518BC0000",
+      "size": 126976
+    },
+    {
+      "name": "storahci.sys",
+      "base": "0xFFFFF80518BF0000",
+      "size": 225280
+    },
+    {
+      "name": "storport.sys",
+      "base": "0xFFFFF80518C30000",
+      "size": 2535424
+    },
+    {
+      "name": "stornvme.sys",
+      "base": "0xFFFFF80518EA0000",
+      "size": 319488
+    },
+    {
+      "name": "EhStorClass.sys",
+      "base": "0xFFFFF80518F00000",
+      "size": 155648
+    },
+    {
+      "name": "fileinfo.sys",
+      "base": "0xFFFFF80518F30000",
+      "size": 118784
+    },
+    {
+      "name": "Wof.sys",
+      "base": "0xFFFFF80518F50000",
+      "size": 278528
+    },
+    {
+      "name": "WdFilter.sys",
+      "base": "0xFFFFF80518FA0000",
+      "size": 671744
+    },
+    {
+      "name": "Ntfs.sys",
+      "base": "0xFFFFF80519050000",
+      "size": 3571712
+    },
+    {
+      "name": "Fs_Rec.sys",
+      "base": "0xFFFFF805193C0000",
+      "size": 61440
+    },
+    {
+      "name": "ndis.sys",
+      "base": "0xFFFFF805193E0000",
+      "size": 1871872
+    },
+    {
+      "name": "NETIO.SYS",
+      "base": "0xFFFFF805195B0000",
+      "size": 753664
+    },
+    {
+      "name": "ksecpkg.sys",
+      "base": "0xFFFFF80519670000",
+      "size": 225280
+    },
+    {
+      "name": "Kerb3961Kernel.sys",
+      "base": "0xFFFFF805196B0000",
+      "size": 135168
+    },
+    {
+      "name": "tcpip.sys",
+      "base": "0xFFFFF805196E0000",
+      "size": 3530752
+    },
+    {
+      "name": "fwpkclnt.sys",
+      "base": "0xFFFFF80519A50000",
+      "size": 573440
+    },
+    {
+      "name": "wfplwfs.sys",
+      "base": "0xFFFFF80519AE0000",
+      "size": 245760
+    },
+    {
+      "name": "fvevol.sys",
+      "base": "0xFFFFF80519B20000",
+      "size": 958464
+    },
+    {
+      "name": "volume.sys",
+      "base": "0xFFFFF80519C10000",
+      "size": 45056
+    },
+    {
+      "name": "volsnap.sys",
+      "base": "0xFFFFF80519C20000",
+      "size": 520192
+    },
+    {
+      "name": "rdyboost.sys",
+      "base": "0xFFFFF80519CB0000",
+      "size": 327680
+    },
+    {
+      "name": "nvmedisk.sys",
+      "base": "0xFFFFF80519D10000",
+      "size": 114688
+    },
+    {
+      "name": "mup.sys",
+      "base": "0xFFFFF80519D30000",
+      "size": 172032
+    },
+    {
+      "name": "iorate.sys",
+      "base": "0xFFFFF80519D60000",
+      "size": 86016
+    },
+    {
+      "name": "disk.sys",
+      "base": "0xFFFFF80519DA0000",
+      "size": 135168
+    },
+    {
+      "name": "CLASSPNP.SYS",
+      "base": "0xFFFFF80519DD0000",
+      "size": 495616
+    },
+    {
+      "name": "crashdmp.sys",
+      "base": "0xFFFFF8052C7F0000",
+      "size": 163840
+    },
+    {
+      "name": "cdrom.sys",
+      "base": "0xFFFFF8052C980000",
+      "size": 221184
+    },
+    {
+      "name": "filecrypt.sys",
+      "base": "0xFFFFF8052C9C0000",
+      "size": 94208
+    },
+    {
+      "name": "tbs.sys",
+      "base": "0xFFFFF8052C9E0000",
+      "size": 69632
+    },
+    {
+      "name": "UCPD.sys",
+      "base": "0xFFFFF8052BA00000",
+      "size": 163840
+    },
+    {
+      "name": "Null.SYS",
+      "base": "0xFFFFF8052BA30000",
+      "size": 45056
+    },
+    {
+      "name": "Beep.SYS",
+      "base": "0xFFFFF8052BA40000",
+      "size": 40960
+    },
+    {
+      "name": "uiomap.sys",
+      "base": "0xFFFFF8052BA50000",
+      "size": 73728
+    },
+    {
+      "name": "BasicDisplay.sys",
+      "base": "0xFFFFF8052BA70000",
+      "size": 106496
+    },
+    {
+      "name": "BasicRender.sys",
+      "base": "0xFFFFF8052BA90000",
+      "size": 77824
+    },
+    {
+      "name": "Npfs.SYS",
+      "base": "0xFFFFF8052BAB0000",
+      "size": 114688
+    },
+    {
+      "name": "Msfs.SYS",
+      "base": "0xFFFFF8052BAD0000",
+      "size": 73728
+    },
+    {
+      "name": "CimFS.SYS",
+      "base": "0xFFFFF8052BAF0000",
+      "size": 282624
+    },
+    {
+      "name": "tdx.sys",
+      "base": "0xFFFFF8052BB40000",
+      "size": 176128
+    },
+    {
+      "name": "TDI.SYS",
+      "base": "0xFFFFF8052BB70000",
+      "size": 77824
+    },
+    {
+      "name": "netbt.sys",
+      "base": "0xFFFFF8052BB90000",
+      "size": 356352
+    },
+    {
+      "name": "afunix.sys",
+      "base": "0xFFFFF8052BBF0000",
+      "size": 90112
+    },
+    {
+      "name": "afd.sys",
+      "base": "0xFFFFF8052BC10000",
+      "size": 737280
+    },
+    {
+      "name": "vwififlt.sys",
+      "base": "0xFFFFF8052BCD0000",
+      "size": 122880
+    },
+    {
+      "name": "pacer.sys",
+      "base": "0xFFFFF8052BD00000",
+      "size": 196608
+    },
+    {
+      "name": "ndiscap.sys",
+      "base": "0xFFFFF8052BD40000",
+      "size": 86016
+    },
+    {
+      "name": "netbios.sys",
+      "base": "0xFFFFF8052BD60000",
+      "size": 90112
+    },
+    {
+      "name": "Vid.sys",
+      "base": "0xFFFFF8052BD80000",
+      "size": 905216
+    },
+    {
+      "name": "winhvr.sys",
+      "base": "0xFFFFF8052BE60000",
+      "size": 167936
+    },
+    {
+      "name": "rdbss.sys",
+      "base": "0xFFFFF8052BE90000",
+      "size": 585728
+    },
+    {
+      "name": "csc.sys",
+      "base": "0xFFFFF8052BF30000",
+      "size": 626688
+    },
+    {
+      "name": "nsiproxy.sys",
+      "base": "0xFFFFF8052BFD0000",
+      "size": 77824
+    },
+    {
+      "name": "npsvctrig.sys",
+      "base": "0xFFFFF8052BFF0000",
+      "size": 61440
+    },
+    {
+      "name": "mssmbios.sys",
+      "base": "0xFFFFF8052C010000",
+      "size": 69632
+    },
+    {
+      "name": "dfsc.sys",
+      "base": "0xFFFFF8052C030000",
+      "size": 196608
+    },
+    {
+      "name": "bam.sys",
+      "base": "0xFFFFF8052C0C0000",
+      "size": 114688
+    },
+    {
+      "name": "ahcache.sys",
+      "base": "0xFFFFF8052C0E0000",
+      "size": 376832
+    },
+    {
+      "name": "CompositeBus.sys",
+      "base": "0xFFFFF8052C140000",
+      "size": 81920
+    },
+    {
+      "name": "kdnic.sys",
+      "base": "0xFFFFF8052C160000",
+      "size": 69632
+    },
+    {
+      "name": "umbus.sys",
+      "base": "0xFFFFF8052C180000",
+      "size": 90112
+    },
+    {
+      "name": "nvlddmkm.sys",
+      "base": "0xFFFFF8052D3F0000",
+      "size": 121065472
+    },
+    {
+      "name": "fastfat.SYS",
+      "base": "0xFFFFF80534770000",
+      "size": 442368
+    },
+    {
+      "name": "HDAudBus.sys",
+      "base": "0xFFFFF8052CA00000",
+      "size": 204800
+    },
+    {
+      "name": "portcls.sys",
+      "base": "0xFFFFF8052CA40000",
+      "size": 479232
+    },
+    {
+      "name": "drmk.sys",
+      "base": "0xFFFFF8052CAC0000",
+      "size": 77824
+    },
+    {
+      "name": "ks.sys",
+      "base": "0xFFFFF8052CAE0000",
+      "size": 548864
+    },
+    {
+      "name": "USBXHCI.SYS",
+      "base": "0xFFFFF8052CB70000",
+      "size": 720896
+    },
+    {
+      "name": "ucx01000.sys",
+      "base": "0xFFFFF8052CC30000",
+      "size": 303104
+    },
+    {
+      "name": "UcmCxUcsiNvppc.sys",
+      "base": "0xFFFFF8052CC80000",
+      "size": 716800
+    },
+    {
+      "name": "UcmCx.sys",
+      "base": "0xFFFFF8052CD40000",
+      "size": 221184
+    },
+    {
+      "name": "TeeDriverW10x64.sys",
+      "base": "0xFFFFF8052CD80000",
+      "size": 311296
+    },
+    {
+      "name": "rtcx21x64.sys",
+      "base": "0xFFFFF8052CDD0000",
+      "size": 557056
+    },
+    {
+      "name": "netadaptercx.sys",
+      "base": "0xFFFFF8052CE60000",
+      "size": 389120
+    },
+    {
+      "name": "ExecutionContext.sys",
+      "base": "0xFFFFF8052CED0000",
+      "size": 131072
+    },
+    {
+      "name": "serial.sys",
+      "base": "0xFFFFF8052CF00000",
+      "size": 122880
+    },
+    {
+      "name": "serenum.sys",
+      "base": "0xFFFFF8052CF30000",
+      "size": 65536
+    },
+    {
+      "name": "iaLPSS2i_GPIO2_CNL.sys",
+      "base": "0xFFFFF8052CF50000",
+      "size": 135168
+    },
+    {
+      "name": "msgpioclx.sys",
+      "base": "0xFFFFF8052CF80000",
+      "size": 217088
+    },
+    {
+      "name": "intelppm.sys",
+      "base": "0xFFFFF8052CFC0000",
+      "size": 327680
+    },
+    {
+      "name": "acpipagr.sys",
+      "base": "0xFFFFF8052D020000",
+      "size": 49152
+    },
+    {
+      "name": "wmiacpi.sys",
+      "base": "0xFFFFF8052D030000",
+      "size": 57344
+    },
+    {
+      "name": "UEFI.sys",
+      "base": "0xFFFFF8052D050000",
+      "size": 77824
+    },
+    {
+      "name": "nvvad64v.sys",
+      "base": "0xFFFFF8052D070000",
+      "size": 61440
+    },
+    {
+      "name": "ksthunk.sys",
+      "base": "0xFFFFF8052D090000",
+      "size": 73728
+    },
+    {
+      "name": "NdisVirtualBus.sys",
+      "base": "0xFFFFF8052D0B0000",
+      "size": 57344
+    },
+    {
+      "name": "swenum.sys",
+      "base": "0xFFFFF8052D0D0000",
+      "size": 49152
+    },
+    {
+      "name": "rdpbus.sys",
+      "base": "0xFFFFF8052D0E0000",
+      "size": 57344
+    },
+    {
+      "name": "UsbHub3.sys",
+      "base": "0xFFFFF8052D100000",
+      "size": 737280
+    },
+    {
+      "name": "USBD.SYS",
+      "base": "0xFFFFF8052D1C0000",
+      "size": 65536
+    },
+    {
+      "name": "nvhda64v.sys",
+      "base": "0xFFFFF8052D1E0000",
+      "size": 126976
+    },
+    {
+      "name": "RTKVHD64.sys",
+      "base": "0xFFFFF8052C1A0000",
+      "size": 6209536
+    },
+    {
+      "name": "uaspstor.sys",
+      "base": "0xFFFFF8052D210000",
+      "size": 110592
+    },
+    {
+      "name": "usbprint.sys",
+      "base": "0xFFFFF8052D230000",
+      "size": 110592
+    },
+    {
+      "name": "hidusb.sys",
+      "base": "0xFFFFF8052D250000",
+      "size": 81920
+    },
+    {
+      "name": "HIDCLASS.SYS",
+      "base": "0xFFFFF8052D270000",
+      "size": 303104
+    },
+    {
+      "name": "HIDPARSE.SYS",
+      "base": "0xFFFFF8052D2C0000",
+      "size": 81920
+    },
+    {
+      "name": "mouhid.sys",
+      "base": "0xFFFFF8052D2E0000",
+      "size": 69632
+    },
+    {
+      "name": "mouclass.sys",
+      "base": "0xFFFFF8052D300000",
+      "size": 86016
+    },
+    {
+      "name": "exfat.SYS",
+      "base": "0xFFFFF8052D320000",
+      "size": 430080
+    },
+    {
+      "name": "usbccgp.sys",
+      "base": "0xFFFFF8052D390000",
+      "size": 212992
+    },
+    {
+      "name": "win32kbase.sys",
+      "base": "0xFFFFF80534BA0000",
+      "size": 3362816
+    },
+    {
+      "name": "kbdhid.sys",
+      "base": "0xFFFFF80534EE0000",
+      "size": 77824
+    },
+    {
+      "name": "kbdclass.sys",
+      "base": "0xFFFFF80534F00000",
+      "size": 86016
+    },
+    {
+      "name": "dump_storport.sys",
+      "base": "0xFFFFF80535B90000",
+      "size": 94208
+    },
+    {
+      "name": "win32kfull.sys",
+      "base": "0xFFFFF80535750000",
+      "size": 4276224
+    },
+    {
+      "name": "dump_stornvme.sys",
+      "base": "0xFFFFF80535060000",
+      "size": 319488
+    },
+    {
+      "name": "dump_dumpfve.sys",
+      "base": "0xFFFFF805350F0000",
+      "size": 147456
+    },
+    {
+      "name": "win32kbase_rs.sys",
+      "base": "0xFFFFF80535120000",
+      "size": 163840
+    },
+    {
+      "name": "dxgmms2.sys",
+      "base": "0xFFFFF80535150000",
+      "size": 1191936
+    },
+    {
+      "name": "monitor.sys",
+      "base": "0xFFFFF80535280000",
+      "size": 122880
+    },
+    {
+      "name": "cdd.dll",
+      "base": "0xFFFFF805352B0000",
+      "size": 339968
+    },
+    {
+      "name": "bfs.sys",
+      "base": "0xFFFFF80535310000",
+      "size": 135168
+    },
+    {
+      "name": "wcifs.sys",
+      "base": "0xFFFFF80535340000",
+      "size": 245760
+    },
+    {
+      "name": "luafv.sys",
+      "base": "0xFFFFF80535380000",
+      "size": 192512
+    },
+    {
+      "name": "WUDFRd.sys",
+      "base": "0xFFFFF805353C0000",
+      "size": 372736
+    },
+    {
+      "name": "cldflt.sys",
+      "base": "0xFFFFF80535420000",
+      "size": 593920
+    },
+    {
+      "name": "UnionFS.sys",
+      "base": "0xFFFFF805354C0000",
+      "size": 487424
+    },
+    {
+      "name": "WpdUpFltr.sys",
+      "base": "0xFFFFF80535540000",
+      "size": 61440
+    },
+    {
+      "name": "storqosflt.sys",
+      "base": "0xFFFFF80535560000",
+      "size": 110592
+    },
+    {
+      "name": "bindflt.sys",
+      "base": "0xFFFFF80535580000",
+      "size": 188416
+    },
+    {
+      "name": "mslldp.sys",
+      "base": "0xFFFFF805355C0000",
+      "size": 106496
+    },
+    {
+      "name": "lltdio.sys",
+      "base": "0xFFFFF805355E0000",
+      "size": 106496
+    },
+    {
+      "name": "rspndr.sys",
+      "base": "0xFFFFF80535600000",
+      "size": 122880
+    },
+    {
+      "name": "wanarp.sys",
+      "base": "0xFFFFF80535630000",
+      "size": 126976
+    },
+    {
+      "name": "mmcss.sys",
+      "base": "0xFFFFF80535660000",
+      "size": 90112
+    },
+    {
+      "name": "HTTP.sys",
+      "base": "0xFFFFF80534800000",
+      "size": 1994752
+    },
+    {
+      "name": "bowser.sys",
+      "base": "0xFFFFF80535680000",
+      "size": 172032
+    },
+    {
+      "name": "mpsdrv.sys",
+      "base": "0xFFFFF805356B0000",
+      "size": 114688
+    },
+    {
+      "name": "mrxsmb.sys",
+      "base": "0xFFFFF805349F0000",
+      "size": 925696
+    },
+    {
+      "name": "mrxsmb20.sys",
+      "base": "0xFFFFF805356D0000",
+      "size": 380928
+    },
+    {
+      "name": "srvnet.sys",
+      "base": "0xFFFFF80534AE0000",
+      "size": 405504
+    },
+    {
+      "name": "srv2.sys",
+      "base": "0xFFFFF80536B20000",
+      "size": 1024000
+    },
+    {
+      "name": "mrxsmb10.sys",
+      "base": "0xFFFFF80536C20000",
+      "size": 372736
+    },
+    {
+      "name": "Ndu.sys",
+      "base": "0xFFFFF80536C80000",
+      "size": 192512
+    },
+    {
+      "name": "peauth.sys",
+      "base": "0xFFFFF80536CE0000",
+      "size": 868352
+    },
+    {
+      "name": "srv.sys",
+      "base": "0xFFFFF80535C00000",
+      "size": 610304
+    },
+    {
+      "name": "tcpipreg.sys",
+      "base": "0xFFFFF80535CA0000",
+      "size": 90112
+    },
+    {
+      "name": "wtd.sys",
+      "base": "0xFFFFF80535CC0000",
+      "size": 122880
+    },
+    {
+      "name": "condrv.sys",
+      "base": "0xFFFFF80535CF0000",
+      "size": 81920
+    },
+    {
+      "name": "KslD.sys",
+      "base": "0xFFFFF80535D50000",
+      "size": 98304
+    },
+    {
+      "name": "WdNisDrv.sys",
+      "base": "0xFFFFF80535DB0000",
+      "size": 143360
+    },
+    {
+      "name": "rassstp.sys",
+      "base": "0xFFFFF80535E20000",
+      "size": 122880
+    },
+    {
+      "name": "NDProxy.sys",
+      "base": "0xFFFFF80535E50000",
+      "size": 122880
+    },
+    {
+      "name": "AgileVpn.sys",
+      "base": "0xFFFFF80535E80000",
+      "size": 167936
+    },
+    {
+      "name": "rasl2tp.sys",
+      "base": "0xFFFFF80535EB0000",
+      "size": 147456
+    },
+    {
+      "name": "raspptp.sys",
+      "base": "0xFFFFF80535EE0000",
+      "size": 147456
+    },
+    {
+      "name": "raspppoe.sys",
+      "base": "0xFFFFF80535F10000",
+      "size": 122880
+    },
+    {
+      "name": "ndistapi.sys",
+      "base": "0xFFFFF80535F40000",
+      "size": 65536
+    },
+    {
+      "name": "ndiswan.sys",
+      "base": "0xFFFFF80535F60000",
+      "size": 258048
+    },
+    {
+      "name": "WSDPrint.sys",
+      "base": "0xFFFFF80536370000",
+      "size": 57344
+    },
+    {
+      "name": "WSDScan.sys",
+      "base": "0xFFFFF80536390000",
+      "size": 61440
+    }
+  ],
+  "unloaded": [
+    "hiber_storpo",
+    "hiber_stornv",
+    "hiber_dumpfv",
+    "hiber_storpo",
+    "hiber_stornv",
+    "hiber_dumpfv",
+    "hiber_storpo",
+    "hiber_stornv",
+    "hiber_dumpfv",
+    "hiber_storpo",
+    "hiber_stornv",
+    "hiber_dumpfv",
+    "hiber_storpo",
+    "hiber_stornv",
+    "hiber_dumpfv",
+    "hiber_storpo",
+    "hiber_stornv",
+    "hiber_dumpfv",
+    "hiber_storpo",
+    "hiber_stornv",
+    "hiber_dumpfv",
+    "hiber_storpo",
+    "hiber_stornv",
+    "hiber_dumpfv",
+    "hiber_storpo",
+    "hiber_stornv",
+    "hiber_dumpfv",
+    "hiber_storpo",
+    "hiber_stornv",
+    "hiber_dumpfv",
+    "hiber_storpo",
+    "hiber_stornv",
+    "hiber_dumpfv",
+    "WSDScan.sys",
+    "WSDPrint.sys",
+    "WSDPrint.sys",
+    "WSDScan.sys",
+    "hiber_storpo",
+    "hiber_stornv",
+    "hiber_dumpfv",
+    "hiber_storpo",
+    "hiber_stornv",
+    "hiber_dumpfv",
+    "hiber_storpo",
+    "hiber_stornv",
+    "hiber_dumpfv",
+    "USBSTOR.SYS",
+    "WSDPrint.sys",
+    "WSDScan.sys",
+    "WSDPrint.sys"
+  ],
+  "stack_candidates": [
+    {
+      "rsp_offset": "0x98",
+      "address": "0xFFFFF8058657E6CF",
+      "module": "ntoskrnl.exe",
+      "offset": "0x97E6CF"
+    },
+    {
+      "rsp_offset": "0x128",
+      "address": "0xFFFFF80534797B6B",
+      "module": "fastfat.SYS",
+      "offset": "0x27B6B"
+    },
+    {
+      "rsp_offset": "0x168",
+      "address": "0xFFFFF8058607A46B",
+      "module": "ntoskrnl.exe",
+      "offset": "0x47A46B"
+    },
+    {
+      "rsp_offset": "0x178",
+      "address": "0xFFFFF80534794FDD",
+      "module": "fastfat.SYS",
+      "offset": "0x24FDD"
+    },
+    {
+      "rsp_offset": "0x198",
+      "address": "0xFFFFF805347B399A",
+      "module": "fastfat.SYS",
+      "offset": "0x4399A"
+    },
+    {
+      "rsp_offset": "0x1d8",
+      "address": "0xFFFFF8053479527E",
+      "module": "fastfat.SYS",
+      "offset": "0x2527E"
+    },
+    {
+      "rsp_offset": "0x278",
+      "address": "0xFFFFF80585E95166",
+      "module": "ntoskrnl.exe",
+      "offset": "0x295166"
+    },
+    {
+      "rsp_offset": "0x2a8",
+      "address": "0xFFFFF8053479556B",
+      "module": "fastfat.SYS",
+      "offset": "0x2556B"
+    },
+    {
+      "rsp_offset": "0x2f8",
+      "address": "0xFFFFF805347AE271",
+      "module": "fastfat.SYS",
+      "offset": "0x3E271"
+    },
+    {
+      "rsp_offset": "0x328",
+      "address": "0xFFFFF805347AD2CA",
+      "module": "fastfat.SYS",
+      "offset": "0x3D2CA"
+    },
+    {
+      "rsp_offset": "0x3b8",
+      "address": "0xFFFFF805347ADC5C",
+      "module": "fastfat.SYS",
+      "offset": "0x3DC5C"
+    },
+    {
+      "rsp_offset": "0x3f8",
+      "address": "0xFFFFF80585F5D3ED",
+      "module": "ntoskrnl.exe",
+      "offset": "0x35D3ED"
+    },
+    {
+      "rsp_offset": "0x438",
+      "address": "0xFFFFF80517798D8D",
+      "module": "FLTMGR.SYS",
+      "offset": "0x8D8D"
+    },
+    {
+      "rsp_offset": "0x4a8",
+      "address": "0xFFFFF80517797433",
+      "module": "FLTMGR.SYS",
+      "offset": "0x7433"
+    },
+    {
+      "rsp_offset": "0x5b8",
+      "address": "0xFFFFF805177F7DB6",
+      "module": "FLTMGR.SYS",
+      "offset": "0x67DB6"
+    },
+    {
+      "rsp_offset": "0x5f8",
+      "address": "0xFFFFF80535311A0C",
+      "module": "bfs.sys",
+      "offset": "0x1A0C"
+    },
+    {
+      "rsp_offset": "0x618",
+      "address": "0xFFFFF80585FC8DBB",
+      "module": "ntoskrnl.exe",
+      "offset": "0x3C8DBB"
+    },
+    {
+      "rsp_offset": "0x6d0",
+      "address": "0xFFFFF80586AEE980",
+      "module": "ntoskrnl.exe",
+      "offset": "0xEEE980"
+    },
+    {
+      "rsp_offset": "0x718",
+      "address": "0xFFFFF80517799DBE",
+      "module": "FLTMGR.SYS",
+      "offset": "0x9DBE"
+    },
+    {
+      "rsp_offset": "0x7d8",
+      "address": "0xFFFFF8051779958E",
+      "module": "FLTMGR.SYS",
+      "offset": "0x958E"
+    },
+    {
+      "rsp_offset": "0x808",
+      "address": "0xFFFFF80585F7602F",
+      "module": "ntoskrnl.exe",
+      "offset": "0x37602F"
+    },
+    {
+      "rsp_offset": "0x848",
+      "address": "0xFFFFF805177A1166",
+      "module": "FLTMGR.SYS",
+      "offset": "0x11166"
+    },
+    {
+      "rsp_offset": "0x888",
+      "address": "0xFFFFF80585FA58B6",
+      "module": "ntoskrnl.exe",
+      "offset": "0x3A58B6"
+    },
+    {
+      "rsp_offset": "0x8b8",
+      "address": "0xFFFFF805177A0DAC",
+      "module": "FLTMGR.SYS",
+      "offset": "0x10DAC"
+    },
+    {
+      "rsp_offset": "0x8e8",
+      "address": "0xFFFFF80585E52705",
+      "module": "ntoskrnl.exe",
+      "offset": "0x252705"
+    },
+    {
+      "rsp_offset": "0x8f8",
+      "address": "0xFFFFF80585ED9CCF",
+      "module": "ntoskrnl.exe",
+      "offset": "0x2D9CCF"
+    },
+    {
+      "rsp_offset": "0x928",
+      "address": "0xFFFFF80585E9883E",
+      "module": "ntoskrnl.exe",
+      "offset": "0x29883E"
+    },
+    {
+      "rsp_offset": "0x998",
+      "address": "0xFFFFF805860DB422",
+      "module": "ntoskrnl.exe",
+      "offset": "0x4DB422"
+    },
+    {
+      "rsp_offset": "0x9c0",
+      "address": "0xFFFFF8053478A540",
+      "module": "fastfat.SYS",
+      "offset": "0x1A540"
+    },
+    {
+      "rsp_offset": "0xa08",
+      "address": "0xFFFFF80585E51713",
+      "module": "ntoskrnl.exe",
+      "offset": "0x251713"
+    },
+    {
+      "rsp_offset": "0xa38",
+      "address": "0xFFFFF805347AC150",
+      "module": "fastfat.SYS",
+      "offset": "0x3C150"
+    },
+    {
+      "rsp_offset": "0xa68",
+      "address": "0xFFFFF80534798ECB",
+      "module": "fastfat.SYS",
+      "offset": "0x28ECB"
+    },
+    {
+      "rsp_offset": "0xa98",
+      "address": "0xFFFFF80534777D60",
+      "module": "fastfat.SYS",
+      "offset": "0x7D60"
+    },
+    {
+      "rsp_offset": "0xb10",
+      "address": "0xFFFFF8053478A3C0",
+      "module": "fastfat.SYS",
+      "offset": "0x1A3C0"
+    },
+    {
+      "rsp_offset": "0xb40",
+      "address": "0xFFFFF8053478A540",
+      "module": "fastfat.SYS",
+      "offset": "0x1A540"
+    },
+    {
+      "rsp_offset": "0xbb8",
+      "address": "0xFFFFF80534798F63",
+      "module": "fastfat.SYS",
+      "offset": "0x28F63"
+    },
+    {
+      "rsp_offset": "0xbf8",
+      "address": "0xFFFFF80585F5D3ED",
+      "module": "ntoskrnl.exe",
+      "offset": "0x35D3ED"
+    },
+    {
+      "rsp_offset": "0xc38",
+      "address": "0xFFFFF80517798D8D",
+      "module": "FLTMGR.SYS",
+      "offset": "0x8D8D"
+    },
+    {
+      "rsp_offset": "0xc58",
+      "address": "0xFFFFF805177AC72F",
+      "module": "FLTMGR.SYS",
+      "offset": "0x1C72F"
+    },
+    {
+      "rsp_offset": "0xca8",
+      "address": "0xFFFFF805177AC1A0",
+      "module": "FLTMGR.SYS",
+      "offset": "0x1C1A0"
+    },
+    {
+      "rsp_offset": "0xd48",
+      "address": "0xFFFFF80585F5D3ED",
+      "module": "ntoskrnl.exe",
+      "offset": "0x35D3ED"
+    },
+    {
+      "rsp_offset": "0xd88",
+      "address": "0xFFFFF80586445EC7",
+      "module": "ntoskrnl.exe",
+      "offset": "0x845EC7"
+    },
+    {
+      "rsp_offset": "0xe18",
+      "address": "0xFFFFF8058645082C",
+      "module": "ntoskrnl.exe",
+      "offset": "0x85082C"
+    },
+    {
+      "rsp_offset": "0xea8",
+      "address": "0xFFFFF805860501F3",
+      "module": "ntoskrnl.exe",
+      "offset": "0x4501F3"
+    },
+    {
+      "rsp_offset": "0xf68",
+      "address": "0xFFFFF8058644ED39",
+      "module": "ntoskrnl.exe",
+      "offset": "0x84ED39"
+    },
+    {
+      "rsp_offset": "0xfd8",
+      "address": "0xFFFFF805862B3055",
+      "module": "ntoskrnl.exe",
+      "offset": "0x6B3055"
+    }
+  ],
+  "triage": {
+    "ServicePackBuild": 0,
+    "SizeOfDump": 225280,
+    "ValidOffset": 225276,
+    "ContextOffset": 840,
+    "ExceptionOffset": 3840,
+    "MmOffset": 8320,
+    "UnloadedDriversOffset": 76864,
+    "PrcbOffset": 8400,
+    "ProcessOffset": 61392,
+    "ThreadOffset": 63504,
+    "CallStackOffset": 65448,
+    "SizeOfCallStack": 10488,
+    "DriverListOffset": 79672,
+    "DriverCount": 199,
+    "StringPoolOffset": 108328,
+    "StringPoolSize": 7320,
+    "BrokenDriverOffset": 0,
+    "TriageOptions": 65,
+    "TopOfStack": "0xFFFFBB8A25D45708"
+  },
+  "stack_modules_in_order": [
+    "ntoskrnl.exe",
+    "fastfat.SYS",
+    "FLTMGR.SYS",
+    "bfs.sys"
+  ],
+  "stack_module_counts": {
+    "ntoskrnl.exe": 20,
+    "fastfat.SYS": 15,
+    "FLTMGR.SYS": 10,
+    "bfs.sys": 1
+  }
+}

@@ -88,13 +88,13 @@ def lookup_bugcheck_name(code_hex: str) -> str:
 
 
 def filetime_to_utc_iso(filetime_val: int) -> Optional[str]:
-    """Chuyển đổi Windows FILETIME (64-bit int) sang chuỗi ISO UTC."""
+    """Chuyển đổi Windows FILETIME (64-bit int) sang chuỗi ISO UTC (kiểm tra năm 2000..2100)."""
     if filetime_val <= 0:
         return None
     try:
         epoch_seconds = (filetime_val / WINDOWS_TICK) - SEC_TO_UNIX_EPOCH
-        if 0 < epoch_seconds < 3_000_000_000:  # Giới hạn an toàn từ năm 1970 đến 2065
-            dt = datetime.fromtimestamp(epoch_seconds, tz=timezone.utc)
+        dt = datetime.fromtimestamp(epoch_seconds, tz=timezone.utc)
+        if 2000 <= dt.year <= 2100:
             return to_utc_iso(dt)
     except Exception:
         pass
@@ -155,18 +155,22 @@ def parse_dump_header(file_path: Union[str, Path]) -> DumpHeaderInfo:
             code_hex = f"0x{bc_code:X}"
             name = lookup_bugcheck_name(code_hex)
 
-            # Đọc DumpType tại 0xF98
+            # Đọc DumpType tại 0xF98 (1=full, 2=kernel, 3=header, 4=triage)
             dump_type = "kernel"
             if len(header_bytes) >= 0xF9C:
                 dt_code = struct.unpack_from("<I", header_bytes, 0xF98)[0]
                 if dt_code == 1:
                     dump_type = "full"
+                elif dt_code == 2:
+                    dump_type = "kernel"
+                elif dt_code == 3:
+                    dump_type = "header"
                 elif dt_code == 4:
-                    dump_type = "mini"
+                    dump_type = "triage"
                 elif dt_code in (2, 3, 5):
                     dump_type = "kernel"
 
-            # Đọc SystemTime tại offset chuẩn 0xFA8
+            # Đọc SystemTime tại offset chuẩn 0xFA8 (FILETIME UTC)
             crash_time_utc = None
             crash_time_source = "mtime"
             if len(header_bytes) >= 0xFB0:
@@ -177,23 +181,15 @@ def parse_dump_header(file_path: Union[str, Path]) -> DumpHeaderInfo:
                         crash_time_utc = converted
                         crash_time_source = "header"
 
-            # Fallback về 0xA0 nếu 0xFA8 chưa có (tương thích ngược fixture cũ)
-            if not crash_time_utc and len(header_bytes) >= 0xB0:
-                ft_old = struct.unpack_from("<Q", header_bytes, 0xA0)[0]
-                if ft_old > 0:
-                    converted = filetime_to_utc_iso(ft_old)
-                    if converted:
-                        crash_time_utc = converted
-                        crash_time_source = "header"
-
             # Nếu không có SystemTime hợp lệ trong header, lấy mtime của file
             if not crash_time_utc:
                 crash_time_utc = to_utc_iso(path_obj.stat().st_mtime)
                 crash_time_source = "mtime"
 
             # Đọc SystemUpTime tại offset 0xFF8 (uint64, 100ns ticks)
+            # Chú ý: dump triage có thể chứa giá trị rác tại 0xFF8 -> chỉ dùng khi không phải dump triage
             uptime_seconds = 0
-            if len(header_bytes) >= 0x1000:
+            if dump_type != "triage" and len(header_bytes) >= 0x1000:
                 uptime_ticks = struct.unpack_from("<Q", header_bytes, 0xFF8)[0]
                 if uptime_ticks > 0:
                     uptime_seconds = int(uptime_ticks / 10_000_000)

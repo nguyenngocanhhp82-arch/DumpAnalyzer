@@ -35,3 +35,8 @@ dist/
 *.egg-info/
 
 
+
+# Private fixtures & dump files (Privacy)
+tests/private_fixtures/
+*.dmp
+!tests/fixtures/*.dmp

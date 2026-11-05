@@ -62,6 +62,8 @@ def get_method_badge_style(method: str) -> str:
         return "background-color: #450a0a; color: #f87171; border: 1px solid #ef4444; font-weight: bold; padding: 3px 8px; border-radius: 4px;"
     elif m == "header_only":
         return "background-color: #064e3b; color: #6ee7b7; border: 1px solid #10b981; font-weight: bold; padding: 3px 8px; border-radius: 4px;"
+    elif m in ("triage_native", "triage"):
+        return "background-color: #581c87; color: #e9d5ff; border: 1px solid #a855f7; font-weight: bold; padding: 3px 8px; border-radius: 4px;"
     return "background-color: #1e3a8a; color: #93c5fd; border: 1px solid #3b82f6; font-weight: bold; padding: 3px 8px; border-radius: 4px;"
 
 

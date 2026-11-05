@@ -1,0 +1,78 @@
+version: 1
+classes:
+  ms_inbox:            # module Windows thường gặp; KHÔNG bao giờ bị coi là thủ phạm bên thứ ba
+    - ntoskrnl.exe
+    - ntkrnlmp.exe
+    - win32k.sys
+    - win32kfull.sys
+    - win32kbase.sys
+    - hal.dll
+    - kdcom.dll
+    - mcupdate.dll
+    - symcryptk.dll
+    - cng.sys
+    - tm.sys
+    - pshed.dll
+    - bootvid.dll
+    - ci.dll
+    - ksecdd.sys
+    - werkernel.sys
+    - fastfat.sys
+    - exfat.sys
+    - ntfs.sys
+    - refs.sys
+    - udfs.sys
+    - cdfs.sys
+    - fltmgr.sys
+    - bfs.sys              # Brokering File System của Microsoft
+    - luafv.sys
+    - wof.sys
+    - bindflt.sys
+    - cldflt.sys
+    - fileinfo.sys
+    - disk.sys
+    - classpnp.sys
+    - partmgr.sys
+    - volmgr.sys
+    - volmgrx.sys
+    - volsnap.sys
+    - storport.sys
+    - ataport.sys
+    - usbxhci.sys
+    - usbhub3.sys
+    - ucx01000.sys
+    - usbd.sys
+    - usbccgp.sys
+    - usbstor.sys
+    - uaspstor.sys
+    - wdfilter.sys
+    - wdnisdrv.sys
+  fs_stack:            # nằm trên đường xử lý tệp (chỉ là chỉ báo đường đi, không phải nghi phạm)
+    - fastfat.sys
+    - exfat.sys
+    - ntfs.sys
+    - refs.sys
+    - fltmgr.sys
+    - bfs.sys
+    - luafv.sys
+    - wof.sys
+    - bindflt.sys
+    - cldflt.sys
+    - fileinfo.sys
+  usb_storage_driver:  # CHỈ driver lớp lưu trữ USB mới là chỉ báo có thiết bị lưu trữ USB
+    - usbstor.sys
+    - uaspstor.sys
+  third_party_filter_known:   # ví dụ khởi điểm, người dùng bổ sung/chỉnh
+    - klif.sys
+    - mfehidk.sys
+    - mfeavfk.sys
+    - epfwwfp.sys
+    - eamonm.sys
+    - avgntflt.sys
+    - aswsp.sys
+    - aswsnx.sys
+    - bdfsfltr.sys
+    - symevnt.sys
+    - csagent.sys
+    - sentinelmonitor.sys
+    - tmactmon.sys

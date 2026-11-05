@@ -31,10 +31,14 @@ CREATE TABLE IF NOT EXISTS crash (
     failure_bucket_id TEXT,
     uptime_seconds INTEGER DEFAULT 0,
     cdb_raw_output TEXT,         -- LUÔN lưu output thô để phân tích lại khi đổi luật
-    analyzed_by TEXT,            -- 'cdb', 'header_only', hoặc 'none'
+    analyzed_by TEXT,            -- 'cdb', 'triage_native', 'header_only', hoặc 'none'
     crash_time_source TEXT DEFAULT 'unknown', -- 'header', 'mtime', 'cdb', 'eventlog_6008', 'estimated', 'kp41'
     suspect_driver TEXT DEFAULT '',           -- Driver nghi vấn phát hiện trong stack trace
-    extra_json TEXT DEFAULT '{}'              -- Dữ liệu mở rộng JSON (errrec, chkimg, driver_age)
+    extra_json TEXT DEFAULT '{}',             -- Dữ liệu mở rộng JSON (errrec, chkimg, driver_age)
+    exception_code TEXT DEFAULT '',           -- Mã ngoại lệ (ví dụ: '0xC0000005')
+    exception_address TEXT DEFAULT '',        -- Địa chỉ ngoại lệ (ví dụ: '0xFFFFF80585ED8334')
+    exception_module TEXT DEFAULT '',         -- Module ngoại lệ (ví dụ: 'ntoskrnl.exe')
+    triage_json TEXT DEFAULT '{}'             -- Kết quả triage reader JSON (giới hạn <= 256KB)
 );
 
 CREATE TABLE IF NOT EXISTS evidence (

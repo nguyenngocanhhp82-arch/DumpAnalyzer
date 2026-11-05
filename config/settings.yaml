@@ -111,4 +111,14 @@ dump_readiness:
   remote_enabled: false
   remote_max_parallel: 5
 
+# ==============================================================================
+# BỘ ĐỌC MINIDUMP TRIAGE TÍCH HỢP (Đợt 05 - v1.3.0)
+# ==============================================================================
+triage_reader:
+  enabled: true
+  max_bytes: 16777216
+  max_modules: 300
+  max_stack_candidates: 200
+  exception_bugchecks: ["0x23", "0x24"]
+
 

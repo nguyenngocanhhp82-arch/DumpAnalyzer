@@ -76,6 +76,14 @@ class Database:
                 conn.execute("ALTER TABLE crash ADD COLUMN suspect_driver TEXT DEFAULT '';")
             if "extra_json" not in crash_cols:
                 conn.execute("ALTER TABLE crash ADD COLUMN extra_json TEXT DEFAULT '{}';")
+            if "exception_code" not in crash_cols:
+                conn.execute("ALTER TABLE crash ADD COLUMN exception_code TEXT DEFAULT '';")
+            if "exception_address" not in crash_cols:
+                conn.execute("ALTER TABLE crash ADD COLUMN exception_address TEXT DEFAULT '';")
+            if "exception_module" not in crash_cols:
+                conn.execute("ALTER TABLE crash ADD COLUMN exception_module TEXT DEFAULT '';")
+            if "triage_json" not in crash_cols:
+                conn.execute("ALTER TABLE crash ADD COLUMN triage_json TEXT DEFAULT '{}';")
 
             # Bảng evidence
             cursor = conn.execute("PRAGMA table_info(evidence)")
@@ -126,8 +134,9 @@ class Database:
             bugcheck_code, bugcheck_name, p1, p2, p3, p4,
             image_name, module_name, process_name, failure_bucket_id,
             uptime_seconds, cdb_raw_output, analyzed_by,
-            crash_time_source, suspect_driver, extra_json
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            crash_time_source, suspect_driver, extra_json,
+            exception_code, exception_address, exception_module, triage_json
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """
         params = (
             crash.machine_id,
@@ -151,6 +160,10 @@ class Database:
             getattr(crash, "crash_time_source", "unknown") or "unknown",
             getattr(crash, "suspect_driver", "") or "",
             getattr(crash, "extra_json", "{}") or "{}",
+            getattr(crash, "exception_code", "") or "",
+            getattr(crash, "exception_address", "") or "",
+            getattr(crash, "exception_module", "") or "",
+            getattr(crash, "triage_json", "{}") or "{}",
         )
         with conn:
             cursor = conn.execute(sql, params)
@@ -218,6 +231,43 @@ class Database:
                     crash_id,
                 ),
             )
+            return cursor.rowcount > 0
+
+    def update_crash_triage_results(
+        self,
+        crash_id: int,
+        exception_code: str,
+        exception_address: str,
+        exception_module: str,
+        triage_json: str,
+        analyzed_by: Optional[str] = None,
+    ) -> bool:
+        """Cập nhật kết quả phân tích minidump triage vào bản ghi crash."""
+        conn = self._get_connection()
+        if analyzed_by:
+            sql = """
+            UPDATE crash
+            SET exception_code = ?,
+                exception_address = ?,
+                exception_module = ?,
+                triage_json = ?,
+                analyzed_by = ?
+            WHERE id = ?
+            """
+            params = (exception_code, exception_address, exception_module, triage_json, analyzed_by, crash_id)
+        else:
+            sql = """
+            UPDATE crash
+            SET exception_code = ?,
+                exception_address = ?,
+                exception_module = ?,
+                triage_json = ?
+            WHERE id = ?
+            """
+            params = (exception_code, exception_address, exception_module, triage_json, crash_id)
+
+        with conn:
+            cursor = conn.execute(sql, params)
             return cursor.rowcount > 0
 
     def insert_machine(self, machine: MachineInfo) -> int:

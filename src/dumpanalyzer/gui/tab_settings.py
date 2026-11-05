@@ -4,9 +4,10 @@ Bao gồm:
 1. Mục 'Khả năng ghi dump': Bảng kiểm tra registry CrashControl, pagefile, dung lượng ổ C:,
    sự kiện volmgr và nút bật tự động ghi dump an toàn (có hộp thoại xác nhận).
 2. Mục 'Cấu hình phân tích': Đường dẫn cdb.exe, symbols Microsoft, thư mục làm việc,
-   cửa sổ thời gian tương quan và số luồng xử lý song song.
+   bộ đọc Minidump Triage nội bộ, cửa sổ thời gian tương quan và số luồng xử lý song song.
 3. Mục 'Quản lý quy tắc chẩn đoán': Nút kiểm tra tính hợp lệ toàn diện (Validate Rules)
    và nút mở nhanh thư mục cấu hình rules YAML.
+4. Mục 'Thông tin phần mềm': Bản quyền tác giả phát triển Lilbow, phiên bản và mục đích ứng dụng.
 """
 
 import os
@@ -15,6 +16,7 @@ import sys
 from typing import Any, Dict, Optional
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (
+    QCheckBox,
     QFileDialog,
     QFrame,
     QGridLayout,
@@ -76,7 +78,7 @@ class SettingsTab(QWidget):
         container_widget = QWidget()
         main_layout = QVBoxLayout(container_widget)
         main_layout.setContentsMargins(20, 20, 20, 20)
-        main_layout.setSpacing(18)
+        main_layout.setSpacing(20)
 
         # =====================================================================
         # MỤC 1: KHẢ NĂNG GHI DUMP (DUMP CONFIG & READINESS)
@@ -84,20 +86,22 @@ class SettingsTab(QWidget):
         readiness_card = QFrame()
         readiness_card.setObjectName("CardFrame")
         readiness_layout = QVBoxLayout(readiness_card)
-        readiness_layout.setContentsMargins(16, 14, 16, 14)
-        readiness_layout.setSpacing(12)
+        readiness_layout.setContentsMargins(20, 16, 20, 16)
+        readiness_layout.setSpacing(14)
 
         header_r = QHBoxLayout()
-        lbl_r_title = QLabel("KHẢ NĂNG GHI DUMP KHI SẬP MÁY (DUMP READINESS)")
+        lbl_r_title = QLabel("1. KHẢ NĂNG GHI DUMP KHI SẬP MÁY (DUMP READINESS)")
         lbl_r_title.setStyleSheet(f"font-size: 13px; font-weight: bold; color: {COLOR_TEXT_PRIMARY};")
         header_r.addWidget(lbl_r_title)
 
         self.lbl_readiness_badge = QLabel("CHƯA KIỂM TRA")
-        self.lbl_readiness_badge.setStyleSheet("background-color: #334155; color: #cbd5e1; font-weight: bold; padding: 4px 10px; border-radius: 6px;")
+        self.lbl_readiness_badge.setStyleSheet(
+            "background-color: #334155; color: #cbd5e1; font-weight: bold; padding: 4px 12px; border-radius: 6px;"
+        )
         header_r.addWidget(self.lbl_readiness_badge, alignment=Qt.AlignRight)
         readiness_layout.addLayout(header_r)
 
-        # Bảng thông số CrashControl & Ổ đĩa
+        # Bảng thông số CrashControl & Ổ đĩa (Chiều cao linh hoạt, thoáng mắt)
         self.table_config = QTableWidget()
         self.table_config.setColumnCount(3)
         self.table_config.setHorizontalHeaderLabels(["Thành phần kiểm tra", "Giá trị hiện tại", "Đánh giá & Khuyến nghị"])
@@ -107,20 +111,22 @@ class SettingsTab(QWidget):
         self.table_config.setSelectionBehavior(QTableWidget.SelectRows)
         self.table_config.setEditTriggers(QTableWidget.NoEditTriggers)
         self.table_config.verticalHeader().setVisible(False)
-        self.table_config.setFixedHeight(150)
+        self.table_config.verticalHeader().setDefaultSectionSize(34)
+        self.table_config.setMinimumHeight(190)
         readiness_layout.addWidget(self.table_config)
 
         # Hàng nút thao tác khả năng ghi dump
         actions_r = QHBoxLayout()
         actions_r.setSpacing(12)
 
-        self.btn_refresh_dump_cfg = QPushButton("Kiểm tra lại cấu hình ghi dump")
+        self.btn_refresh_dump_cfg = QPushButton("🔄 Kiểm tra lại cấu hình ghi dump")
+        self.btn_refresh_dump_cfg.setStyleSheet("padding: 7px 16px; font-weight: 600;")
         self.btn_refresh_dump_cfg.clicked.connect(self.refresh_dump_config)
         actions_r.addWidget(self.btn_refresh_dump_cfg)
 
-        self.btn_enable_dump = QPushButton("Bật tự động ghi dump (Automatic Dump)")
+        self.btn_enable_dump = QPushButton("⚡ Bật tự động ghi dump (Automatic Dump)")
         self.btn_enable_dump.setStyleSheet(
-            f"background-color: {COLOR_ACCENT}; color: #ffffff; font-weight: bold; padding: 7px 16px; border-radius: 6px;"
+            f"background-color: {COLOR_ACCENT}; color: #ffffff; font-weight: bold; padding: 7px 18px; border-radius: 6px;"
         )
         self.btn_enable_dump.clicked.connect(self._on_enable_dump_clicked)
         actions_r.addWidget(self.btn_enable_dump)
@@ -131,36 +137,38 @@ class SettingsTab(QWidget):
         main_layout.addWidget(readiness_card)
 
         # =====================================================================
-        # MỤC 2: CẤU HÌNH PHÂN TÍCH (ANALYSIS SETTINGS)
+        # MỤC 2: CẤU HÌNH PHÂN TÍCH & ĐƯỜNG DẪN HỆ THỐNG
         # =====================================================================
         cfg_card = QFrame()
         cfg_card.setObjectName("CardFrame")
         cfg_layout = QVBoxLayout(cfg_card)
-        cfg_layout.setContentsMargins(18, 16, 18, 16)
-        cfg_layout.setSpacing(14)
+        cfg_layout.setContentsMargins(20, 16, 20, 16)
+        cfg_layout.setSpacing(16)
 
-        lbl_cfg_title = QLabel("CẤU HÌNH PHÂN TÍCH & ĐƯỜNG DẪN HỆ THỐNG")
-        lbl_cfg_title.setStyleSheet(f"font-size: 13px; font-weight: bold; color: {COLOR_TEXT_PRIMARY}; border-bottom: 2px solid {COLOR_BORDER}; padding-bottom: 6px;")
+        lbl_cfg_title = QLabel("2. CẤU HÌNH PHÂN TÍCH & ĐƯỜNG DẪN HỆ THỐNG")
+        lbl_cfg_title.setStyleSheet(
+            f"font-size: 13px; font-weight: bold; color: {COLOR_TEXT_PRIMARY}; border-bottom: 2px solid {COLOR_BORDER}; padding-bottom: 6px;"
+        )
         cfg_layout.addWidget(lbl_cfg_title)
 
         grid_cfg = QGridLayout()
         grid_cfg.setVerticalSpacing(14)
-        grid_cfg.setHorizontalSpacing(16)
-        grid_cfg.setColumnMinimumWidth(0, 240)
+        grid_cfg.setHorizontalSpacing(14)
+        grid_cfg.setColumnMinimumWidth(0, 180)
 
-        # CDB Path
+        # 1. CDB Path
         lbl_cdb = QLabel("Đường dẫn WinDbg (cdb.exe):")
         lbl_cdb.setStyleSheet(f"color: {COLOR_TEXT_MUTED}; font-weight: 500;")
         self.txt_cdb = QLineEdit(self._settings.get("cdb_path", "") or "")
-        self.txt_cdb.setPlaceholderText("Đường dẫn tới tệp thực thi cdb.exe...")
+        self.txt_cdb.setPlaceholderText("Ví dụ: C:\\Program Files (x86)\\Windows Kits\\10\\Debuggers\\x64\\cdb.exe")
         btn_browse_cdb = QPushButton("📁 Duyệt...")
-        btn_browse_cdb.setFixedWidth(100)
+        btn_browse_cdb.setFixedWidth(90)
         btn_browse_cdb.clicked.connect(self._browse_cdb)
         grid_cfg.addWidget(lbl_cdb, 0, 0)
         grid_cfg.addWidget(self.txt_cdb, 0, 1)
         grid_cfg.addWidget(btn_browse_cdb, 0, 2)
 
-        # Symbol Path
+        # 2. Symbol Path
         lbl_sym = QLabel("Máy chủ Symbol Microsoft:")
         lbl_sym.setStyleSheet(f"color: {COLOR_TEXT_MUTED}; font-weight: 500;")
         self.txt_sym = QLineEdit(self._settings.get("symbol_path", "") or "")
@@ -168,61 +176,90 @@ class SettingsTab(QWidget):
         grid_cfg.addWidget(lbl_sym, 1, 0)
         grid_cfg.addWidget(self.txt_sym, 1, 1, 1, 2)
 
-        # Workspace Directory
+        # 3. Workspace Directory
         lbl_ws = QLabel("Thư mục làm việc (Workspace):")
         lbl_ws.setStyleSheet(f"color: {COLOR_TEXT_MUTED}; font-weight: 500;")
         self.txt_ws = QLineEdit(self._settings.get("workspace_dir", "workspace"))
-        self.txt_ws.setPlaceholderText("Thư mục lưu trữ CSDL tạm và mẫu dump...")
+        self.txt_ws.setPlaceholderText("Thư mục lưu CSDL tạm và mẫu dump...")
         btn_browse_ws = QPushButton("📁 Duyệt...")
-        btn_browse_ws.setFixedWidth(100)
+        btn_browse_ws.setFixedWidth(90)
         btn_browse_ws.clicked.connect(self._browse_workspace)
         grid_cfg.addWidget(lbl_ws, 2, 0)
         grid_cfg.addWidget(self.txt_ws, 2, 1)
         grid_cfg.addWidget(btn_browse_ws, 2, 2)
 
-        # Numeric spinbox: Cửa sổ thời gian tìm kiếm sự kiện
-        lbl_win = QLabel("Cửa sổ sự kiện trước crash:")
+        # 4. Triage Reader Settings
+        triage_cfg = self._settings.get("triage_reader", {}) or {}
+        lbl_triage = QLabel("Bộ đọc Minidump Triage:")
+        lbl_triage.setStyleSheet(f"color: {COLOR_TEXT_MUTED}; font-weight: 500;")
+        triage_row = QHBoxLayout()
+        triage_row.setSpacing(10)
+        self.chk_triage_enabled = QCheckBox("Kích hoạt bộ đọc Triage nội bộ thuần Python (Không cần WinDbg/cdb)")
+        self.chk_triage_enabled.setChecked(bool(triage_cfg.get("enabled", True)))
+        self.chk_triage_enabled.setStyleSheet("color: #cbd5e1; font-weight: 500;")
+        triage_row.addWidget(self.chk_triage_enabled)
+        triage_row.addStretch()
+        grid_cfg.addWidget(lbl_triage, 3, 0)
+        grid_cfg.addLayout(triage_row, 3, 1, 1, 2)
+
+        # 5. Cửa sổ thời gian tìm kiếm sự kiện
+        lbl_win = QLabel("Cửa sổ sự kiện trước sập:")
         lbl_win.setStyleSheet(f"color: {COLOR_TEXT_MUTED}; font-weight: 500;")
-        row_win = QHBoxLayout()
-        row_win.setSpacing(10)
+        row_win = QVBoxLayout()
+        row_win.setSpacing(4)
+
+        spin_h = QHBoxLayout()
+        spin_h.setSpacing(8)
         self.spin_window = QSpinBox()
         self.spin_window.setRange(1, 120)
         self.spin_window.setValue(int(self._settings.get("time_window_minutes", 10)))
         self.spin_window.setSuffix(" phút")
-        self.spin_window.setFixedWidth(110)
-        lbl_win_hint = QLabel("(Khoảng thời gian quét Windows Event Log trước mỗi lần sập máy)")
-        lbl_win_hint.setStyleSheet(f"color: {COLOR_TEXT_MUTED}; font-size: 12px; font-style: italic;")
-        row_win.addWidget(self.spin_window)
-        row_win.addWidget(lbl_win_hint)
-        row_win.addStretch()
-        grid_cfg.addWidget(lbl_win, 3, 0)
-        grid_cfg.addLayout(row_win, 3, 1, 1, 2)
+        self.spin_window.setFixedWidth(120)
+        spin_h.addWidget(self.spin_window)
+        spin_h.addStretch()
+        row_win.addLayout(spin_h)
 
-        # Numeric spinbox: Số tiến trình phân tích song song
-        lbl_conc = QLabel("Tiến trình phân tích song song:")
+        lbl_win_hint = QLabel("Khoảng thời gian quét Windows Event Log trước mỗi lần sập máy (mặc định 10 phút).")
+        lbl_win_hint.setStyleSheet(f"color: {COLOR_TEXT_MUTED}; font-size: 11px;")
+        lbl_win_hint.setWordWrap(True)
+        row_win.addWidget(lbl_win_hint)
+
+        grid_cfg.addWidget(lbl_win, 4, 0, Qt.AlignTop)
+        grid_cfg.addLayout(row_win, 4, 1, 1, 2)
+
+        # 6. Số tiến trình phân tích song song
+        lbl_conc = QLabel("Tiến trình song song:")
         lbl_conc.setStyleSheet(f"color: {COLOR_TEXT_MUTED}; font-weight: 500;")
-        row_conc = QHBoxLayout()
-        row_conc.setSpacing(10)
+        row_conc = QVBoxLayout()
+        row_conc.setSpacing(4)
+
+        spin_c_h = QHBoxLayout()
+        spin_c_h.setSpacing(8)
         self.spin_conc = QSpinBox()
         self.spin_conc.setRange(1, 16)
         self.spin_conc.setValue(int(self._settings.get("concurrency", 2)))
         self.spin_conc.setSuffix(" luồng")
-        self.spin_conc.setFixedWidth(110)
-        lbl_conc_hint = QLabel("(Số luồng CPU tối đa dùng để phân tích file dump đồng thời)")
-        lbl_conc_hint.setStyleSheet(f"color: {COLOR_TEXT_MUTED}; font-size: 12px; font-style: italic;")
-        row_conc.addWidget(self.spin_conc)
-        row_conc.addWidget(lbl_conc_hint)
-        row_conc.addStretch()
-        grid_cfg.addWidget(lbl_conc, 4, 0)
-        grid_cfg.addLayout(row_conc, 4, 1, 1, 2)
+        self.spin_conc.setFixedWidth(120)
+        spin_c_h.addWidget(self.spin_conc)
+        spin_c_h.addStretch()
+        row_conc.addLayout(spin_c_h)
 
+        lbl_conc_hint = QLabel("Số luồng CPU tối đa dùng để phân tích file dump đồng thời (khuyến nghị 2-4 luồng).")
+        lbl_conc_hint.setStyleSheet(f"color: {COLOR_TEXT_MUTED}; font-size: 11px;")
+        lbl_conc_hint.setWordWrap(True)
+        row_conc.addWidget(lbl_conc_hint)
+
+        grid_cfg.addWidget(lbl_conc, 5, 0, Qt.AlignTop)
+        grid_cfg.addLayout(row_conc, 5, 1, 1, 2)
+
+        grid_cfg.setColumnStretch(1, 1)
         cfg_layout.addLayout(grid_cfg)
 
         # Nút lưu cấu hình
         actions_cfg = QHBoxLayout()
         self.btn_save_settings = QPushButton("💾 Lưu cấu hình hệ thống")
         self.btn_save_settings.setStyleSheet(
-            f"background-color: {COLOR_ACCENT}; color: #ffffff; font-weight: bold; padding: 7px 20px; border-radius: 6px;"
+            f"background-color: {COLOR_ACCENT}; color: #ffffff; font-weight: bold; padding: 8px 22px; border-radius: 6px;"
         )
         self.btn_save_settings.clicked.connect(self._on_save_settings_clicked)
         actions_cfg.addWidget(self.btn_save_settings)
@@ -237,30 +274,33 @@ class SettingsTab(QWidget):
         rules_card = QFrame()
         rules_card.setObjectName("CardFrame")
         rules_layout = QVBoxLayout(rules_card)
-        rules_layout.setContentsMargins(18, 16, 18, 16)
-        rules_layout.setSpacing(10)
+        rules_layout.setContentsMargins(20, 16, 20, 16)
+        rules_layout.setSpacing(12)
 
-        lbl_rules_title = QLabel("QUẢN LÝ BỘ QUY TẮC CHẨN ĐOÁN (YAML RULES)")
-        lbl_rules_title.setStyleSheet(f"font-size: 13px; font-weight: bold; color: {COLOR_TEXT_PRIMARY}; border-bottom: 2px solid {COLOR_BORDER}; padding-bottom: 6px;")
+        lbl_rules_title = QLabel("3. QUẢN LÝ BỘ QUY TẮC CHẨN ĐOÁN (YAML RULES)")
+        lbl_rules_title.setStyleSheet(
+            f"font-size: 13px; font-weight: bold; color: {COLOR_TEXT_PRIMARY}; border-bottom: 2px solid {COLOR_BORDER}; padding-bottom: 6px;"
+        )
         rules_layout.addWidget(lbl_rules_title)
 
         lbl_rules_desc = QLabel(
-            "Tất cả quy tắc mã lỗi Bug Check, ánh xạ driver bên thứ ba, sự kiện Event Log và mẫu hình đa crash "
-            "đều được lưu trong các file YAML dễ đọc và chỉnh sửa mà không cần lập trình lại."
+            "Tất cả quy tắc mã lỗi Bug Check, phân loại module Microsoft/USB, luật bằng chứng Minidump Triage, "
+            "ánh xạ driver bên thứ ba và mẫu hình đa crash đều được lưu trong các file YAML dễ đọc, có thể cập nhật không cần biên dịch lại."
         )
-        lbl_rules_desc.setStyleSheet(f"color: {COLOR_TEXT_MUTED}; font-size: 12px;")
+        lbl_rules_desc.setStyleSheet(f"color: {COLOR_TEXT_MUTED}; font-size: 12px; line-height: 1.4;")
         lbl_rules_desc.setWordWrap(True)
         rules_layout.addWidget(lbl_rules_desc)
 
         actions_rules = QHBoxLayout()
         actions_rules.setSpacing(12)
 
-        self.btn_validate_rules = QPushButton("Kiểm tra tính hợp lệ bộ quy tắc (Validate Rules)")
-        self.btn_validate_rules.setStyleSheet("font-weight: bold; padding: 7px 16px;")
+        self.btn_validate_rules = QPushButton("🔍 Kiểm tra tính hợp lệ bộ quy tắc (Validate Rules)")
+        self.btn_validate_rules.setStyleSheet("font-weight: bold; padding: 7px 18px;")
         self.btn_validate_rules.clicked.connect(self._on_validate_rules_clicked)
         actions_rules.addWidget(self.btn_validate_rules)
 
-        self.btn_open_rules_folder = QPushButton("Mở thư mục chứa file quy tắc (config/rules)")
+        self.btn_open_rules_folder = QPushButton("📂 Mở thư mục chứa file quy tắc (config/rules)")
+        self.btn_open_rules_folder.setStyleSheet("font-weight: 500; padding: 7px 16px;")
         self.btn_open_rules_folder.clicked.connect(self._on_open_rules_folder_clicked)
         actions_rules.addWidget(self.btn_open_rules_folder)
 
@@ -275,37 +315,39 @@ class SettingsTab(QWidget):
         about_card = QFrame()
         about_card.setObjectName("CardFrame")
         about_layout = QVBoxLayout(about_card)
-        about_layout.setContentsMargins(18, 16, 18, 16)
-        about_layout.setSpacing(10)
+        about_layout.setContentsMargins(20, 16, 20, 16)
+        about_layout.setSpacing(12)
 
-        lbl_about_title = QLabel("THÔNG TIN PHẦN MỀM & BẢN QUYỀN")
-        lbl_about_title.setStyleSheet(f"font-size: 13px; font-weight: bold; color: {COLOR_TEXT_PRIMARY}; border-bottom: 2px solid {COLOR_BORDER}; padding-bottom: 6px;")
+        lbl_about_title = QLabel("4. THÔNG TIN PHẦN MỀM & BẢN QUYỀN")
+        lbl_about_title.setStyleSheet(
+            f"font-size: 13px; font-weight: bold; color: {COLOR_TEXT_PRIMARY}; border-bottom: 2px solid {COLOR_BORDER}; padding-bottom: 6px;"
+        )
         about_layout.addWidget(lbl_about_title)
 
         grid_about = QGridLayout()
-        grid_about.setVerticalSpacing(8)
+        grid_about.setVerticalSpacing(10)
         grid_about.setHorizontalSpacing(16)
-        grid_about.setColumnMinimumWidth(0, 240)
+        grid_about.setColumnMinimumWidth(0, 160)
 
         lbl_app_name = QLabel("Tên phần mềm:")
         lbl_app_name.setStyleSheet(f"color: {COLOR_TEXT_MUTED}; font-weight: 500;")
         lbl_app_val = QLabel("DumpAnalyzer")
-        lbl_app_val.setStyleSheet("font-weight: bold; color: #38bdf8;")
+        lbl_app_val.setStyleSheet("font-weight: bold; color: #38bdf8; font-size: 13px;")
         grid_about.addWidget(lbl_app_name, 0, 0)
         grid_about.addWidget(lbl_app_val, 0, 1)
 
-        lbl_app_ver = QLabel("Phiên bản hiện tại:")
+        lbl_app_ver = QLabel("Phiên bản:")
         lbl_app_ver.setStyleSheet(f"color: {COLOR_TEXT_MUTED}; font-weight: 500;")
         from dumpanalyzer import __version__
         lbl_ver_val = QLabel(f"v{__version__}")
-        lbl_ver_val.setStyleSheet("font-weight: bold; color: #4ade80;")
+        lbl_ver_val.setStyleSheet("font-weight: bold; color: #4ade80; font-size: 13px;")
         grid_about.addWidget(lbl_app_ver, 1, 0)
         grid_about.addWidget(lbl_ver_val, 1, 1)
 
         lbl_author = QLabel("Tác giả phát triển:")
         lbl_author.setStyleSheet(f"color: {COLOR_TEXT_MUTED}; font-weight: 500;")
         lbl_author_val = QLabel("Lilbow")
-        lbl_author_val.setStyleSheet("font-weight: bold; color: #f59e0b; font-size: 14px;")
+        lbl_author_val.setStyleSheet("font-weight: 800; color: #f59e0b; font-size: 14px;")
         grid_about.addWidget(lbl_author, 2, 0)
         grid_about.addWidget(lbl_author_val, 2, 1)
 
@@ -313,13 +355,14 @@ class SettingsTab(QWidget):
         lbl_purpose.setStyleSheet(f"color: {COLOR_TEXT_MUTED}; font-weight: 500;")
         lbl_purpose_val = QLabel(
             "Chẩn đoán và phân tích nguyên nhân sự cố BSOD (màn hình xanh), tự động tương quan "
-            "với Windows Event Log trước thời điểm crash nhằm hỗ trợ kỹ thuật viên IT sửa chữa nhanh chóng, chính xác."
+            "với Windows Event Log trước thời điểm sập máy nhằm hỗ trợ kỹ thuật viên IT xử lý nhanh chóng, chính xác."
         )
         lbl_purpose_val.setWordWrap(True)
-        lbl_purpose_val.setStyleSheet("color: #cbd5e1; font-size: 12px;")
-        grid_about.addWidget(lbl_purpose, 3, 0)
-        grid_about.addWidget(lbl_purpose_val, 3, 1)
+        lbl_purpose_val.setStyleSheet("color: #cbd5e1; font-size: 12px; line-height: 1.4;")
+        grid_about.addWidget(lbl_purpose, 3, 0, Qt.AlignTop)
+        grid_about.addWidget(lbl_purpose_val, 3, 1, Qt.AlignTop)
 
+        grid_about.setColumnStretch(1, 1)
         about_layout.addLayout(grid_about)
         main_layout.addWidget(about_card)
 
@@ -337,24 +380,22 @@ class SettingsTab(QWidget):
         readiness = evaluate_readiness(reg_data, pf_data, disk_data, volmgr_data)
         status = readiness.get("status", "KHÔNG GHI ĐƯỢC DUMP")
 
-        # Cập nhật huy hiệu
         if status == "SẴN SÀNG":
             self.lbl_readiness_badge.setText("SẴN SÀNG GHI DUMP")
             self.lbl_readiness_badge.setStyleSheet(
-                f"background-color: #14532d; color: #86efac; border: 1px solid {COLOR_SUCCESS}; font-weight: bold; padding: 4px 10px; border-radius: 6px;"
+                f"background-color: #14532d; color: #86efac; border: 1px solid {COLOR_SUCCESS}; font-weight: bold; padding: 4px 12px; border-radius: 6px;"
             )
         elif status == "CẦN CHÚ Ý":
             self.lbl_readiness_badge.setText("CẦN CHÚ Ý")
             self.lbl_readiness_badge.setStyleSheet(
-                f"background-color: #78350f; color: #fde68a; border: 1px solid {COLOR_WARNING}; font-weight: bold; padding: 4px 10px; border-radius: 6px;"
+                f"background-color: #78350f; color: #fde68a; border: 1px solid {COLOR_WARNING}; font-weight: bold; padding: 4px 12px; border-radius: 6px;"
             )
         else:
             self.lbl_readiness_badge.setText("KHÔNG GHI ĐƯỢC DUMP")
             self.lbl_readiness_badge.setStyleSheet(
-                f"background-color: #7f1d1d; color: #fca5a5; border: 1px solid {COLOR_DANGER}; font-weight: bold; padding: 4px 10px; border-radius: 6px;"
+                f"background-color: #7f1d1d; color: #fca5a5; border: 1px solid {COLOR_DANGER}; font-weight: bold; padding: 4px 12px; border-radius: 6px;"
             )
 
-        # Điền bảng
         dump_code = reg_data.get("CrashDumpEnabled")
         mode_desc = CRASH_DUMP_MODES.get(dump_code, f"Mã không xác định ({dump_code})")
         volmgr_summary = "Không có lỗi ghi dump"
@@ -380,7 +421,7 @@ class SettingsTab(QWidget):
             self.table_config.setItem(r_idx, 2, QTableWidgetItem(col2))
 
     def _on_enable_dump_clicked(self) -> None:
-        """Xử lý bật tự động ghi dump có hộp thoại xác nhận theo UPDATE_01."""
+        """Xử lý bật tự động ghi dump có hộp thoại xác nhận."""
         reply = QMessageBox.question(
             self,
             "Xác nhận thay đổi cấu hình hệ thống",
@@ -427,6 +468,10 @@ class SettingsTab(QWidget):
             self._settings["time_window_minutes"] = self.spin_window.value()
             self._settings["concurrency"] = self.spin_conc.value()
 
+            if "triage_reader" not in self._settings:
+                self._settings["triage_reader"] = {}
+            self._settings["triage_reader"]["enabled"] = self.chk_triage_enabled.isChecked()
+
             save_settings(self._settings_path, self._settings)
             QMessageBox.information(self, "Lưu thành công", "Đã lưu cài đặt hệ thống vào config/settings.yaml thành công!")
         except Exception as e:
@@ -444,7 +489,9 @@ class SettingsTab(QWidget):
                 "- bugcheck_rules.yaml: Đạt chuẩn\n"
                 "- driver_map.yaml: Đạt chuẩn\n"
                 "- event_rules.yaml: Đạt chuẩn\n"
-                "- patterns.yaml: Đạt chuẩn",
+                "- patterns.yaml: Đạt chuẩn\n"
+                "- module_classes.yaml: Đạt chuẩn\n"
+                "- triage_rules.yaml: Đạt chuẩn",
             )
         else:
             err_msg = "\n".join(f"• {e}" for e in errors)

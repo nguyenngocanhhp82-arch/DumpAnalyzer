@@ -8,6 +8,7 @@ from typing import Any, Dict, List, Optional, Set, Tuple
 from dumpanalyzer.core.models import Crash, Evidence
 from dumpanalyzer.engine.rule_loader import normalize_bugcheck_code
 from dumpanalyzer.core.timeutil import parse_to_utc
+from dumpanalyzer.engine.module_classifier import is_ms_inbox
 
 logger = logging.getLogger("dumpanalyzer.engine.scorer")
 
@@ -15,7 +16,8 @@ logger = logging.getLogger("dumpanalyzer.engine.scorer")
 SUSPECT_LABELS_VI = {
     "gpu": "Card màn hình / Driver GPU",
     "ram": "Bộ nhớ RAM",
-    "storage": "Ổ cứng / SSD / Bộ điều khiển lưu trữ",
+    "storage": "Hệ thống tệp / ổ lưu trữ (kể cả USB, thẻ nhớ)",
+    "usb_peripheral": "Thiết bị USB / cổng USB / nguồn USB",
     "driver": "Driver bên thứ ba",
     "cpu": "Bộ xử lý CPU / Ép xung",
     "psu": "Bộ nguồn máy tính (PSU) / Nguồn điện",
@@ -175,6 +177,33 @@ def compute_event_points(
             for cand in ["ram", "storage", "cpu", "gpu"]:
                 if cand in gid or cand in ev_desc:
                     points[cand] = points.get(cand, 0.0) + 35.0
+            if ev_id:
+                used_ids.add(ev_id)
+
+        elif ev.kind == "dump":
+            gid = getattr(ev, "group_id", "") or getattr(ev, "rule_id", "")
+            if gid == "fs_path_all_microsoft":
+                # Đường xử lý toàn module Microsoft: trừ điểm driver (sàn 0), cộng storage 5
+                points["driver"] = max(0.0, points.get("driver", 0.0) - 15.0)
+                points["storage"] = points.get("storage", 0.0) + 5.0
+            elif gid == "usb_mass_storage_active":
+                points["usb_peripheral"] = points.get("usb_peripheral", 0.0) + 15.0
+            elif gid == "usb_mass_storage_churn":
+                points["usb_peripheral"] = points.get("usb_peripheral", 0.0) + 10.0
+            elif gid == "third_party_filter_in_stack":
+                points["driver"] = points.get("driver", 0.0) + 30.0
+            elif gid == "null_dereference_info":
+                pass
+            else:
+                # Đọc động effect nếu có từ cấu hình triage_rules
+                triage_rules_cfg = rules.get("triage_rules", {})
+                for r in triage_rules_cfg.get("rules", []):
+                    if r.get("id") == gid:
+                        eff = r.get("effect", {})
+                        for s_add, w_add in eff.get("add", {}).items():
+                            points[s_add] = points.get(s_add, 0.0) + float(w_add)
+                        for s_red, w_red in eff.get("reduce", {}).items():
+                            points[s_red] = max(0.0, points.get(s_red, 0.0) - float(w_red))
             if ev_id:
                 used_ids.add(ev_id)
 
@@ -410,12 +439,16 @@ def score_single_crash(
                 suspect_driver_in_stack = line.split(":", 1)[1].strip().lower()
                 break
 
+    # Nếu driver trong stack thuộc ms_inbox (ví dụ fastfat.sys, fltmgr.sys), tuyệt đối không coi là thủ phạm bên thứ ba
+    if suspect_driver_in_stack and is_ms_inbox(suspect_driver_in_stack):
+        suspect_driver_in_stack = ""
+
     if is_log_only:
         # Crash không có dump TUYỆT ĐỐI không kết luận driver cụ thể
         pass
     else:
-        # Có dump: phân định Nạn nhân vs Thủ phạm
-        is_ms_module = any(active_module.endswith(ms_mod) for ms_mod in ms_core_modules)
+        # Có dump: phân định Nạn nhân vs Thủ phạm (kết hợp ms_inbox và ms_core_modules)
+        is_ms_module = is_ms_inbox(active_module) or any(active_module.endswith(ms_mod) for ms_mod in ms_core_modules)
 
         if is_ms_module:
             notes.append(f"Module sập là '{active_module}' (Microsoft OS Core) - đây là nạn nhân.")

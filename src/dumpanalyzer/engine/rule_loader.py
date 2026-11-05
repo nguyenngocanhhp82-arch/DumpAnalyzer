@@ -273,8 +273,67 @@ def validate_rules_and_settings(config_dir: Optional[Path] = None) -> Tuple[bool
             all_errors.extend(val_errs)
             summary["dump_readiness_rules"] = True
 
+    # 7. Kiểm tra module_classes.yaml (Đợt 05)
+    mc_file = rules_path / "module_classes.yaml"
+    if mc_file.exists():
+        mc_data, mc_err = load_yaml_with_line_numbers(mc_file)
+        if mc_err:
+            all_errors.append(mc_err)
+        elif mc_data:
+            val_errs = validate_module_classes(mc_data, mc_file)
+            all_errors.extend(val_errs)
+            summary["module_classes"] = True
+
+    # 8. Kiểm tra triage_rules.yaml (Đợt 05)
+    tr_file = rules_path / "triage_rules.yaml"
+    if tr_file.exists():
+        tr_data, tr_err = load_yaml_with_line_numbers(tr_file)
+        if tr_err:
+            all_errors.append(tr_err)
+        elif tr_data:
+            val_errs = validate_triage_rules(tr_data, tr_file)
+            all_errors.extend(val_errs)
+            summary["triage_rules_count"] = len(tr_data.get("rules", []))
+
     is_valid = len(all_errors) == 0
     return is_valid, all_errors, summary
+
+
+def validate_module_classes(data: Any, file_path: Path) -> List[str]:
+    """Kiểm tra cấu trúc file module_classes.yaml."""
+    errors = []
+    if not isinstance(data, dict):
+        return [f"'{file_path.name}': Nội dung gốc phải là một từ điển."]
+    classes = data.get("classes")
+    if not isinstance(classes, dict):
+        errors.append(f"'{file_path.name}': Thiếu trường 'classes' hoặc không phải từ điển.")
+    else:
+        for k in ("ms_inbox", "fs_stack", "usb_storage_driver", "third_party_filter_known"):
+            if k not in classes or not isinstance(classes[k], list):
+                errors.append(f"'{file_path.name}': Thiếu hoặc sai định dạng danh sách '{k}'.")
+    return errors
+
+
+def validate_triage_rules(data: Any, file_path: Path) -> List[str]:
+    """Kiểm tra cấu trúc file triage_rules.yaml."""
+    errors = []
+    if not isinstance(data, dict):
+        return [f"'{file_path.name}': Nội dung gốc phải là một từ điển."]
+    rules = data.get("rules")
+    if not isinstance(rules, list):
+        errors.append(f"'{file_path.name}': Thiếu danh sách 'rules'.")
+    else:
+        for idx, r in enumerate(rules):
+            if not isinstance(r, dict):
+                errors.append(f"'{file_path.name}' quy tắc #{idx + 1}: Phải là từ điển.")
+                continue
+            if "id" not in r:
+                errors.append(f"'{file_path.name}' quy tắc #{idx + 1}: Thiếu trường 'id'.")
+            if "when" not in r or not isinstance(r["when"], dict):
+                errors.append(f"'{file_path.name}' quy tắc #{idx + 1}: Thiếu điều kiện 'when'.")
+            if "strength" not in r:
+                errors.append(f"'{file_path.name}' quy tắc #{idx + 1}: Thiếu trường 'strength'.")
+    return errors
 
 
 def validate_dump_readiness_rules(data: Any, file_path: Path) -> List[str]:
@@ -352,6 +411,16 @@ def load_all_rules(config_dir: Optional[Path] = None) -> Dict[str, Any]:
     dr_raw, _ = load_yaml_with_line_numbers(dr_file)
     dump_readiness_rules = dr_raw if isinstance(dr_raw, dict) else {}
 
+    # Nạp triage_rules (Đợt 05)
+    triage_file = rules_path / "triage_rules.yaml"
+    triage_raw, _ = load_yaml_with_line_numbers(triage_file)
+    triage_rules = triage_raw if isinstance(triage_raw, dict) else {}
+
+    # Nạp module_classes (Đợt 05)
+    mc_file = rules_path / "module_classes.yaml"
+    mc_raw, _ = load_yaml_with_line_numbers(mc_file)
+    module_classes = mc_raw if isinstance(mc_raw, dict) else {}
+
     return {
         "bugchecks": normalized_bc,
         "drivers": drivers,
@@ -362,5 +431,7 @@ def load_all_rules(config_dir: Optional[Path] = None) -> Dict[str, Any]:
         "next_steps": next_steps_rules,
         "test_rules": test_rules,
         "dump_readiness": dump_readiness_rules,
+        "triage_rules": triage_rules,
+        "module_classes": module_classes,
     }
 

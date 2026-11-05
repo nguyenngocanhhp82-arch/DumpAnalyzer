@@ -442,6 +442,55 @@ def build_crash_from_dump(
     else:
         crash_time_source = "unknown"
 
+    # Tích hợp Triage Reader (Đợt 05) nếu dump_type == 'triage'
+    triage_cfg = settings.get("triage_reader", {})
+    triage_enabled = triage_cfg.get("enabled", True)
+    triage_res = None
+    triage_json_str = "{}"
+    exc_code = ""
+    exc_addr = ""
+    exc_mod = ""
+
+    is_triage_dump = (h_info and getattr(h_info, "dump_type", "") == "triage")
+    if is_triage_dump and triage_enabled:
+        try:
+            from dumpanalyzer.analyzer.triage_reader import read_triage
+            from dumpanalyzer.engine.module_classifier import is_ms_inbox
+
+            max_b = triage_cfg.get("max_bytes", 16 << 20)
+            max_cands = triage_cfg.get("max_stack_candidates", 200)
+            exc_bcs = triage_cfg.get("exception_bugchecks", ["0x23", "0x24"])
+
+            triage_res = read_triage(
+                path_obj,
+                max_bytes=max_b,
+                max_stack_candidates=max_cands,
+                exception_bugchecks=exc_bcs,
+            )
+            if triage_res and triage_res.ok:
+                t_dict = triage_res.to_dict()
+                raw_json = json.dumps(t_dict, ensure_ascii=False)
+                # Giới hạn kích thước triage_json tối đa 256KB
+                if len(raw_json) > 256 * 1024:
+                    t_dict["modules"] = t_dict["modules"][:100]
+                    t_dict["stack_candidates"] = t_dict["stack_candidates"][:50]
+                    raw_json = json.dumps(t_dict, ensure_ascii=False)
+                triage_json_str = raw_json
+
+                exc_code = triage_res.exception.get("code", "")
+                exc_addr = triage_res.exception.get("address", "")
+                exc_mod = triage_res.exception.get("module", "")
+
+                # Nếu cdb không chạy được (analyzed_by == 'header_only')
+                if analyzed_by == "header_only":
+                    analyzed_by = "triage_native"
+                    # Module gây lỗi: KHÔNG lấy từ ngoại lệ nếu là module Microsoft lõi (như ntoskrnl.exe)
+                    if exc_mod and not is_ms_inbox(exc_mod):
+                        if not getattr(cdb_res, "module_name", ""):
+                            setattr(cdb_res, "module_name", exc_mod)
+        except Exception as e:
+            logger.warning(f"Lỗi khi đọc triage minidump: {e}")
+
     extra_data = {}
     if getattr(cdb_res, "errrec_info", None):
         extra_data["errrec"] = cdb_res.errrec_info
@@ -473,6 +522,10 @@ def build_crash_from_dump(
         analyzed_by=analyzed_by,
         suspect_driver=getattr(cdb_res, "suspect_driver", "") or "",
         extra_json=extra_json,
+        exception_code=exc_code,
+        exception_address=exc_addr,
+        exception_module=exc_mod,
+        triage_json=triage_json_str,
     )
 
 

@@ -42,10 +42,14 @@ class Crash:
     failure_bucket_id: str = ""      # Chuỗi bucket ID từ Microsoft WinDbg
     uptime_seconds: int = 0          # Thời gian máy chạy trước khi sập (giây)
     cdb_raw_output: str = ""         # Toàn bộ nội dung text xuất ra từ cdb !analyze -v
-    analyzed_by: str = "none"        # 'cdb', 'header_only', hoặc 'none'
+    analyzed_by: str = "none"        # 'cdb', 'triage_native', 'header_only', hoặc 'none'
     crash_time_source: str = "unknown"  # 'header', 'mtime', 'cdb', 'eventlog_6008', 'estimated', 'kp41'
     suspect_driver: str = ""         # Driver nghi vấn tìm thấy trong stack trace (từ cdb)
     extra_json: str = "{}"           # Dữ liệu mở rộng JSON (errrec, chkimg, driver_age)
+    exception_code: str = ""         # Mã ngoại lệ (ví dụ: '0xC0000005')
+    exception_address: str = ""      # Địa chỉ ngoại lệ (ví dụ: '0xFFFFF80585ED8334')
+    exception_module: str = ""       # Module xảy ra ngoại lệ (ví dụ: 'ntoskrnl.exe')
+    triage_json: str = "{}"          # Kết quả TriageResult dạng JSON (giới hạn <= 256KB)
 
 
 @dataclass
@@ -65,6 +69,7 @@ class Evidence:
     strength: str = "weak"           # 'strong', 'medium', 'weak'
     polarity: str = "support"        # 'support' (ủng hộ), 'refute' (phản bác)
     group_id: str = ""               # Nhóm bằng chứng độc lập (ví dụ: 'cdb_stack', 'eventlog_disk', ...)
+    rule_id: str = ""                # Mã quy tắc đã kích hoạt bằng chứng này
 
 
 @dataclass

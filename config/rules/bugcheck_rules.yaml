@@ -210,12 +210,16 @@
 0x23:
   name: FAT_FILE_SYSTEM
   suspects:
-    storage: 75
-    ram: 15
-    driver: 10
+    storage: 50
+    usb_peripheral: 25
+    driver: 15
+    ram: 10
   next_steps:
-    - "Kiểm tra ổ đĩa USB hoặc thẻ nhớ định dạng FAT"
-    - "Chạy lệnh chkdsk kiểm tra và sửa lỗi hệ thống tệp"
+    - "Rút thiết bị USB ra, thử đổi sang cổng USB khác (ưu tiên cổng phía sau gắn trực tiếp bo mạch chủ)"
+    - "Tránh cắm qua hub USB không có nguồn phụ riêng; thử thay cáp kết nối khác"
+    - "Thử cắm thiết bị USB/thẻ nhớ sang máy tính khác để kiểm tra tính ổn định"
+    - "Kiểm tra lỗi hệ thống tệp thiết bị bằng lệnh chkdsk (chỉ chạy /f sau khi đã sao lưu dữ liệu quan trọng)"
+    - "Kiểm tra nhật ký sự kiện Windows Event Log quanh thời điểm sập máy để tìm lỗi ngắt kết nối USB/Disk"
 
 0x4E:
   name: PFN_LIST_CORRUPT

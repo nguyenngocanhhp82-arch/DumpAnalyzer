@@ -2,6 +2,40 @@
 
 Mọi thay đổi quan trọng của dự án DumpAnalyzer được ghi lại tại tài liệu này theo từng phiên bản và ngày tháng thực hiện.
 
+## [v1.3.0] - 2026-11-05
+
+### Đợt Cập nhật 05 — Bộ Đọc Minidump Triage Nội Bộ Thuần Python & Tái Thiết Kế Giao Diện
+- **Bộ Đọc Minidump Triage Thuần Python (`src/dumpanalyzer/analyzer/triage_reader.py`):**
+  - Đọc trực tiếp cấu trúc nhị phân `PAGEDU64` của Minidump Triage (DumpType = 4) không phụ thuộc `cdb.exe`, WinDbg hay Symbol server Microsoft.
+  - Trích xuất tự động: Header (OS build, BugCheck code, 4 params, giờ sập UTC từ SystemTime `0xFA8`), Context (RIP, RSP), Ngoại lệ (Exception Code, Exception Address, Module, ý nghĩa ngoại lệ), Call stack modules theo thứ tự, và danh sách driver đã bị gỡ trước khi sập (Unloaded drivers).
+  - Tuân thủ nghiêm ngặt 10 nguyên tắc kỹ thuật N1-N10: chịu lỗi không crash, không đọc/lưu dữ liệu bộ nhớ người dùng vào CSDL, phân biệt rõ ràng giữa kết quả đã kiểm chứng và chưa kiểm chứng.
+- **Phân Loại Module Hệ Thống (`src/dumpanalyzer/engine/module_classifier.py`, `config/rules/module_classes.yaml`):**
+  - Phân loại chính xác các họ driver: `ms_inbox` (driver chuẩn Microsoft đi kèm Windows), `fs_stack` (ngăn xếp hệ thống tệp), `usb_storage_driver` (USB mass storage: USBSTOR.SYS, uaspstor.sys), `third_party_filter_known`.
+  - Không phân biệt chữ hoa/chữ thường, ngăn ngừa gán nhãn sai driver Microsoft (như `fastfat.SYS`) làm thủ phạm phần cứng đơn lẻ.
+- **Luật Bằng Chứng Triage & Tích Hợp Chẩn Đoán (`src/dumpanalyzer/engine/triage_evaluator.py`, `config/rules/triage_rules.yaml`):**
+  - Đánh giá tự động 5 luật bằng chứng triage: `fs_path_all_microsoft` (chuỗi xử lý chỉ có driver Microsoft), `usb_mass_storage_active`, `usb_mass_storage_churn` (driver USB bị gỡ đột ngột), `third_party_filter_in_stack`, `null_dereference_info`.
+  - Cập nhật quy tắc BugCheck `0x23` (`FAT_FILE_SYSTEM`): phân bổ trọng số hợp lý cho nhóm `storage` (50) và `usb_peripheral` (25).
+- **Mở Rộng CSDL SQLite & Tự Động Di Trú (Migration):**
+  - Bổ sung 4 cột mới vào bảng `crash`: `exception_code`, `exception_address`, `exception_module`, `triage_json`.
+  - Cơ chế tự động kiểm tra và thêm cột nếu CSDL cũ đã tồn tại, đảm bảo tương thích ngược 100%.
+- **Công Cụ Dòng Lệnh CLI Mới (`src/dumpanalyzer/cli.py`):**
+  - `dumpanalyzer triage-info <dump_path> [--json]`: Đọc và hiển thị cấu trúc chi tiết minidump triage thuần Python.
+  - `dumpanalyzer triage-compare <dump_path>`: Đối chiếu từng trường giữa bộ đọc triage nội bộ và WinDbg `cdb.exe`.
+  - Bổ sung kiểm tra tự động `triage_reader` vào lệnh `dumpanalyzer selftest`.
+- **Tái Thiết Kế Toàn Diện Giao Diện Người Dùng (UI Redesign):**
+  - **Tab "Chi tiết Crash" (`src/dumpanalyzer/gui/tab_detail.py`):**
+    - Thay thế bảng grid 11 trường chật chội cũ bằng 4 Thẻ Card bo góc hiện đại: (1) Tổng quan BugCheck với mã lỗi lớn nổi bật; (2) 4 Tham số BugCheck dạng badge 2x2 tinh tế, dễ đọc; (3) Khối Bằng chứng Minidump Triage (ngoại lệ, địa chỉ, chuỗi module stack); (4) Chi tiết kỹ thuật & tệp dump.
+  - **Tab "Cài đặt" (`src/dumpanalyzer/gui/tab_settings.py`):**
+    - Khắc phục triệt để lỗi chữ đè, chồng lên nhau: chuyển các dòng chú thích xuống dưới ô chọn, thiết lập word-wrap tự nhiên.
+    - Bảng thông số CrashControl co giãn tự nhiên không bị cắt cụt.
+    - Thêm tùy chọn bật/tắt bộ đọc Triage nội bộ (`triage_reader.enabled`).
+    - Bố cục thẻ Thông tin phần mềm gọn gàng, tôn vinh tác giả phát triển **Lilbow**.
+- **Bộ Kiểm Thử Toàn Diện:**
+  - Bổ sung 4 file test mới: `test_triage_reader.py`, `test_module_classes.py`, `test_triage_rules.py`, `test_triage_real_sample.py`.
+  - Đạt 197/198 tests passed (1 skip file dump thật nếu không có trong private_fixtures).
+
+---
+
 ## [v1.2.1] - 2026-11-04
 
 ### Bản vá HOTFIX 03 — Sửa lỗi luồng phân tích GUI & Chuẩn hóa Pipeline Tập trung

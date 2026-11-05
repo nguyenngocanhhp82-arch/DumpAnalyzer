@@ -1,0 +1,39 @@
+version: 1
+fs_bugchecks: ["0x23", "0x24"]
+rules:
+  - id: fs_path_all_microsoft
+    when:
+      bugcheck_in: fs_bugchecks
+      stack_has_class: fs_stack
+      stack_has_class_not: third_party_filter_known
+    effect: { reduce: { driver: 15 }, add: { storage: 5 } }
+    strength: medium
+    summary: "Đường xử lý lỗi chỉ gồm module Microsoft; không thấy driver lọc bên thứ ba trong ngăn xếp"
+  - id: usb_mass_storage_active
+    when:
+      bugcheck_in: fs_bugchecks
+      modules_have_class: usb_storage_driver
+    effect: { add: { usb_peripheral: 15 } }
+    strength: weak
+    summary: "Có driver lưu trữ USB đang nạp: thiết bị lưu trữ USB đã hoạt động trong phiên chạy này"
+  - id: usb_mass_storage_churn
+    when:
+      bugcheck_in: fs_bugchecks
+      unloaded_has_class: usb_storage_driver
+    effect: { add: { usb_peripheral: 10 } }
+    strength: weak
+    summary: "Driver lưu trữ USB từng được nạp rồi gỡ trong phiên chạy này"
+  - id: third_party_filter_in_stack
+    when:
+      stack_has_class: third_party_filter_known
+    effect: { add: { driver: 30 } }
+    strength: medium
+    summary: "Driver lọc bên thứ ba xuất hiện trong ngăn xếp (ứng viên, cần xác nhận)"
+  - id: null_dereference_info
+    when:
+      exception_code: "0xC0000005"
+      exception_access: read
+      exception_address_lt: 0x10000
+    effect: {}
+    strength: info
+    summary: "Truy cập con trỏ NULL (đọc địa chỉ nhỏ): thường là đối tượng đã bị giải phóng/mất"

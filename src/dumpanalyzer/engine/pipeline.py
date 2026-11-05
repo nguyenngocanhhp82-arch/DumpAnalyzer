@@ -229,6 +229,38 @@ def run_analysis(
                     ev.id = ev_id
                     evidences.append(ev)
 
+        # Sinh bằng chứng từ Triage minidump (Đợt 05) nếu có triage_json
+        for c in crashes:
+            t_json_str = getattr(c, "triage_json", "") or ""
+            if t_json_str and t_json_str not in ("{}", ""):
+                try:
+                    import json
+                    from dumpanalyzer.analyzer.triage_reader import TriageResult
+                    from dumpanalyzer.engine.triage_evaluator import evaluate_triage_evidence
+
+                    t_dict = json.loads(t_json_str)
+                    t_res = TriageResult(
+                        ok=t_dict.get("ok", True),
+                        warnings=t_dict.get("warnings", []),
+                        file_size=t_dict.get("file_size", 0),
+                        header=t_dict.get("header", {}),
+                        exception=t_dict.get("exception", {}),
+                        context=t_dict.get("context", {}),
+                        modules=t_dict.get("modules", []),
+                        unloaded=t_dict.get("unloaded", []),
+                        stack_candidates=t_dict.get("stack_candidates", []),
+                        stack_modules_in_order=t_dict.get("stack_modules_in_order", []),
+                        stack_module_counts=t_dict.get("stack_module_counts", {}),
+                    )
+                    triage_evs = evaluate_triage_evidence(t_res, c.bugcheck_code)
+                    for ev in triage_evs:
+                        ev.crash_id = c.id
+                        ev_id = db.insert_evidence(ev)
+                        ev.id = ev_id
+                        evidences.append(ev)
+                except Exception as ex:
+                    logger.warning(f"Lỗi khi đánh giá triage evidence cho crash {c.id}: {ex}")
+
         if _check_cancelled():
             _emit_progress(0, "Đã huỷ phân tích.")
             return None

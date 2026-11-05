@@ -1395,6 +1395,31 @@ def cmd_selftest(args):
         print(f"[X] Lỗi kiểm tra dump_config: {e}")
         all_ok = False
 
+    # 4. Kiểm tra bộ đọc Minidump Triage (Đợt 05) bằng tệp tổng hợp trong bộ nhớ
+    try:
+        import tempfile
+        from dumpanalyzer.analyzer._selftest_fixture import build_synthetic_triage
+        from dumpanalyzer.analyzer.triage_reader import read_triage
+        syn_data = build_synthetic_triage()
+        with tempfile.NamedTemporaryFile(suffix=".dmp", delete=False) as tf:
+            tf.write(syn_data)
+            tf.flush()
+            syn_path = tf.name
+        t_res = read_triage(syn_path)
+        try:
+            Path(syn_path).unlink(missing_ok=True)
+        except Exception:
+            pass
+
+        if t_res.ok and t_res.header.get("bugcheck_code") == "0x23" and len(t_res.modules) >= 5:
+            print("[OK] Bộ đọc Minidump Triage nội bộ (triage_reader): Hoàn hảo (đọc tốt dữ liệu tổng hợp)")
+        else:
+            print(f"[X] Bộ đọc triage_reader trả về kết quả không khớp: ok={t_res.ok}, warnings={t_res.warnings}")
+            all_ok = False
+    except Exception as e:
+        print(f"[X] Lỗi kiểm tra triage_reader: {e}")
+        all_ok = False
+
     print("\n----------------------------------------------------------------------")
     if all_ok:
         print("[OK] TOÀN BỘ CÁC BÀI TỰ KIỂM TRA ĐỀU THÀNH CÔNG (100% PASSED)!")
@@ -1402,6 +1427,92 @@ def cmd_selftest(args):
     else:
         print("[X] PHÁT HIỆN SỰ CỐ TRONG BÀI TỰ KIỂM TRA. VUI LÒNG KIỂM TRA LẠI.")
         return 1
+
+
+def cmd_triage_info(args):
+    """Đọc và hiển thị thông tin minidump triage bằng bộ đọc nội bộ (không cần cdb)."""
+    from dumpanalyzer.analyzer.triage_reader import read_triage
+    dump_path = Path(args.dump_path)
+    if not dump_path.exists():
+        print(f"[X] File dump không tồn tại: {dump_path}", file=sys.stderr)
+        return 1
+
+    res = read_triage(dump_path)
+    if getattr(args, "json", False):
+        print(json.dumps(res.to_dict(), ensure_ascii=False, indent=2))
+        return 0
+
+    print_banner()
+    print(f"\n--- THÔNG TIN MINIDUMP TRIAGE (NỘI BỘ): {dump_path.name} ---")
+    print(f"Trạng thái đọc: {'[OK]' if res.ok else '[LỖI]'}")
+    if res.warnings:
+        print("Cảnh báo:")
+        for w in res.warnings:
+            print(f"  - {w}")
+
+    h = res.header
+    print(f"OS Build: {h.get('os_build')} | Loại dump: {h.get('dump_type_name')} | Giờ sập (UTC): {h.get('system_time_utc')}")
+    print(f"Mã Bug Check: {h.get('bugcheck_code')} (Tham số: {', '.join(h.get('params', []))})")
+
+    if res.exception:
+        ex = res.exception
+        print(f"Ngoại lệ: {ex.get('code')} tại {ex.get('address')} ({ex.get('module')}+{ex.get('module_offset', '0x0')})")
+        if ex.get("meaning"):
+            print(f"  Ý nghĩa: {ex.get('meaning')}")
+
+    if res.stack_modules_in_order:
+        print(f"Module trong call stack (theo thứ tự): {', '.join(res.stack_modules_in_order)}")
+    print(f"Số module đang nạp: {len(res.modules)} | Driver đã gỡ: {len(res.unloaded)}")
+    if res.unloaded:
+        print(f"  Các driver đã gỡ: {', '.join(res.unloaded[:15])}")
+    return 0
+
+
+def cmd_triage_compare(args):
+    """Đối chiếu kết quả phân tích giữa bộ đọc triage nội bộ và cdb.exe."""
+    from dumpanalyzer.analyzer.triage_reader import read_triage
+    from dumpanalyzer.analyzer.cdb_runner import analyze_dump_file
+
+    dump_path = Path(args.dump_path)
+    if not dump_path.exists():
+        print(f"[X] File dump không tồn tại: {dump_path}", file=sys.stderr)
+        return 1
+
+    print_banner()
+    print(f"\n--- ĐỐI CHIẾU TRIAGE NỘI BỘ vs WINDBG CDB: {dump_path.name} ---\n")
+
+    triage_res = read_triage(dump_path)
+    cdb_res = analyze_dump_file(dump_path)
+
+    t_hdr = triage_res.header
+    c_res = cdb_res.get("cdb_result")
+
+    t_bc = t_hdr.get("bugcheck_code", "N/A")
+    c_bc = getattr(c_res, "bugcheck_code", "N/A") if c_res else "N/A"
+
+    t_exc_mod = triage_res.exception.get("module", "N/A")
+    c_mod = getattr(c_res, "module_name", "N/A") if c_res else "N/A"
+
+    t_exc_addr = triage_res.exception.get("address", "N/A")
+    c_addr = getattr(c_res, "p4", "N/A") if c_res else "N/A"
+
+    print(f"{'Thuộc tính':<25} | {'Triage Nội Bộ':<28} | {'WinDbg cdb':<28} | {'Trạng thái'}")
+    print("-" * 95)
+
+    def _comp(label, val1, val2):
+        s1 = str(val1).upper()
+        s2 = str(val2).upper()
+        match = (s1 == s2) or (s1 in s2) or (s2 in s1)
+        st = "[KHỚP]" if match else "[KHÁC NHAU]"
+        print(f"{label:<25} | {str(val1):<28} | {str(val2):<28} | {st}")
+
+    _comp("Mã Bug Check", t_bc, c_bc)
+    _comp("Module ngoại lệ/sập", t_exc_mod, c_mod)
+    _comp("Địa chỉ ngoại lệ (RIP)", t_exc_addr, c_addr)
+    _comp("Giờ sập (UTC)", t_hdr.get("system_time_utc", "N/A"), getattr(c_res, "crash_time_utc", "N/A"))
+
+    print("\n[OK] Hoàn tất đối chiếu.")
+    return 0
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -1734,6 +1845,25 @@ def build_parser() -> argparse.ArgumentParser:
         help="Tự kiểm tra toàn diện phần mềm (CSDL, Quy tắc YAML, Collector dump_config)",
     )
     parser_selftest.set_defaults(func=cmd_selftest)
+
+    # ==================== ĐỢT 05: TRIAGE READER SUBCOMMANDS ====================
+
+    # Subcommand: triage-info
+    parser_tinfo = subparsers.add_parser(
+        "triage-info",
+        help="Đọc cấu trúc minidump triage thuần Python (không cần WinDbg/cdb)",
+    )
+    parser_tinfo.add_argument("dump_path", help="Đường dẫn tới file minidump (.dmp)")
+    parser_tinfo.add_argument("--json", action="store_true", help="Xuất kết quả dưới định dạng JSON")
+    parser_tinfo.set_defaults(func=cmd_triage_info)
+
+    # Subcommand: triage-compare
+    parser_tcompare = subparsers.add_parser(
+        "triage-compare",
+        help="So sánh kết quả đọc triage nội bộ với WinDbg cdb.exe (nếu cdb có sẵn)",
+    )
+    parser_tcompare.add_argument("dump_path", help="Đường dẫn tới file minidump (.dmp)")
+    parser_tcompare.set_defaults(func=cmd_triage_compare)
 
     return parser
 
