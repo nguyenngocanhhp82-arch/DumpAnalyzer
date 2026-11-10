@@ -295,6 +295,17 @@ def validate_rules_and_settings(config_dir: Optional[Path] = None) -> Tuple[bool
             all_errors.extend(val_errs)
             summary["triage_rules_count"] = len(tr_data.get("rules", []))
 
+    # 9. Kiểm tra event_categories.yaml (Đợt 06)
+    ec_file = rules_path / "event_categories.yaml"
+    if ec_file.exists():
+        ec_data, ec_err = load_yaml_with_line_numbers(ec_file)
+        if ec_err:
+            all_errors.append(ec_err)
+        elif ec_data:
+            val_errs = validate_event_categories(ec_data, ec_file)
+            all_errors.extend(val_errs)
+            summary["event_categories_count"] = len(ec_data.get("categories", {}))
+
     is_valid = len(all_errors) == 0
     return is_valid, all_errors, summary
 
@@ -333,6 +344,27 @@ def validate_triage_rules(data: Any, file_path: Path) -> List[str]:
                 errors.append(f"'{file_path.name}' quy tắc #{idx + 1}: Thiếu điều kiện 'when'.")
             if "strength" not in r:
                 errors.append(f"'{file_path.name}' quy tắc #{idx + 1}: Thiếu trường 'strength'.")
+    return errors
+
+
+def validate_event_categories(data: Any, file_path: Path) -> List[str]:
+    """Kiểm tra cấu trúc file event_categories.yaml."""
+    errors = []
+    if not isinstance(data, dict):
+        return [f"'{file_path.name}': Nội dung gốc phải là một từ điển."]
+    categories = data.get("categories")
+    if not isinstance(categories, dict):
+        errors.append(f"'{file_path.name}': Thiếu trường 'categories' hoặc không phải từ điển.")
+    else:
+        for cat_id, cat_info in categories.items():
+            if not isinstance(cat_info, dict):
+                errors.append(f"'{file_path.name}' danh mục '{cat_id}': Phải là từ điển.")
+                continue
+            if "name" not in cat_info:
+                errors.append(f"'{file_path.name}' danh mục '{cat_id}': Thiếu trường 'name'.")
+            rules = cat_info.get("rules", [])
+            if not isinstance(rules, list):
+                errors.append(f"'{file_path.name}' danh mục '{cat_id}': 'rules' phải là danh sách.")
     return errors
 
 
@@ -421,6 +453,11 @@ def load_all_rules(config_dir: Optional[Path] = None) -> Dict[str, Any]:
     mc_raw, _ = load_yaml_with_line_numbers(mc_file)
     module_classes = mc_raw if isinstance(mc_raw, dict) else {}
 
+    # Nạp event_categories (Đợt 06)
+    ec_file = rules_path / "event_categories.yaml"
+    ec_raw, _ = load_yaml_with_line_numbers(ec_file)
+    event_categories = ec_raw.get("categories", {}) if isinstance(ec_raw, dict) else {}
+
     return {
         "bugchecks": normalized_bc,
         "drivers": drivers,
@@ -433,5 +470,6 @@ def load_all_rules(config_dir: Optional[Path] = None) -> Dict[str, Any]:
         "dump_readiness": dump_readiness_rules,
         "triage_rules": triage_rules,
         "module_classes": module_classes,
+        "event_categories": event_categories,
     }
 

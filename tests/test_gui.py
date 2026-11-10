@@ -138,13 +138,14 @@ def test_main_window_structure(qapp, mock_msgbox):
     win.show()
 
     assert win.windowTitle() == "DumpAnalyzer – Phân tích màn hình xanh & khởi động lại"
-    assert win.tabs.count() == 6
+    assert win.tabs.count() == 7
     assert win.tabs.tabText(0) == "Tổng quan"
     assert win.tabs.tabText(1) == "Chi tiết crash"
-    assert win.tabs.tabText(2) == "Kết luận"
-    assert win.tabs.tabText(3) == "Sẵn sàng ghi dump"
-    assert win.tabs.tabText(4) == "Kiểm tra phần cứng"
-    assert win.tabs.tabText(5) == "Cài đặt"
+    assert win.tabs.tabText(2) == "Nhật ký Event Log"
+    assert win.tabs.tabText(3) == "Kết luận"
+    assert win.tabs.tabText(4) == "Sẵn sàng ghi dump"
+    assert win.tabs.tabText(5) == "Kiểm tra phần cứng"
+    assert win.tabs.tabText(6) == "Cài đặt"
 
 
 def test_overview_tab_kpi_and_badges(qapp, mock_msgbox, sample_gui_data):
@@ -276,9 +277,9 @@ def test_main_window_full_smoke_pipeline_and_export(qapp, mock_msgbox, monkeypat
     # Nạp payload vào MainWindow
     win._on_worker_finished(payload)
 
-    # Chuyển qua lại toàn bộ 6 tab
+    # Chuyển qua lại toàn bộ 7 tab
     tab_count = win.tabs.count()
-    assert tab_count == 6
+    assert tab_count == 7
     for i in range(tab_count):
         win.tabs.setCurrentIndex(i)
         assert win.tabs.currentIndex() == i

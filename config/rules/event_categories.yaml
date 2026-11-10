@@ -1,0 +1,142 @@
+# ==============================================================================
+# PHÂN LOẠI DANH MỤC EVENT LOG (event_categories.yaml)
+# Định nghĩa các nhóm sự kiện hệ thống theo mục đích kỹ thuật IT.
+# Cho phép tự do bổ sung hoặc điều chỉnh Provider và Event ID.
+# Các ID chưa được kiểm chứng thực địa trên Windows được đánh dấu [CẦN XÁC MINH].
+# ==============================================================================
+
+version: 1
+
+categories:
+  crash_reboot:
+    name: "Sập & Khởi động bất thường"
+    description: "Sự kiện sập nguồn, khởi động lại bất thường hoặc dừng hệ điều hành"
+    rules:
+      - provider: "Microsoft-Windows-Kernel-Power"
+        ids: [41]
+        description: "Hệ thống khởi động lại mà không tắt sạch sẽ trước đó (Event 41)"
+      - provider: "EventLog"
+        ids: [6008]
+        description: "Lần tắt hệ thống trước đó là bất thường/bất ngờ (Event 6008)"
+      - provider: "Microsoft-Windows-WER-SystemErrorReporting"
+        ids: [1001]
+        description: "Báo cáo lỗi BugCheck BSOD từ Windows Error Reporting"
+      - provider: "WER-SystemErrorReporting"
+        ids: [1001]
+        description: "Báo cáo lỗi BugCheck BSOD từ Windows Error Reporting"
+      - provider: "BugCheck"
+        ids: [1001]
+        description: "Ghi nhận BugCheck từ hệ thống"
+      - provider: "User32"
+        ids: [1074]
+        description: "Người dùng hoặc tiến trình yêu cầu tắt máy / khởi động lại sạch"
+      - provider: "Microsoft-Windows-Kernel-General"
+        ids: [12]
+        description: "Hệ điều hành bắt đầu khởi động (Kernel-General ID 12)"
+      - provider: "EventLog"
+        ids: [6005]
+        description: "Dịch vụ ghi nhật ký sự kiện EventLog bắt đầu chạy"
+      - provider: "EventLog"
+        ids: [6006]
+        description: "Dịch vụ ghi nhật ký sự kiện EventLog đã dừng bình thường"
+
+  hardware:
+    name: "Phần cứng (WHEA)"
+    description: "Lỗi cấu trúc phần cứng (CPU, Cache, Bus, RAM) qua Windows Hardware Error Architecture"
+    rules:
+      - provider: "Microsoft-Windows-WHEA-Logger"
+        ids: [1, 17, 18, 19, 20, 47]
+        description: "Lỗi phần cứng nghiêm trọng do WHEA-Logger ghi nhận"
+
+  storage:
+    name: "Lưu trữ & Hệ thống tệp"
+    description: "Lỗi I/O ổ đĩa, bad block, timeout controller NVMe/AHCI, hỏng file system NTFS/volmgr"
+    rules:
+      - provider: "Disk"
+        ids: [7, 11, 51, 153]
+        description: "Lỗi khối hỏng bad sector, lỗi I/O hoặc timeout trang đĩa (Disk)"
+      - provider: "stornvme"
+        ids: [129]
+        description: "Bộ điều khiển NVMe (stornvme) đã phát lệnh đặt lại (reset) thiết bị"
+      - provider: "storahci"
+        ids: [129]
+        description: "Bộ điều khiển SATA AHCI (storahci) đã phát lệnh đặt lại (reset) thiết bị"
+      - provider: "Ntfs"
+        ids: [55]
+        description: "Cấu trúc hệ thống tệp NTFS bị hỏng hoặc phát hiện lỗi cấu trúc"
+      - provider: "volmgr"
+        ids: [161, 162]
+        description: "Trình quản lý khối lượng (volmgr) không thể tạo hoặc cấu hình file dump"
+
+  usb_device:
+    name: "USB & Thiết bị ngoại vi"
+    description: "Lỗi nạp driver thiết bị, không nhận dạng hoặc sự cố giao tiếp PnP/USB"
+    rules:
+      - provider: "Microsoft-Windows-Kernel-PnP"
+        ids: [219]
+        description: "Driver thiết bị không nạp được thành công (Kernel-PnP 219)"
+      - provider: "Kernel-PnP"
+        ids: [219]
+        description: "Driver thiết bị không nạp được thành công (Kernel-PnP 219)"
+      - provider: "Microsoft-Windows-CodeIntegrity"
+        ids: [3033, 3063]
+        description: "Driver bị chặn do kiểm tra chữ ký số hoặc tính toàn vẹn mã thất bại"
+      - provider: "CodeIntegrity"
+        ids: [3033, 3063]
+        description: "Driver bị chặn do kiểm tra chữ ký số hoặc tính toàn vẹn mã thất bại"
+      - provider: "USBSTOR"
+        ids: [1, 2, 3] # [CẦN XÁC MINH]
+        description: "[CẦN XÁC MINH] Cảnh báo lỗi từ driver lưu trữ USB (USBSTOR)"
+
+  display_gpu:
+    name: "Màn hình & Card đồ họa (GPU)"
+    description: "Timeout & Recovery (TDR) driver đồ họa hoặc sập nhân xử lý đồ họa"
+    rules:
+      - provider: "Display"
+        ids: [4101]
+        description: "Trình điều khiển hiển thị dừng phản hồi và đã khôi phục thành công (Display 4101 TDR)"
+      - provider: "nvlddmkm"
+        ids: [13, 14]
+        description: "Lỗi nội bộ hoặc lỗi phần cứng từ driver đồ họa NVIDIA (nvlddmkm)"
+      - provider: "amdkmdag"
+        ids: [13, 14, 4101] # [CẦN XÁC MINH]
+        description: "[CẦN XÁC MINH] Lỗi từ driver đồ họa AMD Radeon (amdkmdag)"
+      - provider: "igfx"
+        ids: [13, 14, 4101] # [CẦN XÁC MINH]
+        description: "[CẦN XÁC MINH] Lỗi từ driver đồ họa Intel Graphics (igfx)"
+
+  updates_install:
+    name: "Cập nhật & Cài đặt phần mềm"
+    description: "Các sự kiện cập nhật hệ điều hành Windows Update hoặc cài đặt gói phần mềm MSI"
+    rules:
+      - provider: "Microsoft-Windows-WindowsUpdateClient"
+        ids: [19, 20]
+        description: "Cài đặt bản cập nhật Windows Update thành công"
+      - provider: "WindowsUpdateClient"
+        ids: [19, 20]
+        description: "Cài đặt bản cập nhật Windows Update thành công"
+      - provider: "MsiInstaller"
+        ids: [11707, 1033]
+        description: "Cài đặt gói phần mềm MSI hoàn tất thành công"
+
+  app_service:
+    name: "Dịch vụ & Ứng dụng"
+    description: "Ứng dụng sập ngẫu nhiên (chỉ báo lỗi RAM) hoặc dịch vụ hệ thống bị lỗi dừng"
+    rules:
+      - provider: "Application Error"
+        ids: [1000]
+        description: "Ứng dụng bị sập đột ngột (Application Error ID 1000)"
+      - provider: "Service Control Manager"
+        ids: [7000, 7001, 7023, 7031, 7034] # [CẦN XÁC MINH]
+        description: "[CẦN XÁC MINH] Dịch vụ hệ thống không thể khởi động hoặc dừng đột ngột"
+
+  power_thermal:
+    name: "Nguồn & Nhiệt độ"
+    description: "Giới hạn xung nhịp CPU do nhiệt độ/năng lượng hoặc cảnh báo nguồn điện"
+    rules:
+      - provider: "Microsoft-Windows-Kernel-Processor-Power"
+        ids: [37]
+        description: "Xung nhịp CPU bị firmware giới hạn do nhiệt độ hoặc năng lượng (Event 37)"
+      - provider: "Kernel-Processor-Power"
+        ids: [37]
+        description: "Xung nhịp CPU bị firmware giới hạn do nhiệt độ hoặc năng lượng (Event 37)"

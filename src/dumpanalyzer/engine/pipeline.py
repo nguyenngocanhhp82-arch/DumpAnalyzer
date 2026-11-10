@@ -191,12 +191,21 @@ def run_analysis(
         _emit_progress(70, "Đang truy vấn Windows Event Log và tương quan sự kiện...")
         evidences: List[Evidence] = []
         eventlog_warning: Optional[str] = None
+        eventlog_result = None
         if source_type == "local":
             events = read_system_events(from_date=from_date, to_date=to_date)
             eventlog_warning = get_last_eventlog_warning()
             if eventlog_warning:
                 logger.warning(f"Cảnh báo Event Log: {eventlog_warning}")
                 _emit_progress(72, f"Cảnh báo: {eventlog_warning}")
+            
+            # Phân tích Event Log chuyên sâu (Đợt 06)
+            try:
+                from dumpanalyzer.analyzer.eventlog_analyzer import analyze_event_stream
+                eventlog_result = analyze_event_stream(events, source_description="Log hệ thống máy cục bộ")
+            except Exception as e_ev:
+                logger.warning(f"Lỗi khi phân tích chuyên sâu Event Log: {e_ev}")
+
             updates = collect_recent_windows_updates(days=30)
             correlator = Correlator(window_minutes=settings.get("time_window_minutes", 10))
 
@@ -323,6 +332,7 @@ def run_analysis(
             "conflict_detected": conflict_detected,
             "patterns_matched": patterns_matched,
             "eventlog_warning": eventlog_warning,
+            "eventlog_result": eventlog_result,
         }
         return payload
 

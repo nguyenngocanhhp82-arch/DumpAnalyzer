@@ -48,7 +48,6 @@ from dumpanalyzer.analyzer.cdb_runner import (
     analyze_dump_file,
     warmup_symbols,
 )
-from dumpanalyzer.collectors.eventlog import get_last_eventlog_warning, read_system_events
 from dumpanalyzer.engine.correlator import Correlator
 from dumpanalyzer.core.models import Evidence, Finding
 from dumpanalyzer.engine.rule_loader import validate_rules_and_settings, load_all_rules
@@ -366,6 +365,9 @@ def cmd_validate_rules(args):
         print(f"  - bugcheck_rules.yaml:    {summary.get('bugcheck_rules_count', 0)} quy tắc mã lỗi")
         print(f"  - driver_map.yaml:        {summary.get('driver_mappings_count', 0)} ánh xạ driver, {summary.get('ms_core_modules_count', 0)} module lõi Microsoft")
         print(f"  - event_rules.yaml:       {summary.get('event_rules_count', 0)} quy tắc sự kiện Event Log")
+        print(f"  - event_categories.yaml:  {summary.get('event_categories_count', 0)} danh mục sự kiện IT")
+        print(f"  - module_classes.yaml:    {'Hợp lệ' if summary.get('module_classes') else 'N/A'}")
+        print(f"  - triage_rules.yaml:      {summary.get('triage_rules_count', 0)} quy tắc minidump triage")
         print(f"  - patterns.yaml:          {summary.get('patterns_count', 0)} mẫu hình đa crash")
         print("\nKhông phát hiện lỗi cú pháp hay thiếu trường bắt buộc nào.\n")
         return 0
@@ -763,86 +765,138 @@ def cmd_warmup_symbols(args):
 
 
 def cmd_events(args):
-    """Thu thập và hiển thị các sự kiện Event Log quan trọng, phát hiện crash log_only."""
-    print_banner()
-    print("\n--- THU THẬP & TƯƠNG QUAN SỰ KIỆN EVENT LOG (System Log) ---")
-
-    db = Database()
-    events = read_system_events(
-        from_date=args.from_date,
-        to_date=args.to_date,
-        debug_ps=getattr(args, "debug_ps", False),
+    """Thu thập và hiển thị các sự kiện Event Log quan trọng, hỗ trợ phân loại, .evtx và phát hiện đột biến."""
+    from dumpanalyzer.analyzer.eventlog_analyzer import (
+        harvest_live_eventlog,
+        harvest_evtx_eventlog,
+        export_eventlog_to_excel,
+        redact_sensitive_text,
     )
 
-    ev_warn = get_last_eventlog_warning()
-    if ev_warn:
-        print(f"[CẢNH BÁO] {ev_warn}")
+    print_banner()
+    evtx_path = getattr(args, "evtx_path", None)
+    if evtx_path:
+        print(f"\n--- PHÂN TÍCH FILE / THƯ MỤC .EVTX: {evtx_path} ---")
+        res = harvest_evtx_eventlog(
+            evtx_path=evtx_path,
+            from_date=getattr(args, "from_date", None),
+            to_date=getattr(args, "to_date", None),
+            debug_ps=getattr(args, "debug_ps", False),
+        )
+    else:
+        print("\n--- THU THẬP & PHÂN TÍCH SỰ KIỆN EVENT LOG THEO CẤP ĐỘ ---")
+        res = harvest_live_eventlog(
+            from_date=getattr(args, "from_date", None),
+            to_date=getattr(args, "to_date", None),
+            debug_ps=getattr(args, "debug_ps", False),
+        )
 
-    if not events:
-        if not ev_warn:
-            print("[!] Không tìm thấy sự kiện nghi vấn nào trong khoảng thời gian đã chọn (hoặc đang chạy trên Linux).")
-        db.close()
+    for warn in res.warnings:
+        print(f"[CẢNH BÁO] {warn}")
+
+    if not res.events:
+        print(f"[!] {res.source_description}: Không có sự kiện nào trong phạm vi quét.")
         return 0
 
-    print(f"[OK] Thu thập thành công {len(events)} sự kiện đáng chú ý.\n")
+    is_redact = getattr(args, "redact", False)
+    print(f"[OK] {res.source_description}: Thu thập {res.total_events} sự kiện.")
+    print(f"     • Critical: {res.level_counts.get('Critical', 0)} | Error: {res.level_counts.get('Error', 0)} | Warning: {res.level_counts.get('Warning', 0)} | Info: {res.level_counts.get('Information', 0)}")
+    if is_redact:
+        print("     • Đã bật chế độ che thông tin nhạy cảm (Tên người dùng, IP, Domain User).")
 
-    # In bảng sự kiện
-    col_t = 20
-    col_prov = 32
-    col_id = 8
-    col_msg = 45
+    # 1. Nếu người dùng chọn --spikes
+    if getattr(args, "spikes", False):
+        print("\n--- CÁC ĐỢT BÙNG PHÁT LỖI ĐỘT BIẾN (SPIKE ALERTS) ---")
+        if not res.spikes:
+            print("Không phát hiện đợt bùng phát lỗi bất thường nào.")
+        else:
+            for sp in res.spikes:
+                print(f"[*] {sp.description}")
+        return 0
 
-    line_h = f"{'Thời điểm (Giờ địa phương)':<{col_t}} | {'Nguồn (Provider)':<{col_prov}} | {'ID':<{col_id}} | {'Tóm tắt'}"
+    # 2. Nếu người dùng chọn --pre-crash
+    if getattr(args, "pre_crash", False):
+        print("\n--- NGỮ CẢNH CÁC LỖI TRƯỚC LẦN SẬP MÁY / TẮT BẤT THƯỜNG ---")
+        if not res.pre_crash_contexts:
+            print("Không ghi nhận sự kiện tắt máy bất thường nào (Event 41/6008).")
+        else:
+            for ctx in res.pre_crash_contexts:
+                t_str = utc_to_local_str(ctx.crash_time_utc)
+                print(f"\n[*] Lúc {t_str} - {ctx.crash_type}:")
+                print(f"    {ctx.summary}")
+                for idx, pe in enumerate(ctx.preceding_events, start=1):
+                    p_msg = pe.raw_message.replace("\n", " ")[:80]
+                    if is_redact:
+                        p_msg = redact_sensitive_text(p_msg)
+                    print(f"    [{idx}] {utc_to_local_str(pe.time_created_utc)} | {pe.level_name} | {pe.provider} ({pe.event_id}): {p_msg}")
+        return 0
+
+    # 3. Xuất file Excel nếu có yêu cầu
+    if getattr(args, "export_excel", None):
+        out_excel = export_eventlog_to_excel(res, args.export_excel, redact=is_redact)
+        print(f"\n[OK] Đã xuất báo cáo chi tiết Event Log sang Excel: {out_excel}")
+
+    # 4. In bảng sự kiện tổng quan
+    col_t = 19
+    col_lvl = 10
+    col_cat = 22
+    col_prov = 26
+    col_id = 6
+    col_msg = 75
+
+    line_h = f"{'Thời điểm (Local)':<{col_t}} | {'Mức độ':<{col_lvl}} | {'Danh mục':<{col_cat}} | {'Nguồn (Provider)':<{col_prov}} | {'ID':<{col_id}} | {'Nội dung tóm tắt'}"
     sep = "-" * len(line_h) + "-" * 20
-    print(sep)
+    print("\n" + sep)
     print(line_h)
     print(sep)
-    for e in events:
-        t_str = utc_to_local_str(e.get("time_created_utc"))[:col_t]
-        p_str = e.get("provider", "")[:col_prov]
-        id_str = str(e.get("event_id", 0))[:col_id]
-        raw_m = e.get("raw_message", "")
-        # Lấy dòng đầu tiên của message
-        first_line = raw_m.strip().splitlines()[0] if raw_m else ""
-        print(f"{t_str:<{col_t}} | {p_str:<{col_prov}} | {id_str:<{col_id}} | {first_line[:col_msg]}")
+    for e in res.events[:100]:  # Giới hạn in 100 dòng trên màn hình CLI
+        t_str = utc_to_local_str(e.time_created_utc)[:col_t]
+        lvl_str = e.level_name[:col_lvl]
+        cat_str = e.category_name[:col_cat]
+        p_str = e.provider[:col_prov]
+        id_str = str(e.event_id)[:col_id]
+        msg = e.raw_message.strip().splitlines()[0] if e.raw_message else ""
+        if is_redact:
+            msg = redact_sensitive_text(msg)
+        print(f"{t_str:<{col_t}} | {lvl_str:<{col_lvl}} | {cat_str:<{col_cat}} | {p_str:<{col_prov}} | {id_str:<{col_id}} | {msg[:col_msg]}")
     print(sep)
+    if len(res.events) > 100:
+        print(f"[...] Còn {len(res.events) - 100} sự kiện khác. Dùng --export-excel để xem trọn vẹn trong Excel.")
 
-    # Phát hiện crash không có dump
-    existing_crashes_dicts = db.list_crashes()
-    existing_crashes = [
-        Crash(
-            id=d["id"],
-            crash_time_utc=d["crash_time_utc"],
-            dump_type=d["dump_type"],
-            bugcheck_code=d["bugcheck_code"],
-        )
-        for d in existing_crashes_dicts
-    ]
+    # 5. Đối chiếu phát hiện crash không có dump trong CSDL cục bộ (khi chạy log máy)
+    if not evtx_path:
+        db = Database()
+        events_dicts = [e.to_dict() for e in res.events]
+        existing_crashes_dicts = db.list_crashes()
+        existing_crashes = [
+            Crash(
+                id=d["id"],
+                crash_time_utc=d["crash_time_utc"],
+                dump_type=d["dump_type"],
+                bugcheck_code=d["bugcheck_code"],
+            )
+            for d in existing_crashes_dicts
+        ]
 
-    correlator = Correlator()
-    detected_log_only = correlator.detect_log_only_crashes(existing_crashes, events)
+        correlator = Correlator()
+        detected_log_only = correlator.detect_log_only_crashes(existing_crashes, events_dicts)
+        if detected_log_only:
+            print(f"\n[!] PHÁT HIỆN {len(detected_log_only)} VỤ SẬP HỆ THỐNG KHÔNG CÓ DUMP (Chế độ log_only):")
+            for crash_obj, _ in detected_log_only:
+                existing = db.get_crash_by_sha256(crash_obj.dump_sha256)
+                if not existing:
+                    c_id = db.insert_crash(crash_obj)
+                else:
+                    c_id = existing["id"]
+                t_local = utc_to_local_str(crash_obj.crash_time_utc)
+                code_str = crash_obj.bugcheck_code or "Không có BSOD (Tắt nguồn/treo cứng)"
+                print(f"    * Lúc {t_local}: Mã lỗi = {code_str} | Tên: {crash_obj.bugcheck_name}")
+                evidences = correlator.correlate_events_to_crash(crash_obj, events_dicts)
+                for ev in evidences:
+                    ev.crash_id = c_id
+                    db.insert_evidence(ev)
+        db.close()
 
-    if detected_log_only:
-        print(f"\n[!] PHÁT HIỆN {len(detected_log_only)} VỤ SẬP HỆ THỐNG KHÔNG CÓ DUMP (Chế độ log_only):")
-        for crash_obj, matched_evs in detected_log_only:
-            # Lưu vào DB nếu chưa có
-            existing = db.get_crash_by_sha256(crash_obj.dump_sha256)
-            if not existing:
-                c_id = db.insert_crash(crash_obj)
-            else:
-                c_id = existing["id"]
-
-            t_local = utc_to_local_str(crash_obj.crash_time_utc)
-            code_str = crash_obj.bugcheck_code or "Không có BSOD (Tắt nguồn/treo cứng)"
-            print(f"    * Lúc {t_local}: Mã lỗi = {code_str} | Tên: {crash_obj.bugcheck_name}")
-
-            # Ghép và lưu evidence
-            evidences = correlator.correlate_events_to_crash(crash_obj, events)
-            for ev in evidences:
-                ev.crash_id = c_id
-                db.insert_evidence(ev)
-
-    db.close()
     return 0
 
 
@@ -1637,6 +1691,34 @@ def build_parser() -> argparse.ArgumentParser:
         "--to",
         dest="to_date",
         help="Lọc sự kiện đến ngày này (định dạng: YYYY-MM-DD)",
+    )
+    parser_events.add_argument(
+        "--evtx",
+        dest="evtx_path",
+        help="Đường dẫn file hoặc thư mục chứa file .evtx cần phân tích ngoại vi",
+    )
+    parser_events.add_argument(
+        "--export-excel",
+        dest="export_excel",
+        help="Đường dẫn file Excel (.xlsx) để xuất báo cáo phân tích",
+    )
+    parser_events.add_argument(
+        "--redact",
+        dest="redact",
+        action="store_true",
+        help="Che thông tin nhạy cảm (Tên người dùng, IP, Domain User) để bảo mật",
+    )
+    parser_events.add_argument(
+        "--spikes",
+        dest="spikes",
+        action="store_true",
+        help="Chỉ hiển thị các đợt bùng phát lỗi bất thường (Spike Alerts)",
+    )
+    parser_events.add_argument(
+        "--pre-crash",
+        dest="pre_crash",
+        action="store_true",
+        help="Chỉ hiển thị các sự kiện cảnh báo/lỗi xảy ra ngay trước khi sập máy",
     )
     parser_events.add_argument(
         "--debug-ps",

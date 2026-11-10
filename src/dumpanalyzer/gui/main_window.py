@@ -29,6 +29,7 @@ from dumpanalyzer.core.config import get_project_root
 from dumpanalyzer.core.models import Crash, Evidence, Finding, MachineInfo
 from dumpanalyzer.gui.tab_detail import DetailTab
 from dumpanalyzer.gui.tab_dump_readiness import DumpReadinessTab
+from dumpanalyzer.gui.tab_eventlog import EventLogTab
 from dumpanalyzer.gui.tab_hwtests import HardwareTestsTab
 from dumpanalyzer.gui.tab_overview import OverviewTab
 from dumpanalyzer.gui.tab_settings import SettingsTab
@@ -217,6 +218,7 @@ class MainWindow(QMainWindow):
         self.tabs = QTabWidget()
         self.tab_overview = OverviewTab()
         self.tab_detail = DetailTab()
+        self.tab_eventlog = EventLogTab()
         self.tab_verdict = VerdictTab()
         self.tab_hwtests = HardwareTestsTab()
         self.tab_readiness = DumpReadinessTab()
@@ -224,6 +226,7 @@ class MainWindow(QMainWindow):
 
         self.tabs.addTab(self.tab_overview, "Tổng quan")
         self.tabs.addTab(self.tab_detail, "Chi tiết crash")
+        self.tabs.addTab(self.tab_eventlog, "Nhật ký Event Log")
         self.tabs.addTab(self.tab_verdict, "Kết luận")
         self.tabs.addTab(self.tab_readiness, "Sẵn sàng ghi dump")
         self.tabs.addTab(self.tab_hwtests, "Kiểm tra phần cứng")
@@ -318,6 +321,9 @@ class MainWindow(QMainWindow):
         # Cập nhật dữ liệu cho các Tab
         self.tab_overview.set_data(self._crashes, self._finding, self._suspect_ranking)
         self.tab_detail.set_data(self._crashes, self._evidences)
+        ev_res = data.get("eventlog_result")
+        if ev_res:
+            self.tab_eventlog.set_analysis_result(ev_res)
         self.tab_verdict.set_data(
             crashes=self._crashes,
             finding=self._finding,
@@ -330,7 +336,7 @@ class MainWindow(QMainWindow):
 
         # Tự động chuyển người dùng sang tab Kết luận nếu có sập máy
         if self._crashes:
-            self.tabs.setCurrentIndex(2)  # Tab Kết luận
+            self.tabs.setCurrentWidget(self.tab_verdict)
             QMessageBox.information(
                 self,
                 "Hoàn tất phân tích",

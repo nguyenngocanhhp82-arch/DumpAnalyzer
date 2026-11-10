@@ -2,7 +2,35 @@
 
 Mọi thay đổi quan trọng của dự án DumpAnalyzer được ghi lại tại tài liệu này theo từng phiên bản và ngày tháng thực hiện.
 
-## [v1.3.0] - 2026-11-05
+## [v1.4.0] - 2026-11-10
+
+### Đợt Cập nhật 06 — Phân Tích Chuyên Sâu Windows Event Log, Hỗ Trợ File .EVTX Ngoại Vi & Tab Event Log
+- **Mô-đun Phân Tích Sự Kiện Chuyên Sâu (`src/dumpanalyzer/analyzer/eventlog_analyzer.py`):**
+  - Thu thập theo cấp độ nghiêm trọng: Lấy toàn bộ sự kiện mức Critical (Level 1), Error (Level 2), Warning (Level 3), và các sự kiện Information trọng yếu (Event 41, 6005, 6006, 6008, 1074, 12, 1001, 19, 20).
+  - Hỗ trợ đa nguồn dữ liệu: Quét log trực tiếp của máy (System, Application) và nhập tệp hoặc thư mục `.evtx` ngoại vi (từ máy khác, khách hàng gửi, bản sao lưu).
+  - Phân tích độc lập với dump: Dựng dòng thời gian (Timeline) sự kiện theo thứ tự tăng dần, thống kê theo cấp độ, nguồn và danh mục nghiệp vụ.
+  - Tự động phát hiện bùng phát lỗi đột biến (Spike / Burst Detection): Cảnh báo khi có mật độ lỗi cao bất thường (ví dụ: $\ge 5$ lỗi Disk hoặc driver trong 5 phút).
+  - Phân tích ngữ cảnh trước sập nguồn (Pre-Crash Context): Với mỗi lần sập nguồn hoặc tắt máy bất thường (Event 41 / 6008), trích xuất và hiển thị danh sách các sự kiện cảnh báo/lỗi xảy ra trong 15 phút trước đó.
+- **Quy Tắc Phân Loại Nghiệp Vụ Trong YAML (`config/rules/event_categories.yaml`):**
+  - Định nghĩa 8 nhóm danh mục sự kiện chuẩn hóa: Sập & Khởi động bất thường, Phần cứng (WHEA), Lưu trữ & Hệ thống tệp, USB & Thiết bị ngoại vi, Màn hình & Card đồ họa (GPU), Cập nhật & Cài đặt, Dịch vụ & Ứng dụng, Nguồn & Nhiệt độ.
+  - Các ID chưa chắc chắn được đánh dấu rõ ràng `[CẦN XÁC MINH]`. Cho phép kỹ thuật viên IT dễ dàng mở rộng và tinh chỉnh.
+  - Tích hợp kiểm tra hợp lệ cấu trúc vào lệnh `dumpanalyzer validate-rules` (`src/dumpanalyzer/engine/rule_loader.py`).
+- **Giao Diện Tab "Nhật ký Event Log" Mới (`src/dumpanalyzer/gui/tab_eventlog.py`, `src/dumpanalyzer/gui/main_window.py`):**
+  - Bổ sung Tab thứ 3 trong giao diện chính với 5 thẻ KPI thống kê trực quan (Tổng số, Critical, Error, Warning, Đột biến Spikes).
+  - Thanh công cụ thao tác nhanh: Quét log máy ngầm (QThread worker không đơ giao diện), nút chọn tệp/thư mục `.evtx`, nút xuất báo cáo Excel (.xlsx), và hộp kiểm che thông tin nhạy cảm.
+  - Bộ lọc đa chiều: Lọc thời gian thực theo từ khóa tìm kiếm, cấp độ nghiêm trọng (Level), danh mục nghiệp vụ (Category), và Provider.
+  - Bảng danh sách sự kiện kèm huy hiệu (Badge) màu sắc độ tương phản cao và khung xem chi tiết: Thông báo Message, EventData bóc tách, XML thô và Ngữ cảnh trước sập máy.
+- **Bảo Mật & Che Chắn Thông Tin Cá Nhân (Privacy Redaction):**
+  - Tự động phát hiện và che đường dẫn thư mục người dùng (`C:\Users\[ANONYMIZED_USER]\...`), địa chỉ IPv4 (`[IP_REDACTED]`), và tài khoản `[DOMAIN]\[USER_REDACTED]`.
+  - Phân tích và xử lý hoàn toàn cục bộ (offline 100%), không gửi bất kỳ dữ liệu nào ra mạng Internet.
+- **Xuất Báo Cáo Excel Đa Bảng Tính (.xlsx):**
+  - Sheet 1 "Tổng quan & Thống kê": Thống kê cấp độ, phân bố danh mục, danh sách đợt bùng phát lỗi (Spikes), và ngữ cảnh trước sập nguồn (Pre-Crash).
+  - Sheet 2 "Danh sách Sự kiện": Chi tiết từng sự kiện với thời gian Local, UTC, Mức độ, Danh mục, Nguồn, ID, Kênh và dữ liệu EventData.
+- **Mở Rộng Dòng Lệnh CLI (`src/dumpanalyzer/cli.py`):**
+  - Bổ sung các tham số mới cho lệnh `dumpanalyzer events`: `--evtx <path>`, `--export-excel <file.xlsx>`, `--redact`, `--spikes`, `--pre-crash`.
+- **Tích Hợp Luồng Chấm Điểm & Kiểm Thử Toàn Diện:**
+  - Tích hợp kết quả phân tích sự kiện vào luồng `pipeline.py`. Các sự kiện có luật trong `event_rules.yaml` sinh bằng chứng chấm điểm; các sự kiện chưa có luật chỉ hiển thị phân tích, không cộng điểm bừa bãi.
+  - Bổ sung bộ kiểm thử `tests/test_eventlog_analyzer.py` đạt 100% PASS. Toàn bộ 205/206 tests của dự án đạt PASS (1 skip an toàn).
 
 ### Đợt Cập nhật 05 — Bộ Đọc Minidump Triage Nội Bộ Thuần Python & Tái Thiết Kế Giao Diện
 - **Bộ Đọc Minidump Triage Thuần Python (`src/dumpanalyzer/analyzer/triage_reader.py`):**

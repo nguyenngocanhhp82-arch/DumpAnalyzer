@@ -242,6 +242,20 @@ Nằm tại `config/rules/dump_readiness.yaml`, quy định toàn diện các th
 - `fleet_rules`: Ngưỡng đánh dấu báo cáo đội máy cũ (`stale_days: 14`), số lượng máy xử lý song song (`remote_max_parallel: 5`).
 - `reason_codes`: Bảng mã lý do chuẩn hóa (`DUMP_DISABLED`, `DUMP_VALUE_MISSING`, `REGISTRY_UNREADABLE`, `DUMP_MODE_SMALL`, `PAGEFILE_MISSING`, `PAGEFILE_UNKNOWN`, `DISK_LOW`, `VOLMGR_FAILURE_RECENT`, `DUMP_FILES_MISSING`, `PENDING_REBOOT`, `NOT_ADMIN`).
 
+### 2.10. `event_categories.yaml` — Phân Loại Nghiệp Vụ Windows Event Log (Đợt 06)
+Tệp `config/rules/event_categories.yaml` phân chia các sự kiện vào 8 nhóm nghiệp vụ IT chuẩn hóa:
+1. `crash_reboot`: Sập & Khởi động bất thường (Event 41, 6008, WER/BugCheck 1001, User32 1074, Kernel-General 12, EventLog 6005/6006).
+2. `hardware`: Lỗi kiến trúc phần cứng qua WHEA-Logger (IDs: 1, 17, 18, 19, 20, 47).
+3. `storage`: Lưu trữ & Hệ thống tệp (Disk 7/11/51/153, stornvme 129, storahci 129, Ntfs 55, volmgr 161/162).
+4. `usb_device`: USB & Thiết bị ngoại vi (Kernel-PnP 219, CodeIntegrity 3033/3063, USBSTOR).
+5. `display_gpu`: Màn hình & Card đồ họa (Display 4101 TDR, nvlddmkm 13/14, amdkmdag, igfx).
+6. `updates_install`: Cập nhật & Cài đặt phần mềm (WindowsUpdateClient 19/20, MsiInstaller 11707/1033).
+7. `app_service`: Dịch vụ & Ứng dụng (Application Error 1000, Service Control Manager).
+8. `power_thermal`: Nguồn & Nhiệt độ (Kernel-Processor-Power 37).
+
+> [!NOTE]
+> Các ID chưa được kiểm chứng trên Windows thật được đánh dấu `[CẦN XÁC MINH]`. Kỹ thuật viên IT có thể tự do bổ sung các Provider và ID riêng của công ty mà không cần sửa code.
+
 ---
 
 ## 3. THAO TÁC KIỂM TRA TỰ ĐỘNG (VALIDATE RULES)

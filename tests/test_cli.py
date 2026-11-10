@@ -50,3 +50,63 @@ def test_cli_clean_workspace(tmp_path, capsys):
     assert "Đã xoá an toàn 1 file dump tạm" in captured.out
     assert not d.exists()
 
+
+def test_cli_events_options(tmp_path, capsys, monkeypatch):
+    """Kiểm tra lệnh events với các cờ mới: --spikes, --pre-crash, --redact, --export-excel."""
+    from dumpanalyzer.analyzer.eventlog_analyzer import EventLogAnalysisResult, EventLogItem
+
+    mock_res = EventLogAnalysisResult(
+        events=[
+            EventLogItem(
+                event_id=41,
+                provider="Microsoft-Windows-Kernel-Power",
+                time_created_utc="2026-11-10T10:00:00Z",
+                raw_message="Hệ thống khởi động lại cho user C:\\Users\\AdminIT\\file.",
+                level=1,
+                level_name="Critical",
+                level_label_vi="Nghiêm trọng (Critical)",
+                category="crash_reboot",
+                category_name="Sập & Khởi động",
+            ),
+            EventLogItem(
+                event_id=7,
+                provider="Disk",
+                time_created_utc="2026-11-10T09:50:00Z",
+                raw_message="Lỗi Disk sector tại IP 192.168.1.50.",
+                level=2,
+                level_name="Error",
+                level_label_vi="Lỗi (Error)",
+                category="storage",
+                category_name="Lưu trữ",
+            ),
+        ],
+        total_events=2,
+        level_counts={"Critical": 1, "Error": 1, "Warning": 0, "Information": 0},
+        source_description="Test CLI Stream",
+    )
+
+    monkeypatch.setattr(
+        "dumpanalyzer.analyzer.eventlog_analyzer.harvest_live_eventlog",
+        lambda *args, **kwargs: mock_res,
+    )
+
+    # 1. Chạy events với cờ --redact
+    ret = main(["events", "--redact"])
+    assert ret == 0
+    captured = capsys.readouterr()
+    assert "che thông tin nhạy cảm" in captured.out
+    assert "[ANONYMIZED_USER]" in captured.out
+
+    # 2. Chạy events với cờ --export-excel
+    excel_out = tmp_path / "cli_event_report.xlsx"
+    ret = main(["events", "--export-excel", str(excel_out)])
+    assert ret == 0
+    assert excel_out.exists()
+
+    # 3. Chạy events với cờ --spikes
+    ret = main(["events", "--spikes"])
+    assert ret == 0
+    captured = capsys.readouterr()
+    assert "CÁC ĐỢT BÙNG PHÁT LỖI ĐỘT BIẾN" in captured.out
+
+

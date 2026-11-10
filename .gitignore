@@ -24,10 +24,11 @@ data/*.sqlite
 logs/
 workspace/
 
-# Backups
+# Backups & Installers
 backup/
 *.bak
 *.zip
+*.deb
 
 # PyInstaller build artifacts
 build/
