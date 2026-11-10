@@ -23,6 +23,7 @@ import sys
 from typing import Any, Dict, List, Optional, Set, Tuple, Union
 
 from dumpanalyzer.core.config import get_rules_dir, load_settings
+from dumpanalyzer.core.ps_runner import parse_ps_json_output, run_powershell_script
 from dumpanalyzer.core.timeutil import parse_to_utc, to_utc_iso, utc_to_local_str
 from dumpanalyzer.collectors.eventlog import (
     parse_event_xml,
@@ -51,7 +52,7 @@ LEVEL_LABEL_VI = {
     0: "Thông tin (Info)",
 }
 
-# Các ID sự kiện quan trọng ở mức Information (Level 4/0) cần thu thập
+# Các ID sự kiện quan trọng ở mức Information (Level 4/0) cần thu thập theo đúng kênh Windows
 CURATED_INFO_EVENT_IDS = {
     "System": {
         "Microsoft-Windows-Kernel-Power": [41],
@@ -59,13 +60,12 @@ CURATED_INFO_EVENT_IDS = {
         "User32": [1074],
         "Microsoft-Windows-Kernel-General": [12],
         "Microsoft-Windows-WindowsUpdateClient": [19, 20],
-        "WindowsUpdateClient": [19, 20],
-        "MsiInstaller": [11707, 1033],
+        "Microsoft-Windows-WER-SystemErrorReporting": [1001],
+        "BugCheck": [1001],
     },
     "Application": {
-        "Microsoft-Windows-WER-SystemErrorReporting": [1001],
-        "WER-SystemErrorReporting": [1001],
-        "BugCheck": [1001],
+        "MsiInstaller": [11707, 1033],
+        "Windows Error Reporting": [1001],
     },
 }
 
@@ -293,12 +293,10 @@ def build_harvest_script(
     max_events: int = 2000,
 ) -> str:
     """
-    Tạo script PowerShell chuẩn sử dụng Get-WinEvent -FilterHashtable và mảng bộ lọc.
-    - channels: Danh sách log trực tiếp (mặc định ['System', 'Application']).
-    - levels: Cấp độ nghiêm trọng cần lấy (mặc định [1, 2, 3]: Critical, Error, Warning).
-    - evtx_path: Đường dẫn tới 1 file .evtx hoặc thư mục chứa file .evtx.
-    - from_date, to_date: Giới hạn khoảng thời gian.
-    - max_events: Giới hạn số sự kiện tối đa để chống quá tải bộ nhớ.
+    Tạo script PowerShell chuẩn sử dụng Get-WinEvent -FilterHashtable độc lập từng bộ lọc:
+    - Chạy từng bộ lọc trong vòng lặp try/catch để một bộ lọc rỗng không làm sập các bộ lọc khác.
+    - Không lọc cứng bằng ProviderName không tồn tại trên máy cục bộ (tránh lỗi 'There is not an event provider...').
+    - Xuất NDJSON từng sự kiện qua ForEach-Object | ConvertTo-Json -Depth 4 -Compress để không vượt trần 2MB MaxJsonLength của PowerShell 5.1.
     """
     active_levels = levels or [1, 2, 3]
     active_channels = channels or ["System", "Application"]
@@ -308,113 +306,219 @@ def build_harvest_script(
     level_str = ", ".join(str(lvl) for lvl in active_levels)
     time_filter_lines = []
     if from_dt:
-        time_filter_lines.append(f"    StartTime = [datetime]'{from_dt.strftime('%Y-%m-%dT%H:%M:%SZ')}'")
+        time_filter_lines.append(f"        StartTime = [datetime]'{from_dt.strftime('%Y-%m-%dT%H:%M:%SZ')}'")
     if to_dt:
-        time_filter_lines.append(f"    EndTime = [datetime]'{to_dt.strftime('%Y-%m-%dT%H:%M:%SZ')}'")
-    time_filter_str = "\n".join(time_filter_lines)
+        time_filter_lines.append(f"        EndTime = [datetime]'{to_dt.strftime('%Y-%m-%dT%H:%M:%SZ')}'")
+    time_clause = ("\n" + "\n".join(time_filter_lines)) if time_filter_lines else ""
 
     if evtx_path:
         # Chế độ đọc file hoặc thư mục .evtx ngoại vi
         p = Path(evtx_path)
         resolved_path = str(p.resolve()).replace("'", "''")
-        if p.is_dir() or "*" in str(p):
-            target_expr = f"(Get-ChildItem -Path '{resolved_path}' -Filter '*.evtx' -File -Recurse | Select-Object -ExpandProperty FullName)"
-        else:
-            target_expr = f"@('{resolved_path}')"
+
+        evtx_time_lines = []
+        if from_dt:
+            evtx_time_lines.append(f"                StartTime = [datetime]'{from_dt.strftime('%Y-%m-%dT%H:%M:%SZ')}'")
+        if to_dt:
+            evtx_time_lines.append(f"                EndTime = [datetime]'{to_dt.strftime('%Y-%m-%dT%H:%M:%SZ')}'")
+        evtx_time_clause = ("\n" + "\n".join(evtx_time_lines)) if evtx_time_lines else ""
 
         ps_script = f"""[Console]::OutputEncoding = [System.Text.Encoding]::UTF8
-$evtxFiles = {target_expr}
-$allEvents = [System.Collections.Generic.List[PSCustomObject]]::new()
+$ProgressPreference = 'SilentlyContinue'
+$WarningPreference = 'SilentlyContinue'
 
-foreach ($filePath in $evtxFiles) {{
-    try {{
-        $filter = @{{
-            Path = $filePath
-            Level = @({level_str})
-{time_filter_str}
-        }}
-        $matched = Get-WinEvent -FilterHashtable $filter -MaxEvents {max_events} -ErrorAction Stop
-        foreach ($e in $matched) {{
-            $allEvents.Add([PSCustomObject]@{{
-                Channel = [System.IO.Path]::GetFileName($filePath)
-                Xml = $e.ToXml()
-                Message = $e.Message
-            }})
-            if ($allEvents.Count -ge {max_events}) {{ break }}
-        }}
-    }} catch {{
-        # Nếu file không có sự kiện khớp hoặc không đọc được thì tiếp tục file sau
-    }}
-    if ($allEvents.Count -ge {max_events}) {{ break }}
+$rawTarget = '{resolved_path}'
+if (Test-Path -LiteralPath $rawTarget -PathType Container) {{
+    $evtxFiles = @(Get-ChildItem -LiteralPath $rawTarget -Filter '*.evtx' -File -Recurse | Select-Object -ExpandProperty FullName)
+}} elseif ($rawTarget -match '\\*') {{
+    $evtxFiles = @(Get-ChildItem -Path $rawTarget -Filter '*.evtx' -File -Recurse | Select-Object -ExpandProperty FullName)
+}} else {{
+    $evtxFiles = @($rawTarget)
 }}
 
-$allEvents | ConvertTo-Json -Depth 4 -Compress
+if ($evtxFiles.Count -eq 0) {{
+    Write-Output '[]'
+    exit 0
+}}
+
+$collected = New-Object System.Collections.Generic.List[object]
+$seen = New-Object "System.Collections.Generic.HashSet[string]"
+$fatalErrors = New-Object System.Collections.Generic.List[string]
+
+foreach ($filePath in $evtxFiles) {{
+    $fileFilters = @(
+        @{{
+            Path = $filePath
+            Level = @({level_str}){evtx_time_clause}
+        }},
+        @{{
+            Path = $filePath
+            Id = @(12, 19, 20, 41, 1001, 1033, 1074, 6005, 6006, 6008, 11707){evtx_time_clause}
+        }}
+    )
+    $fileMatchedAny = $false
+    foreach ($ff in $fileFilters) {{
+        try {{
+            $matched = Get-WinEvent -FilterHashtable $ff -MaxEvents {max_events} -ErrorAction Stop
+            foreach ($ev in $matched) {{
+                $k = "$($filePath)_$($ev.RecordId)"
+                if ($seen.Add($k)) {{
+                    $evMsg = ''
+                    try {{
+                        if ($null -ne $ev.Message) {{ $evMsg = [string]$ev.Message }}
+                    }} catch {{}}
+                    $evXml = ''
+                    try {{
+                        $evXml = $ev.ToXml()
+                    }} catch {{}}
+                    $collected.Add([PSCustomObject]@{{
+                        Channel = [System.IO.Path]::GetFileName($filePath)
+                        Xml = $evXml
+                        Message = $evMsg
+                    }})
+                    $fileMatchedAny = $true
+                }}
+                if ($collected.Count -ge {max_events}) {{ break }}
+            }}
+        }} catch {{
+            $fid = "$($_.FullyQualifiedErrorId)"
+            $msg = "$($_.Exception.Message)"
+            if ($fid -match 'NoMatchingEventsFound' -or $msg -match 'No events were found') {{
+                continue
+            }}
+            $fatalErrors.Add("$($filePath): $msg")
+        }}
+        if ($collected.Count -ge {max_events}) {{ break }}
+    }}
+
+    if (-not $fileMatchedAny -and $collected.Count -lt {max_events} -and $fatalErrors.Count -eq 0) {{
+        try {{
+            $fbFilter = @{{
+                Path = $filePath{evtx_time_clause}
+            }}
+            $fbMatched = Get-WinEvent -FilterHashtable $fbFilter -MaxEvents {max_events} -ErrorAction Stop
+            foreach ($ev in $fbMatched) {{
+                $k = "$($filePath)_$($ev.RecordId)"
+                if ($seen.Add($k)) {{
+                    $evMsg = ''
+                    try {{
+                        if ($null -ne $ev.Message) {{ $evMsg = [string]$ev.Message }}
+                    }} catch {{}}
+                    $evXml = ''
+                    try {{
+                        $evXml = $ev.ToXml()
+                    }} catch {{}}
+                    $collected.Add([PSCustomObject]@{{
+                        Channel = [System.IO.Path]::GetFileName($filePath)
+                        Xml = $evXml
+                        Message = $evMsg
+                    }})
+                }}
+                if ($collected.Count -ge {max_events}) {{ break }}
+            }}
+        }} catch {{}}
+    }}
+    if ($collected.Count -ge {max_events}) {{ break }}
+}}
+
+if ($collected.Count -eq 0) {{
+    if ($fatalErrors.Count -gt 0) {{
+        [Console]::Error.WriteLine(($fatalErrors -join ' | '))
+        exit 1
+    }}
+    Write-Output '[]'
+    exit 0
+}}
+
+$collected | ForEach-Object {{ $_ | ConvertTo-Json -Depth 4 -Compress }}
 """
         return ps_script
 
     # Chế độ đọc log trực tiếp trên máy (Live System + Application)
-    # Dùng mảng bộ lọc để kết hợp:
-    # 1. Mọi sự kiện Critical, Error, Warning trong System và Application
-    # 2. Các sự kiện Information trọng yếu (Event 41, 6005, 6008, 1074, 12, 1001, 19, 20)
-    filter_blocks = []
+    # Tách riêng bộ lọc từng kênh và lọc theo Id ở mức Information (KHÔNG lọc cứng ProviderName dễ gây lỗi trên máy thiếu provider)
+    filter_blocks: List[str] = []
 
-    # Khối 1: Tất cả Critical, Error, Warning từ System & Application
-    ch_str = ", ".join(f"'{c}'" for c in active_channels)
-    filter_blocks.append(f"""    @{{
-        LogName = @({ch_str})
-        Level = @({level_str})
-{time_filter_str}
+    for ch in active_channels:
+        safe_ch = ch.replace("'", "''")
+        filter_blocks.append(f"""    @{{
+        LogName = '{safe_ch}'
+        Level = @({level_str}){time_clause}
     }}""")
 
-    # Khối 2: Các ID quan trọng mức Thông tin trong System Log
-    sys_info_providers = [f"'{p}'" for p in CURATED_INFO_EVENT_IDS.get("System", {}).keys()]
-    sys_info_ids = set()
-    for ids in CURATED_INFO_EVENT_IDS.get("System", {}).values():
-        sys_info_ids.update(ids)
-    sys_ids_str = ", ".join(str(i) for i in sorted(sys_info_ids))
-    sys_prov_str = ", ".join(sys_info_providers)
-
-    filter_blocks.append(f"""    @{{
+    # Khối Thông tin trọng yếu trên System (dựa theo Id thuần để không bao giờ vướng lỗi missing provider)
+    sys_info_ids = sorted({i for v in CURATED_INFO_EVENT_IDS.get("System", {}).values() for i in v})
+    if sys_info_ids:
+        sys_ids_str = ", ".join(str(i) for i in sys_info_ids)
+        filter_blocks.append(f"""    @{{
         LogName = 'System'
-        ProviderName = @({sys_prov_str})
-        Id = @({sys_ids_str})
-{time_filter_str}
+        Id = @({sys_ids_str}){time_clause}
     }}""")
 
-    # Khối 3: Event 1001 trong Application Log
-    app_info_providers = [f"'{p}'" for p in CURATED_INFO_EVENT_IDS.get("Application", {}).keys()]
-    app_prov_str = ", ".join(app_info_providers)
-    filter_blocks.append(f"""    @{{
+    # Khối Thông tin trọng yếu trên Application (1001 WER, 1033/11707 MsiInstaller)
+    app_info_ids = sorted({i for v in CURATED_INFO_EVENT_IDS.get("Application", {}).values() for i in v})
+    if app_info_ids:
+        app_ids_str = ", ".join(str(i) for i in app_info_ids)
+        filter_blocks.append(f"""    @{{
         LogName = 'Application'
-        ProviderName = @({app_prov_str})
-        Id = @(1001)
-{time_filter_str}
+        Id = @({app_ids_str}){time_clause}
     }}""")
 
     all_filters = ",\n".join(filter_blocks)
 
     ps_script = f"""[Console]::OutputEncoding = [System.Text.Encoding]::UTF8
+$ProgressPreference = 'SilentlyContinue'
+$WarningPreference = 'SilentlyContinue'
+
 $filters = @(
 {all_filters}
 )
 
-try {{
-    $events = Get-WinEvent -FilterHashtable $filters -MaxEvents {max_events} -ErrorAction Stop
-    $events | ForEach-Object {{
-        [PSCustomObject]@{{
-            Channel = $_.LogName
-            Xml = $_.ToXml()
-            Message = $_.Message
+$collected = New-Object System.Collections.Generic.List[object]
+$seen = New-Object "System.Collections.Generic.HashSet[string]"
+$fatalErrors = New-Object System.Collections.Generic.List[string]
+
+foreach ($f in $filters) {{
+    try {{
+        $batch = Get-WinEvent -FilterHashtable $f -MaxEvents {max_events} -ErrorAction Stop
+        foreach ($ev in $batch) {{
+            $k = "$($ev.LogName)_$($ev.RecordId)"
+            if ($seen.Add($k)) {{
+                $collected.Add($ev)
+            }}
         }}
-    }} | ConvertTo-Json -Depth 4 -Compress
-}} catch {{
-    if ($_.FullyQualifiedErrorId -match 'NoMatchingEventsFound' -or $_.Exception.Message -match 'No events were found') {{
-        Write-Output '[]'
-        exit 0
-    }} else {{
-        [Console]::Error.WriteLine($_.Exception.Message)
+    }} catch {{
+        $fid = "$($_.FullyQualifiedErrorId)"
+        $msg = "$($_.Exception.Message)"
+        if ($fid -match 'NoMatchingEventsFound' -or $msg -match 'No events were found' -or $msg -match 'not an event provider') {{
+            continue
+        }}
+        $fatalErrors.Add($msg)
+    }}
+}}
+
+if ($collected.Count -eq 0) {{
+    if ($fatalErrors.Count -gt 0) {{
+        [Console]::Error.WriteLine(($fatalErrors -join ' | '))
         exit 1
     }}
+    Write-Output '[]'
+    exit 0
+}}
+
+$collected | Sort-Object TimeCreated -Descending | Select-Object -First {max_events} | ForEach-Object {{
+    $evMsg = ''
+    try {{
+        if ($null -ne $_.Message) {{ $evMsg = [string]$_.Message }}
+    }} catch {{}}
+    $evXml = ''
+    try {{
+        $evXml = $_.ToXml()
+    }} catch {{}}
+    [PSCustomObject]@{{
+        Channel = $_.LogName
+        Xml = $evXml
+        Message = $evMsg
+    }} | ConvertTo-Json -Depth 4 -Compress
 }}
 """
     return ps_script
@@ -441,9 +545,9 @@ def analyze_event_stream(
     seen_keys: Set[str] = set()
 
     for rec in raw_event_records:
-        xml_str = rec.get("Xml", "")
-        msg = rec.get("Message", "")
-        channel = rec.get("Channel", "System")
+        xml_str = rec.get("Xml") or ""
+        msg = rec.get("Message") or ""
+        channel = rec.get("Channel") or "System"
 
         if not xml_str and isinstance(rec.get("event_id"), int):
             # Record đã được parse sẵn (dùng trong test hoặc fixture)
@@ -452,7 +556,7 @@ def analyze_event_stream(
             t_utc = rec.get("time_created_utc")
             lvl = rec.get("level", 4)
             ev_data = rec.get("event_data", {})
-            raw_msg = rec.get("raw_message") or msg
+            raw_msg = str(rec.get("raw_message") or msg or "")
         else:
             parsed = parse_event_xml(xml_str)
             ev_id = parsed["event_id"]
@@ -460,7 +564,7 @@ def analyze_event_stream(
             t_utc = parsed["time_created_utc"]
             lvl = parsed["level"]
             ev_data = parsed["event_data"]
-            raw_msg = msg or parsed["raw_message"]
+            raw_msg = str(msg or parsed["raw_message"] or "")
 
         # Tránh trùng lặp sự kiện nếu mảng filter của PowerShell trả về 2 lần
         dedup_key = f"{prov}_{ev_id}_{t_utc}_{channel}"
@@ -686,6 +790,62 @@ def analyze_pre_crash_contexts(
 # HÀM THỰC THI THU THẬP LOG (LIVE VÀ TỪ EVTX)
 # ==============================================================================
 
+def _execute_harvest_ps(
+    ps_script: str,
+    source_description: str,
+    empty_description: str,
+    error_prefix: str,
+    debug_ps: bool = False,
+) -> EventLogAnalysisResult:
+    """Helper dùng chung thực thi script PowerShell thu thập log (Live & .evtx) an toàn."""
+    settings = load_settings()
+    timeout = int(settings.get("eventlog_timeout_seconds", 120))
+
+    try:
+        proc = run_powershell_script(ps_script, timeout=timeout)
+
+        if debug_ps:
+            print(f"\n=== DEBUG POWERSHELL ({source_description}) ===")
+            print(f"ReturnCode: {proc.returncode}")
+            print(f"Stderr: {(proc.stderr or '').strip()}")
+            print(f"Output (500 chars):\n{(proc.stdout or '')[:500]}")
+            print("=======================================\n")
+
+        stderr_msg = (proc.stderr or "").strip()
+        data_list = parse_ps_json_output(proc.stdout or "")
+
+        if proc.returncode != 0:
+            err_detail = stderr_msg or f"Mã lỗi {proc.returncode}"
+            warn = f"{error_prefix}: {err_detail}"
+            logger.warning(warn)
+            if data_list:
+                res = analyze_event_stream(data_list, source_description=source_description)
+                res.warnings.append(warn)
+                return res
+            return EventLogAnalysisResult(events=[], warnings=[warn], source_description="Lỗi đọc log")
+
+        if not data_list:
+            if stderr_msg:
+                warn = f"{error_prefix}: {stderr_msg}"
+                logger.warning(warn)
+                return EventLogAnalysisResult(events=[], warnings=[warn], source_description=empty_description)
+            return EventLogAnalysisResult(events=[], source_description=empty_description)
+
+        res = analyze_event_stream(data_list, source_description=source_description)
+        if stderr_msg:
+            res.warnings.append(stderr_msg)
+        return res
+
+    except subprocess.TimeoutExpired:
+        warn = f"Quá thời gian chờ ({timeout}s) khi đọc Windows Event Log."
+        logger.warning(warn)
+        return EventLogAnalysisResult(events=[], warnings=[warn], source_description="Quá thời gian chờ")
+    except Exception as e:
+        warn = f"{error_prefix}: {e}"
+        logger.error(warn)
+        return EventLogAnalysisResult(events=[], warnings=[warn], source_description="Lỗi ngoại lệ")
+
+
 def harvest_live_eventlog(
     channels: Optional[List[str]] = None,
     levels: Optional[List[int]] = None,
@@ -725,50 +885,13 @@ def harvest_live_eventlog(
             warnings=["Hệ điều hành hiện tại không phải Windows, chỉ có thể nạp file .evtx hoặc dữ liệu giả lập."],
         )
 
-    settings = load_settings()
-    timeout = int(settings.get("eventlog_timeout_seconds", 120))
-
-    try:
-        proc = subprocess.run(
-            ["powershell.exe", "-NoProfile", "-ExecutionPolicy", "Bypass", "-Command", ps_script],
-            capture_output=True,
-            text=True,
-            encoding="utf-8",
-            errors="replace",
-            timeout=timeout,
-        )
-
-        if debug_ps:
-            print("\n=== DEBUG POWERSHELL HARVEST OUTPUT ===")
-            print(f"ReturnCode: {proc.returncode}")
-            print(f"Stderr: {proc.stderr.strip()}")
-            print(f"Output (500 chars):\n{proc.stdout[:500]}")
-            print("=======================================\n")
-
-        stderr_msg = proc.stderr.strip()
-        if proc.returncode != 0 and bool(stderr_msg):
-            warn = f"Lỗi thực thi PowerShell: {stderr_msg}"
-            logger.warning(warn)
-            return EventLogAnalysisResult(events=[], warnings=[warn], source_description="Lỗi đọc log máy")
-
-        raw_json = proc.stdout.strip()
-        if not raw_json or raw_json == "[]":
-            return EventLogAnalysisResult(events=[], source_description="Không có sự kiện khớp trong log máy")
-
-        data_list = json.loads(raw_json) if (raw_json.startswith("[") or raw_json.startswith("{")) else []
-        if isinstance(data_list, dict):
-            data_list = [data_list]
-
-        return analyze_event_stream(data_list, source_description="Log hệ thống máy cục bộ")
-
-    except subprocess.TimeoutExpired:
-        warn = f"Quá thời gian chờ ({timeout}s) khi đọc Windows Event Log."
-        logger.warning(warn)
-        return EventLogAnalysisResult(events=[], warnings=[warn], source_description="Quá thời gian chờ")
-    except Exception as e:
-        warn = f"Lỗi đọc Windows Event Log: {e}"
-        logger.error(warn)
-        return EventLogAnalysisResult(events=[], warnings=[warn], source_description="Lỗi ngoại lệ")
+    return _execute_harvest_ps(
+        ps_script=ps_script,
+        source_description="Log hệ thống máy cục bộ",
+        empty_description="Không có sự kiện khớp trong log máy",
+        error_prefix="Lỗi thực thi PowerShell",
+        debug_ps=debug_ps,
+    )
 
 
 def harvest_evtx_eventlog(
@@ -815,42 +938,16 @@ def harvest_evtx_eventlog(
         return EventLogAnalysisResult(
             events=[],
             source_description=f"File .evtx: {p.name}",
-            warnings=["Trên Linux cần có PowerShell hoặc dữ liệu mock để phân tích nhị phân .evtx."],
+            warnings=["Trên Linux cần chạy trên Windows để dùng Get-WinEvent đọc nhị phân .evtx (hoặc truyền mock_records để test)."],
         )
 
-    settings = load_settings()
-    timeout = int(settings.get("eventlog_timeout_seconds", 120))
-
-    try:
-        proc = subprocess.run(
-            ["powershell.exe", "-NoProfile", "-ExecutionPolicy", "Bypass", "-Command", ps_script],
-            capture_output=True,
-            text=True,
-            encoding="utf-8",
-            errors="replace",
-            timeout=timeout,
-        )
-
-        stderr_msg = proc.stderr.strip()
-        if proc.returncode != 0 and bool(stderr_msg):
-            warn = f"Lỗi đọc file .evtx: {stderr_msg}"
-            logger.warning(warn)
-            return EventLogAnalysisResult(events=[], warnings=[warn], source_description=f"Lỗi đọc {p.name}")
-
-        raw_json = proc.stdout.strip()
-        if not raw_json or raw_json == "[]":
-            return EventLogAnalysisResult(events=[], source_description=f"File .evtx không chứa sự kiện phù hợp ({p.name})")
-
-        data_list = json.loads(raw_json) if (raw_json.startswith("[") or raw_json.startswith("{")) else []
-        if isinstance(data_list, dict):
-            data_list = [data_list]
-
-        return analyze_event_stream(data_list, source_description=f"Tệp .evtx: {p.name}")
-
-    except Exception as e:
-        warn = f"Lỗi khi xử lý file .evtx: {e}"
-        logger.error(warn)
-        return EventLogAnalysisResult(events=[], warnings=[warn], source_description=f"Lỗi {p.name}")
+    return _execute_harvest_ps(
+        ps_script=ps_script,
+        source_description=f"Tệp .evtx: {p.name}",
+        empty_description=f"File .evtx không chứa sự kiện phù hợp ({p.name})",
+        error_prefix="Lỗi đọc file .evtx",
+        debug_ps=debug_ps,
+    )
 
 
 # ==============================================================================

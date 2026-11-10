@@ -8,7 +8,6 @@ Module thu thập và phân tích sự kiện từ Windows Event Log (System Log
 """
 
 import sys
-import json
 import re
 import subprocess
 import xml.etree.ElementTree as ET
@@ -16,6 +15,7 @@ from datetime import datetime
 from typing import List, Dict, Any, Optional, Union
 from dumpanalyzer.core.timeutil import parse_to_utc, to_utc_iso
 from dumpanalyzer.core.logging_setup import get_logger
+from dumpanalyzer.core.ps_runner import parse_ps_json_output, run_powershell_script
 
 logger = get_logger("eventlog")
 
@@ -268,63 +268,105 @@ def build_eventlog_script(
 ) -> str:
     """
     Xây dựng câu lệnh PowerShell sử dụng Get-WinEvent -FilterHashtable và ForEach-Object.
-    - Đặt [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
-    - Lọc trực tiếp ProviderName và Id bằng FilterHashtable
-    - Sử dụng try/catch để bắt trường hợp không có sự kiện và trả về mảng rỗng []
+    - Tách từng Provider thành truy vấn nhỏ độc lập để tránh giới hạn XPath của Windows (~25 điều kiện)
+      và không bị sập toàn bộ khi một Provider tùy chọn không tồn tại trên máy (ví dụ WindowsUpdateClient, nvlddmkm).
+    - Đặt [Console]::OutputEncoding = [System.Text.Encoding]::UTF8, $ProgressPreference = 'SilentlyContinue'.
+    - Xuất từng đối tượng JSON một dòng (NDJSON) qua ForEach-Object | ConvertTo-Json để vượt qua giới hạn 2MB MaxJsonLength của PS 5.1.
     """
     from_dt = parse_to_utc(from_date) if from_date else None
     to_dt = parse_to_utc(to_date) if to_date else None
 
-    # Lấy danh sách provider và ID mặc định nếu không truyền
-    if providers is None:
-        prov_list = list(CURATED_EVENT_PROVIDERS.keys())
-    else:
-        prov_list = providers
-
-    if ids is None:
-        all_ids = set()
-        for p_ids in CURATED_EVENT_PROVIDERS.values():
-            all_ids.update(p_ids)
-        id_list = sorted(all_ids)
-    else:
-        id_list = ids
-
-    prov_str = ", ".join(f"'{p}'" for p in prov_list)
-    id_str = ", ".join(str(i) for i in id_list)
-
-    filter_lines = [
-        "    LogName = 'System'",
-        f"    ProviderName = @({prov_str})",
-        f"    Id = @({id_str})",
-    ]
+    time_lines: List[str] = []
     if from_dt:
-        filter_lines.append(f"    StartTime = [datetime]'{from_dt.strftime('%Y-%m-%dT%H:%M:%SZ')}'")
+        time_lines.append(f"        StartTime = [datetime]'{from_dt.strftime('%Y-%m-%dT%H:%M:%SZ')}'")
     if to_dt:
-        filter_lines.append(f"    EndTime = [datetime]'{to_dt.strftime('%Y-%m-%dT%H:%M:%SZ')}'")
+        time_lines.append(f"        EndTime = [datetime]'{to_dt.strftime('%Y-%m-%dT%H:%M:%SZ')}'")
+    time_clause = ("\n" + "\n".join(time_lines)) if time_lines else ""
 
-    filter_body = "\n".join(filter_lines)
+    query_blocks: List[str] = []
+    if providers is None and ids is None:
+        # Truy vấn riêng từng Provider để an toàn XPath và bỏ qua provider không tồn tại trên máy
+        for prov_name, prov_ids in CURATED_EVENT_PROVIDERS.items():
+            log_name = "Application" if prov_name == "MsiInstaller" else "System"
+            p_ids_str = ", ".join(str(i) for i in sorted(set(prov_ids)))
+            safe_prov = prov_name.replace("'", "''")
+            query_blocks.append(
+                f"    @{{\n"
+                f"        LogName = '{log_name}'\n"
+                f"        ProviderName = '{safe_prov}'\n"
+                f"        Id = @({p_ids_str}){time_clause}\n"
+                f"    }}"
+            )
+    else:
+        prov_list = providers if providers is not None else list(CURATED_EVENT_PROVIDERS.keys())
+        id_list = ids if ids is not None else sorted({i for v in CURATED_EVENT_PROVIDERS.values() for i in v})
+        id_str = ", ".join(str(i) for i in id_list)
+        for prov_name in prov_list:
+            log_name = "Application" if prov_name == "MsiInstaller" else "System"
+            safe_prov = prov_name.replace("'", "''")
+            query_blocks.append(
+                f"    @{{\n"
+                f"        LogName = '{log_name}'\n"
+                f"        ProviderName = '{safe_prov}'\n"
+                f"        Id = @({id_str}){time_clause}\n"
+                f"    }}"
+            )
+
+    queries_body = ",\n".join(query_blocks)
 
     ps_script = f"""[Console]::OutputEncoding = [System.Text.Encoding]::UTF8
-$filter = @{{
-{filter_body}
+$ProgressPreference = 'SilentlyContinue'
+$WarningPreference = 'SilentlyContinue'
+
+$filterQueries = @(
+{queries_body}
+)
+
+$collected = New-Object System.Collections.Generic.List[object]
+$seen = New-Object "System.Collections.Generic.HashSet[string]"
+$fatalErrors = New-Object System.Collections.Generic.List[string]
+
+foreach ($filter in $filterQueries) {{
+    try {{
+        $batch = Get-WinEvent -FilterHashtable $filter -ErrorAction Stop
+        foreach ($ev in $batch) {{
+            $k = "$($ev.LogName)_$($ev.RecordId)"
+            if ($seen.Add($k)) {{
+                $collected.Add($ev)
+            }}
+        }}
+    }} catch {{
+        $fid = "$($_.FullyQualifiedErrorId)"
+        $msg = "$($_.Exception.Message)"
+        if ($fid -match 'NoMatchingEventsFound' -or $msg -match 'No events were found' -or $msg -match 'not an event provider') {{
+            continue
+        }}
+        $fatalErrors.Add($msg)
+    }}
 }}
 
-try {{
-    $events = Get-WinEvent -FilterHashtable $filter -ErrorAction Stop
-    $events | ForEach-Object {{
-        [PSCustomObject]@{{
-            Xml = $_.ToXml()
-            Message = $_.Message
-        }}
-    }} | ConvertTo-Json -Depth 4 -Compress
-}} catch {{
-    if ($_.FullyQualifiedErrorId -match 'NoMatchingEventsFound' -or $_.Exception.Message -match 'No events were found') {{
-        Write-Output '[]'
-        exit 0
-    }} else {{
-        [Console]::Error.WriteLine($_.Exception.Message)
+if ($collected.Count -eq 0) {{
+    if ($fatalErrors.Count -gt 0) {{
+        [Console]::Error.WriteLine(($fatalErrors -join ' | '))
         exit 1
     }}
+    Write-Output '[]'
+    exit 0
+}}
+
+$collected | ForEach-Object {{
+    $evMsg = ''
+    try {{
+        if ($null -ne $_.Message) {{ $evMsg = [string]$_.Message }}
+    }} catch {{}}
+    $evXml = ''
+    try {{
+        $evXml = $_.ToXml()
+    }} catch {{}}
+    [PSCustomObject]@{{
+        Xml = $evXml
+        Message = $evMsg
+    }} | ConvertTo-Json -Depth 4 -Compress
 }}
 """
     return ps_script
@@ -376,14 +418,7 @@ def read_system_events(
     timeout = int(settings.get("eventlog_timeout_seconds", 120))
 
     try:
-        proc = subprocess.run(
-            ["powershell.exe", "-NoProfile", "-ExecutionPolicy", "Bypass", "-Command", ps_script],
-            capture_output=True,
-            text=True,
-            encoding="utf-8",
-            errors="replace",
-            timeout=timeout,
-        )
+        proc = run_powershell_script(ps_script, timeout=timeout)
 
         if debug_ps:
             print("\n=== DEBUG POWERSHELL ===")
@@ -393,7 +428,7 @@ def read_system_events(
             print(f"Output (500 chars):\n{proc.stdout[:500]}")
             print("========================\n")
 
-        stderr_msg = proc.stderr.strip()
+        stderr_msg = (proc.stderr or "").strip()
         # Trạng thái (b): PowerShell lỗi (returncode khác 0 hoặc stderr có nội dung)
         if proc.returncode != 0 or bool(stderr_msg):
             err_msg = stderr_msg or f"Mã lỗi {proc.returncode}"
@@ -405,20 +440,16 @@ def read_system_events(
                 warnings.append(warn_msg)
             return []
 
-        # Trạng thái (a): Thành công, không có sự kiện khớp
-        raw_json = proc.stdout.strip()
-        if not raw_json or raw_json == "[]":
+        # Trạng thái (a): Thành công, parse JSON array hoặc NDJSON (hỗ trợ cả BOM)
+        data_list = parse_ps_json_output(proc.stdout or "")
+        if not data_list:
             return []
-
-        data_list = json.loads(raw_json) if raw_json.startswith("[") or raw_json.startswith("{") else []
-        if isinstance(data_list, dict):
-            data_list = [data_list]
 
         parsed_events = []
         for item in data_list:
-            xml_str = item.get("Xml", "")
+            xml_str = item.get("Xml") or ""
             ev = parse_event_xml(xml_str)
-            ev["raw_message"] = item.get("Message", "")
+            ev["raw_message"] = item.get("Message") or ""
 
             # Xử lý đặc biệt nếu là Event 41
             if ev["event_id"] == 41 and "Kernel-Power" in ev["provider"]:
@@ -495,6 +526,9 @@ def read_application_crashes(
 
     filter_body = "\n".join(filter_lines)
     ps_script = f"""[Console]::OutputEncoding = [System.Text.Encoding]::UTF8
+$ProgressPreference = 'SilentlyContinue'
+$WarningPreference = 'SilentlyContinue'
+
 $filter = @{{
 {filter_body}
 }}
@@ -502,17 +536,27 @@ $filter = @{{
 try {{
     $events = Get-WinEvent -FilterHashtable $filter -ErrorAction Stop
     $events | ForEach-Object {{
+        $evMsg = ''
+        try {{
+            if ($null -ne $_.Message) {{ $evMsg = [string]$_.Message }}
+        }} catch {{}}
+        $evXml = ''
+        try {{
+            $evXml = $_.ToXml()
+        }} catch {{}}
         [PSCustomObject]@{{
-            Xml = $_.ToXml()
-            Message = $_.Message
-        }}
-    }} | ConvertTo-Json -Depth 4 -Compress
+            Xml = $evXml
+            Message = $evMsg
+        }} | ConvertTo-Json -Depth 4 -Compress
+    }}
 }} catch {{
-    if ($_.FullyQualifiedErrorId -match 'NoMatchingEventsFound' -or $_.Exception.Message -match 'No events were found') {{
+    $fid = "$($_.FullyQualifiedErrorId)"
+    $msg = "$($_.Exception.Message)"
+    if ($fid -match 'NoMatchingEventsFound' -or $msg -match 'No events were found' -or $msg -match 'not an event provider') {{
         Write-Output '[]'
         exit 0
     }} else {{
-        [Console]::Error.WriteLine($_.Exception.Message)
+        [Console]::Error.WriteLine($msg)
         exit 1
     }}
 }}
@@ -528,26 +572,15 @@ try {{
     timeout = int(settings.get("eventlog_timeout_seconds", 120))
 
     try:
-        proc = subprocess.run(
-            ["powershell.exe", "-NoProfile", "-ExecutionPolicy", "Bypass", "-Command", ps_script],
-            capture_output=True,
-            text=True,
-            encoding="utf-8",
-            errors="replace",
-            timeout=timeout,
-        )
-        raw_json = proc.stdout.strip()
-        if not raw_json or raw_json == "[]":
+        proc = run_powershell_script(ps_script, timeout=timeout)
+        data_list = parse_ps_json_output(proc.stdout or "")
+        if not data_list:
             return []
-
-        data_list = json.loads(raw_json) if raw_json.startswith("[") or raw_json.startswith("{") else []
-        if isinstance(data_list, dict):
-            data_list = [data_list]
 
         parsed = []
         for item in data_list:
-            ev = parse_event_xml(item.get("Xml", ""))
-            ev["raw_message"] = item.get("Message", "")
+            ev = parse_event_xml(item.get("Xml") or "")
+            ev["raw_message"] = item.get("Message") or ""
             # Trích xuất tên ứng dụng gây lỗi từ EventData (AppName hoặc param1)
             ed = ev.get("event_data", {})
             app_name = ed.get("AppName") or ed.get("param1") or ""

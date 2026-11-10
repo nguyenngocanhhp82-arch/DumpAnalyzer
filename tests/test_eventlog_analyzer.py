@@ -152,20 +152,88 @@ def test_analyze_pre_crash_contexts():
 
 def test_build_harvest_script():
     """Kiểm tra xây dựng script PowerShell hợp lệ cho cả log trực tiếp và file .evtx."""
-    # 1. Script Live System + Application
+    # 1. Script Live System + Application: mỗi kênh tách riêng và KHÔNG lọc ProviderName cứng gây lỗi missing provider
     ps_live = build_harvest_script(channels=["System", "Application"], levels=[1, 2, 3], max_events=1000)
     assert "[Console]::OutputEncoding = [System.Text.Encoding]::UTF8" in ps_live
-    assert "Get-WinEvent -FilterHashtable $filters -MaxEvents 1000" in ps_live
-    assert "LogName = @('System', 'Application')" in ps_live
+    assert "Get-WinEvent -FilterHashtable $f -MaxEvents 1000" in ps_live
+    assert "LogName = 'System'" in ps_live
+    assert "LogName = 'Application'" in ps_live
     assert "Level = @(1, 2, 3)" in ps_live
     assert "ForEach-Object" in ps_live
     assert "ConvertTo-Json -Depth 4 -Compress" in ps_live
+    # Bảo đảm không còn lỗi thiếu provider WindowsUpdateClient trong FilterHashtable
+    assert "ProviderName = @(" not in ps_live
+    assert "'WindowsUpdateClient'" not in ps_live
 
     # 2. Script EVTX
     ps_evtx = build_harvest_script(evtx_path="C:\\Dumps\\System.evtx", levels=[1, 2], max_events=500)
     assert "Path = $filePath" in ps_evtx
     assert "Level = @(1, 2)" in ps_evtx
     assert "System.evtx" in ps_evtx
+    assert "-LiteralPath" in ps_evtx
+
+    # 3. Kiểm chứng cú pháp PowerShell tĩnh bằng pwsh AST Parser (nếu có)
+    import shutil
+    import subprocess
+    pwsh_bin = shutil.which("pwsh") or shutil.which("powershell")
+    if pwsh_bin:
+        ps_parse_cmd = (
+            "$s = [Console]::In.ReadToEnd(); $t=$null; $e=$null; "
+            "[void][System.Management.Automation.Language.Parser]::ParseInput($s, [ref]$t, [ref]$e); "
+            "if ($e -and $e.Count -gt 0) { [Console]::Error.WriteLine(($e|%{$_.Message})-join'; '); exit 1 }; exit 0"
+        )
+        for script_txt in (ps_live, ps_evtx):
+            proc = subprocess.run([pwsh_bin, "-NoProfile", "-Command", ps_parse_cmd], input=script_txt, text=True, capture_output=True)
+            assert proc.returncode == 0, f"Lỗi cú pháp PowerShell: {proc.stderr}"
+
+
+def test_ps_runner_ndjson_and_bom():
+    """Kiểm tra giải mã output từ PowerShell hỗ trợ UTF-8 BOM, NDJSON nhiều dòng, và JSON array."""
+    from dumpanalyzer.core.ps_runner import parse_ps_json_output
+
+    # 1. Rỗng hoặc [] có kèm BOM UTF-8
+    assert parse_ps_json_output("") == []
+    assert parse_ps_json_output("\ufeff[]\r\n") == []
+
+    # 2. NDJSON (nhiều dòng JSON object tách biệt vượt qua giới hạn MaxJsonLength) + BOM ở đầu
+    ndjson = '\ufeff{"Xml":"<Event/>","Message":"Msg 1"}\n{"Xml":"<Event/>","Message":"Msg 2"}\n'
+    parsed = parse_ps_json_output(ndjson)
+    assert len(parsed) == 2
+    assert parsed[0]["Message"] == "Msg 1"
+    assert parsed[1]["Message"] == "Msg 2"
+
+    # 3. Single dict
+    single = '{"Xml":"<Event/>","Message":"Only One"}'
+    parsed_single = parse_ps_json_output(single)
+    assert len(parsed_single) == 1
+    assert parsed_single[0]["Message"] == "Only One"
+
+
+def test_harvest_live_eventlog_win32_mock(monkeypatch):
+    """Kiểm tra harvest_live_eventlog giải mã đúng NDJSON + BOM khi giả lập chạy trên Windows."""
+    import sys
+    import subprocess
+    from unittest.mock import MagicMock
+    from dumpanalyzer.analyzer.eventlog_analyzer import harvest_live_eventlog
+
+    sample_xml = (
+        '<Event xmlns="http://schemas.microsoft.com/win/2004/08/events/event">'
+        '<System><Provider Name="Disk"/><EventID>7</EventID><Level>2</Level>'
+        '<TimeCreated SystemTime="2026-11-10T08:00:00Z"/></System></Event>'
+    )
+    import json
+    ndjson_stdout = "\ufeff" + json.dumps({"Channel": "System", "Xml": sample_xml, "Message": "Bad block detected"}) + "\n"
+    mock_proc = MagicMock(returncode=0, stdout=ndjson_stdout, stderr="")
+
+    monkeypatch.setattr(sys, "platform", "win32")
+    monkeypatch.setattr(subprocess, "run", lambda *args, **kwargs: mock_proc)
+
+    res = harvest_live_eventlog()
+    assert res.total_events == 1
+    assert res.events[0].event_id == 7
+    assert res.events[0].provider == "Disk"
+    assert res.events[0].category == "storage"
+    assert res.warnings == []
 
 
 def test_export_eventlog_to_excel(tmp_path):

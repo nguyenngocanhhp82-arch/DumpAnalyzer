@@ -371,25 +371,19 @@ def check_volmgr_events(lookback_days: int = 180) -> Dict[str, Any]:
 
     ps_cmd = (
         "[Console]::OutputEncoding = [System.Text.Encoding]::UTF8; "
+        "$ProgressPreference = 'SilentlyContinue'; "
         f"$limit = (Get-Date).AddDays(-{lookback_days}); "
         "Get-WinEvent -FilterHashtable @{LogName='System'; ProviderName='volmgr'; "
         "Id=@(45,46,49,161,162); StartTime=$limit} -MaxEvents 50 -ErrorAction SilentlyContinue | "
         "Select-Object Id, @{N='TimeUtc'; E={$_.TimeCreated.ToUniversalTime().ToString('o')}} | "
-        "ConvertTo-Json"
+        "ForEach-Object { $_ | ConvertTo-Json -Compress }"
     )
 
     try:
-        proc = subprocess.run(
-            ["powershell.exe", "-NoProfile", "-Command", ps_cmd],
-            capture_output=True,
-            text=True,
-            timeout=15,
-        )
-        if proc.returncode == 0 and proc.stdout.strip():
-            raw_out = proc.stdout.strip()
-            events = json.loads(raw_out) if raw_out.startswith("[") or raw_out.startswith("{") else []
-            if isinstance(events, dict):
-                events = [events]
+        from dumpanalyzer.core.ps_runner import parse_ps_json_output, run_powershell_script
+        proc = run_powershell_script(ps_cmd, timeout=15)
+        if proc.returncode == 0 and (proc.stdout or "").strip():
+            events = parse_ps_json_output(proc.stdout or "")
 
             result["events_count"] = len(events)
             failure_ids = {45, 46, 49, 161}

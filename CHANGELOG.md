@@ -2,6 +2,25 @@
 
 Mọi thay đổi quan trọng của dự án DumpAnalyzer được ghi lại tại tài liệu này theo từng phiên bản và ngày tháng thực hiện.
 
+## [v1.5.1] - 2026-11-10
+
+### Khắc Phục Triệt Để Lỗi Đọc Windows Event Log Qua PowerShell
+- **Sửa lỗi `There is not an event provider on the localhost computer that matches "WindowsUpdateClient"` (và các provider tùy chọn như `nvlddmkm`, `storahci`, `WER-SystemErrorReporting`, `MsiInstaller`):**
+  - Trong `src/dumpanalyzer/analyzer/eventlog_analyzer.py` (`build_harvest_script`): Loại bỏ lọc cứng theo danh sách `ProviderName` gộp chung; tách riêng các bộ lọc từng kênh (`System`, `Application`) và lọc theo `Id` thông tin thiết yếu (`12, 19, 20, 41, 1001, 1074, 6005, 6006, 6008` trên `System`; `1001, 1033, 11707` trên `Application`).
+  - Trong `src/dumpanalyzer/collectors/eventlog.py` (`build_eventlog_script`): Tách truy vấn thành từng Provider riêng biệt trong vòng lặp `try/catch` để không vượt trần ~25 điều kiện XPath của `EvtQuery` và tự động bỏ qua các provider không tồn tại trên máy cục bộ.
+  - Khắc phục lỗi khi 1 bộ lọc con không có sự kiện (`NoMatchingEventsFound`) gây sập toàn bộ các bộ lọc còn lại trả về rỗng `[]`.
+- **Vượt qua giới hạn 2 MB `MaxJsonLength` của PowerShell 5.1 & Chống lỗi Resource DLL:**
+  - Chuyển sang xuất **NDJSON** (chuyển đổi từng object qua `ForEach-Object { ... | ConvertTo-Json -Depth 4 -Compress }`), cho phép đọc hàng ngàn sự kiện chứa XML đầy đủ mà không bao giờ bị tràn bộ đệm `JavaScriptSerializer`.
+  - Bọc `try/catch` bảo vệ khi truy xuất `$_.Message` và `$_.ToXml()` cho từng bản ghi sự kiện.
+- **Tiện ích thực thi PowerShell an toàn cho GUI đóng gói (`src/dumpanalyzer/core/ps_runner.py`):**
+  - Chạy PowerShell qua `-EncodedCommand` (UTF-16LE Base64) để không bị lỗi escape dấu nháy, xuống dòng hay đường dẫn tiếng Việt chứa dấu cách/ngoặc vuông.
+  - Truyền `stdin=subprocess.DEVNULL` và cờ `CREATE_NO_WINDOW` giúp bản đóng gói `console=False` (`DumpAnalyzer-Portable.exe`, `DumpAnalyzer.exe`) không bị lỗi `[WinError 6] The handle is invalid` hay nhấp nháy cửa sổ đen.
+  - Tự động loại bỏ ký tự UTF-8 BOM (`\ufeff`) và phân tích linh hoạt cả JSON Array lẫn NDJSON.
+  - Áp dụng đồng bộ cho `eventlog_analyzer.py`, `eventlog.py`, `dump_config.py` (`volmgr`) và `windows_memory_diagnostic.py`.
+- **Cải thiện giao diện Tab Event Log (`src/dumpanalyzer/gui/tab_eventlog.py`):**
+  - Tách rõ nút **"📂 Nhập file .evtx"** và nút **"📁 Nhập thư mục .evtx"** để chọn trực tiếp file hoặc cả thư mục.
+  - Sửa bộ lọc danh mục để lọc chính xác theo `category_id` (khắc phục lỗi không khớp tên danh mục `"Màn hình / GPU"`).
+
 ## [v1.5.0] - 2026-11-10
 
 ### Đóng Gói Thành 1 File Chạy Portable Duy Nhất (`DumpAnalyzer-Portable.exe`)

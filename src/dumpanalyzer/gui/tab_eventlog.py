@@ -142,13 +142,21 @@ class EventLogTab(QWidget):
         self.btn_scan_live.clicked.connect(self._on_scan_live)
         toolbar.addWidget(self.btn_scan_live)
 
-        self.btn_import_evtx = QPushButton("📂 Nhập file / thư mục .evtx")
+        self.btn_import_evtx = QPushButton("📂 Nhập file .evtx")
         self.btn_import_evtx.setStyleSheet(
-            f"QPushButton {{ background-color: {COLOR_BG_SURFACE}; color: {COLOR_TEXT_PRIMARY}; border: 1px solid {COLOR_BORDER_LIGHT}; font-weight: 600; padding: 7px 16px; border-radius: 6px; }}"
+            f"QPushButton {{ background-color: {COLOR_BG_SURFACE}; color: {COLOR_TEXT_PRIMARY}; border: 1px solid {COLOR_BORDER_LIGHT}; font-weight: 600; padding: 7px 14px; border-radius: 6px; }}"
             f"QPushButton:hover {{ background-color: #334155; }}"
         )
         self.btn_import_evtx.clicked.connect(self._on_import_evtx)
         toolbar.addWidget(self.btn_import_evtx)
+
+        self.btn_import_evtx_dir = QPushButton("📁 Nhập thư mục .evtx")
+        self.btn_import_evtx_dir.setStyleSheet(
+            f"QPushButton {{ background-color: {COLOR_BG_SURFACE}; color: {COLOR_TEXT_PRIMARY}; border: 1px solid {COLOR_BORDER_LIGHT}; font-weight: 600; padding: 7px 14px; border-radius: 6px; }}"
+            f"QPushButton:hover {{ background-color: #334155; }}"
+        )
+        self.btn_import_evtx_dir.clicked.connect(self._on_import_evtx_dir)
+        toolbar.addWidget(self.btn_import_evtx_dir)
 
         self.btn_export_excel = QPushButton("📊 Xuất báo cáo Excel (.xlsx)")
         self.btn_export_excel.setStyleSheet(
@@ -223,18 +231,20 @@ class EventLogTab(QWidget):
         filter_layout.addWidget(lbl_cat)
 
         self.combo_category = QComboBox()
-        self.combo_category.addItems([
-            "Tất cả danh mục",
-            "Sập & Khởi động",
-            "Phần cứng (WHEA)",
-            "Lưu trữ",
-            "USB & Thiết bị",
-            "Màn hình / GPU",
-            "Cập nhật & Cài đặt",
-            "Dịch vụ & Ứng dụng",
-            "Nguồn & Nhiệt",
-            "Khác",
-        ])
+        category_options = [
+            ("Tất cả danh mục", "all"),
+            ("Sập & Khởi động bất thường", "crash_reboot"),
+            ("Phần cứng (WHEA)", "hardware"),
+            ("Lưu trữ & Hệ thống tệp", "storage"),
+            ("USB & Thiết bị ngoại vi", "usb_device"),
+            ("Màn hình & Card đồ họa (GPU)", "display_gpu"),
+            ("Cập nhật & Cài đặt", "updates_install"),
+            ("Dịch vụ & Ứng dụng", "app_service"),
+            ("Nguồn & Nhiệt độ", "power_thermal"),
+            ("Khác (Chưa phân loại)", "other"),
+        ]
+        for label, key in category_options:
+            self.combo_category.addItem(label, key)
         self.combo_category.currentIndexChanged.connect(self._apply_filters)
         filter_layout.addWidget(self.combo_category, 1)
 
@@ -287,6 +297,7 @@ class EventLogTab(QWidget):
         self.progress_bar.setVisible(loading)
         self.btn_scan_live.setEnabled(not loading)
         self.btn_import_evtx.setEnabled(not loading)
+        self.btn_import_evtx_dir.setEnabled(not loading)
         self.btn_export_excel.setEnabled(not loading)
         self.lbl_status.setText(message)
 
@@ -299,7 +310,7 @@ class EventLogTab(QWidget):
         self._worker.start()
 
     def _on_import_evtx(self) -> None:
-        """Chọn file .evtx hoặc thư mục chứa file .evtx."""
+        """Chọn một file .evtx để phân tích."""
         file_path, _ = QFileDialog.getOpenFileName(
             self,
             "Chọn file Windows Event Log (.evtx)",
@@ -311,6 +322,22 @@ class EventLogTab(QWidget):
 
         self._set_loading(True, f"Đang đọc tệp {Path(file_path).name}...")
         self._worker = EventLogHarvestWorker(mode="evtx", evtx_path=file_path, parent=self)
+        self._worker.finished.connect(self._on_harvest_finished)
+        self._worker.error.connect(self._on_harvest_error)
+        self._worker.start()
+
+    def _on_import_evtx_dir(self) -> None:
+        """Chọn một thư mục chứa nhiều file .evtx để tổng hợp phân tích."""
+        dir_path = QFileDialog.getExistingDirectory(
+            self,
+            "Chọn thư mục chứa các file Windows Event Log (.evtx)",
+            "",
+        )
+        if not dir_path:
+            return
+
+        self._set_loading(True, f"Đang đọc thư mục .evtx: {Path(dir_path).name}...")
+        self._worker = EventLogHarvestWorker(mode="evtx", evtx_path=dir_path, parent=self)
         self._worker.finished.connect(self._on_harvest_finished)
         self._worker.error.connect(self._on_harvest_error)
         self._worker.start()
@@ -346,6 +373,7 @@ class EventLogTab(QWidget):
 
         query = self.txt_search.text().strip().lower()
         level_sel = self.combo_level.currentText()
+        cat_key = self.combo_category.currentData()
         cat_sel = self.combo_category.currentText()
         is_redact = self.chk_redact.isChecked()
 
@@ -361,14 +389,17 @@ class EventLogTab(QWidget):
             if "Information" in level_sel and ev.level not in (4, 0):
                 continue
 
-            # 2. Lọc theo Danh mục
-            if cat_sel != "Tất cả danh mục":
+            # 2. Lọc theo Danh mục (ưu tiên mã danh mục chính xác)
+            if cat_key and cat_key != "all":
+                if ev.category != cat_key:
+                    continue
+            elif cat_sel != "Tất cả danh mục":
                 if cat_sel.lower() not in ev.category_name.lower():
                     continue
 
             # 3. Lọc theo từ khóa tìm kiếm
             if query:
-                content = f"{ev.provider} {ev.event_id} {ev.raw_message} {json.dumps(ev.event_data)}".lower()
+                content = f"{ev.provider} {ev.event_id} {ev.raw_message or ''} {json.dumps(ev.event_data)}".lower()
                 if query not in content:
                     continue
 
@@ -413,7 +444,7 @@ class EventLogTab(QWidget):
             self.table_events.setItem(r_idx, 4, item_id)
 
             # Cột 5: Tóm tắt nội dung
-            msg = disp_ev.raw_message.replace("\r", " ").replace("\n", " ").strip()
+            msg = (disp_ev.raw_message or "").replace("\r", " ").replace("\n", " ").strip()
             item_msg = QTableWidgetItem(msg[:180] + ("..." if len(msg) > 180 else ""))
             self.table_events.setItem(r_idx, 5, item_msg)
 
@@ -456,7 +487,7 @@ class EventLogTab(QWidget):
                     lines.append(f"Danh sách {len(ctx.preceding_events)} cảnh báo/lỗi xảy ra trong {ctx.window_minutes} phút trước sập:")
                     for idx, pe in enumerate(ctx.preceding_events, start=1):
                         pe_disp = redact_event_item(pe) if self.chk_redact.isChecked() else pe
-                        p_msg = pe_disp.raw_message.replace('\n', ' ')[:90]
+                        p_msg = (pe_disp.raw_message or "").replace('\n', ' ')[:90]
                         lines.append(f"  [{idx}] {utc_to_local_str(pe_disp.time_created_utc)} | {pe_disp.level_name} | {pe_disp.provider} ({pe_disp.event_id}): {p_msg}")
                     lines.append("")
                     break

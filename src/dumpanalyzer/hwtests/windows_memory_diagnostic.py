@@ -108,24 +108,18 @@ class WindowsMemoryDiagnosticTest(HardwareTest):
         if mock_events is not None:
             events = mock_events
         elif sys.platform == "win32":
-            ps_script = """
-            Get-WinEvent -FilterHashtable @{
-                LogName = 'System'
-                ProviderName = 'Microsoft-Windows-MemoryDiagnostics-Results'
-            } -MaxEvents 5 -ErrorAction SilentlyContinue |
-            Select-Object Id, TimeCreated, Message | ConvertTo-Json -Compress
-            """
+            ps_script = """[Console]::OutputEncoding = [System.Text.Encoding]::UTF8
+$ProgressPreference = 'SilentlyContinue'
+Get-WinEvent -FilterHashtable @{
+    LogName = 'System'
+    ProviderName = 'Microsoft-Windows-MemoryDiagnostics-Results'
+} -MaxEvents 5 -ErrorAction SilentlyContinue |
+Select-Object Id, TimeCreated, Message | ForEach-Object { $_ | ConvertTo-Json -Compress }
+"""
             try:
-                proc = subprocess.run(
-                    ["powershell", "-NoProfile", "-NonInteractive", "-Command", ps_script],
-                    capture_output=True,
-                    text=True,
-                    timeout=30,
-                )
-                import json
-                if proc.stdout.strip():
-                    raw_j = json.loads(proc.stdout.strip())
-                    events = raw_j if isinstance(raw_j, list) else [raw_j]
+                from dumpanalyzer.core.ps_runner import parse_ps_json_output, run_powershell_script
+                proc = run_powershell_script(ps_script, timeout=30)
+                events = parse_ps_json_output(proc.stdout or "")
             except Exception as e:
                 logger.warning(f"Không thể đọc log MemoryDiagnostics: {e}")
 
