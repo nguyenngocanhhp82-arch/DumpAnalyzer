@@ -1879,7 +1879,7 @@ def build_parser() -> argparse.ArgumentParser:
     # Subcommand: dump-rollback (Phần 6.1)
     parser_rollback = subparsers.add_parser(
         "dump-rollback",
-        help="Hoàn tác 100% cấu hình CrashControl từ file sao lưu JSON",
+        help="Hoàn tác 100%% cấu hình CrashControl từ file sao lưu JSON",
     )
     parser_rollback.add_argument(
         "--backup",

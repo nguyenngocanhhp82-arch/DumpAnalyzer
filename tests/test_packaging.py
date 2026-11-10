@@ -129,3 +129,110 @@ def test_database_init_succeeds_with_resolved_schema(tmp_path):
         assert tbl in tables, f"Thiếu bảng {tbl} sau khi khởi tạo CSDL"
 
     db.close()
+
+
+def test_spec_file_includes_portable_target():
+    """7. Kiểm tra DumpAnalyzer.spec có cấu hình Analysis và EXE cho bản Portable 1 file duy nhất."""
+    spec_path = get_project_root() / "DumpAnalyzer.spec"
+    assert spec_path.is_file(), f"Không tìm thấy spec file tại {spec_path}"
+    spec_text = spec_path.read_text(encoding="utf-8")
+
+    # Kiểm tra target a_portable và exe_portable
+    assert "a_portable = Analysis(" in spec_text
+    assert "exe_portable = EXE(" in spec_text
+    assert "name='DumpAnalyzer-Portable'" in spec_text or 'name="DumpAnalyzer-Portable"' in spec_text
+
+    # Kiểm tra datas của a_portable chứa cả SCHEMA_SQL và CONFIG_DIR
+    portable_block = spec_text[spec_text.find("a_portable = Analysis("): spec_text.find("pyz_portable = PYZ(")]
+    assert "SCHEMA_SQL" in portable_block
+    assert "CONFIG_DIR" in portable_block
+    assert "'config'" in portable_block or '"config"' in portable_block
+
+
+def test_get_config_dir_resolution(tmp_path, monkeypatch):
+    """8. Kiểm tra get_config_dir() ưu tiên config ngoài, fallback _MEIPASS, hoặc dev root."""
+    from dumpanalyzer.core.config import get_config_dir
+
+    # Trường hợp 1: Chế độ dev thông thường -> trả về config/ của dự án
+    dev_cfg = get_config_dir()
+    assert dev_cfg.is_dir()
+    assert (dev_cfg / "settings.yaml").is_file()
+
+    # Trường hợp 2: Chế độ frozen có config/ bên cạnh file thực thi
+    fake_exe_dir = tmp_path / "bin"
+    fake_exe_dir.mkdir()
+    fake_exe = fake_exe_dir / "DumpAnalyzer-Portable.exe"
+    fake_exe.touch()
+    external_cfg = fake_exe_dir / "config"
+    external_cfg.mkdir()
+    (external_cfg / "settings.yaml").write_text("external: true", encoding="utf-8")
+
+    monkeypatch.setattr(sys, "frozen", True, raising=False)
+    monkeypatch.setattr(sys, "executable", str(fake_exe), raising=False)
+
+    resolved = get_config_dir()
+    assert resolved == external_cfg
+    assert (resolved / "settings.yaml").read_text(encoding="utf-8") == "external: true"
+
+    # Trường hợp 3: Chế độ frozen không có config/ ngoài, fallback _MEIPASS/config
+    import shutil
+    shutil.rmtree(external_cfg)
+    meipass_dir = tmp_path / "meipass_extracted"
+    meipass_cfg = meipass_dir / "config"
+    meipass_cfg.mkdir(parents=True)
+    (meipass_cfg / "settings.yaml").write_text("bundled: true", encoding="utf-8")
+
+    monkeypatch.setattr(sys, "_MEIPASS", str(meipass_dir), raising=False)
+
+    resolved_bundle = get_config_dir()
+    assert resolved_bundle == meipass_cfg
+    assert (resolved_bundle / "settings.yaml").read_text(encoding="utf-8") == "bundled: true"
+
+
+def test_main_portable_cli_dispatch(monkeypatch):
+    """9. main_portable.py gọi CLI khi có tham số dòng lệnh."""
+    from dumpanalyzer import main_portable
+
+    cli_called = []
+
+    def mock_cli_main(args):
+        cli_called.append(args)
+        return 123
+
+    monkeypatch.setattr("dumpanalyzer.cli.main", mock_cli_main)
+    monkeypatch.setattr(sys, "argv", ["DumpAnalyzer-Portable", "scan", "C:\\dumps"])
+
+    ret = main_portable.main()
+    assert ret == 123
+    assert cli_called == [["scan", "C:\\dumps"]]
+
+
+def test_main_portable_gui_dispatch(monkeypatch):
+    """10. main_portable.py gọi GUI khi không có tham số hoặc có --gui / -g."""
+    from dumpanalyzer import main_portable
+
+    gui_called = []
+
+    def mock_gui_main():
+        gui_called.append(True)
+        return 0
+
+    monkeypatch.setattr("dumpanalyzer.gui.app.main", mock_gui_main)
+
+    # Khi không có tham số
+    monkeypatch.setattr(sys, "argv", ["DumpAnalyzer-Portable"])
+    ret = main_portable.main()
+    assert ret == 0
+    assert len(gui_called) == 1
+
+    # Khi có tham số --gui
+    monkeypatch.setattr(sys, "argv", ["DumpAnalyzer-Portable", "--gui"])
+    ret_gui = main_portable.main()
+    assert ret_gui == 0
+    assert len(gui_called) == 2
+
+    # Khi có tham số -g
+    monkeypatch.setattr(sys, "argv", ["DumpAnalyzer-Portable", "-g"])
+    ret_g = main_portable.main()
+    assert ret_g == 0
+    assert len(gui_called) == 3

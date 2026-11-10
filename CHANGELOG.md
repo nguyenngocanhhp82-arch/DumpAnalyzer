@@ -2,6 +2,31 @@
 
 Mọi thay đổi quan trọng của dự án DumpAnalyzer được ghi lại tại tài liệu này theo từng phiên bản và ngày tháng thực hiện.
 
+## [v1.5.0] - 2026-11-10
+
+### Đóng Gói Thành 1 File Chạy Portable Duy Nhất (`DumpAnalyzer-Portable.exe`)
+- **Bản Chạy Portable 1 File Độc Lập Hoàn Toàn (`src/dumpanalyzer/main_portable.py`):**
+  - Đóng gói toàn bộ ứng dụng thành 1 file `.exe` duy nhất (`DumpAnalyzer-Portable.exe` / `DumpAnalyzer-Portable`), dung lượng nén tối ưu ~69 MB.
+  - Tích hợp sẵn toàn bộ tài nguyên: CSDL SQLite schema (`schema.sql`), cấu hình mặc định `settings.yaml`, 26 quy tắc BSOD, quy tắc Event Log và bộ mã Bug Check chuẩn Microsoft trực tiếp vào file thực thi.
+  - Chạy ngay lập tức từ USB cứu hộ hoặc bất kỳ thư mục nào trên máy tính cứu hộ mà không cần cài đặt Python, không cần giải nén thư mục phụ thuộc.
+- **Cơ Chế Điều Phối Kép Thông Minh (Dual-Dispatch):**
+  - **Chế độ GUI:** Khi nhấp đúp chuột từ File Explorer (không có tham số hoặc có `--gui`/`-g`), khởi động giao diện đồ hoạ PySide6 sắc nét với High DPI scaling, không mở cửa sổ console đen thừa thãi.
+  - **Chế độ CLI:** Khi gọi từ Command Prompt / PowerShell với các lệnh con (`scan`, `analyze`, `events`, `check-dump-config`, `selftest`...), tự động gắn kết vào console cha (`AttachConsole(-1)`) và in kết quả trực tiếp ra màn hình terminal.
+- **Hệ Thống Phân Tách Đường Dẫn Cấu Hình & Dữ Liệu Bền Vững (`src/dumpanalyzer/core/config.py`):**
+  - Bổ sung hàm `get_config_dir()`: Ưu tiên nạp thư mục `config/` đặt bên cạnh file `.exe` nếu IT muốn tùy biến hoặc bổ sung quy tắc mới mà không cần biên dịch lại; nếu không có, tự động fallback sang `config/` tích hợp sẵn trong bundle (`sys._MEIPASS`).
+  - Hàm `get_project_root()` luôn trỏ tới thư mục chứa file `.exe`, đảm bảo CSDL SQLite `data/dumpanalyzer.db`, file nhật ký `logs/dumpanalyzer.log`, và workspace phân tích luôn được lưu trữ bền vững bên ngoài, không bị xóa khi tắt ứng dụng.
+- **Cập Nhật PyInstaller Spec & Script Đóng Gói (`DumpAnalyzer.spec`, `build_exe.py`):**
+  - Bổ sung cấu hình `a_portable` và `exe_portable` vào `DumpAnalyzer.spec` với quyền Administrator (`uac_admin=True`) để đọc trực tiếp `C:\Windows\Minidump`.
+  - Giữ nguyên bản đóng gói thư mục (`coll` / `DumpAnalyzer-windows-x64.zip`) cho mục đích sử dụng truyền thống.
+  - Tự động kiểm tra và in thông tin chi tiết kích thước file portable sau khi build thành công.
+- **Tích Hợp CI/CD GitHub Actions (`.github/workflows/build.yml`):**
+  - Tự động kiểm tra tính toàn vẹn của `DumpAnalyzer-Portable.exe` trong pipeline Windows runner.
+  - Xuất bản cả file `DumpAnalyzer-Portable.exe` lẫn file zip thư mục `DumpAnalyzer-windows-x64.zip` lên mục Artifacts và GitHub Releases.
+- **Sửa Lỗi Format Trợ Giúp CLI (`src/dumpanalyzer/cli.py`):**
+  - Sửa ký tự `%` trong trợ giúp subcommand `dump-rollback` (`100%%`) để tránh lỗi `TypeError: %c requires int or char` khi gọi `dumpanalyzer --help`.
+- **Bộ Kiểm Thử Đóng Gói (`tests/test_packaging.py`, `tests/test_cli.py`):**
+  - Bổ sung các bài test kiểm tra cấu hình `DumpAnalyzer.spec`, cơ chế fallback `get_config_dir()`, điều phối `main_portable.py`, và gọi `--help` an toàn. 100% test pass.
+
 ## [v1.4.0] - 2026-11-10
 
 ### Đợt Cập nhật 06 — Phân Tích Chuyên Sâu Windows Event Log, Hỗ Trợ File .EVTX Ngoại Vi & Tab Event Log

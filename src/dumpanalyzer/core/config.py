@@ -88,7 +88,7 @@ COMMON_CDB_LOCATIONS = [
 def get_project_root() -> Path:
     """Trả về thư mục gốc của dự án DumpAnalyzer.
     Khi chạy ở dạng đóng gói PyInstaller (frozen), trả về thư mục chứa file .exe
-    để nạp thư mục config/ đặt bên cạnh .exe theo yêu cầu UPDATE_01.
+    để nạp thư mục config/ đặt bên cạnh .exe hoặc lưu trữ CSDL data/ và nhật ký logs/.
     """
     import sys
     if getattr(sys, "frozen", False):
@@ -96,14 +96,35 @@ def get_project_root() -> Path:
     return Path(__file__).resolve().parent.parent.parent.parent
 
 
+def get_config_dir() -> Path:
+    """Trả về thư mục chứa cấu hình (config/).
+    - Ưu tiên 1: Thư mục config/ đặt bên cạnh file .exe (cho phép IT sửa luật bên ngoài).
+    - Ưu tiên 2: Thư mục config/ được đóng gói sẵn bên trong file chạy portable (sys._MEIPASS).
+    - Môi trường phát triển: Thư mục config/ trong repo gốc.
+    """
+    import sys
+    root_cfg = get_project_root() / "config"
+    if root_cfg.exists():
+        return root_cfg
+
+    if getattr(sys, "frozen", False):
+        meipass = getattr(sys, "_MEIPASS", None)
+        if meipass:
+            meipass_cfg = Path(meipass) / "config"
+            if meipass_cfg.exists():
+                return meipass_cfg
+
+    return root_cfg
+
+
 def get_rules_dir() -> Path:
     """Trả về đường dẫn tới thư mục chứa các file rules (config/rules)."""
-    return get_project_root() / "config" / "rules"
+    return get_config_dir() / "rules"
 
 
 def get_settings_path() -> Path:
     """Trả về đường dẫn tới file cấu hình chính (config/settings.yaml)."""
-    return get_project_root() / "config" / "settings.yaml"
+    return get_config_dir() / "settings.yaml"
 
 
 def load_settings(config_path: Optional[Union[str, Path]] = None) -> Dict[str, Any]:
@@ -113,7 +134,7 @@ def load_settings(config_path: Optional[Union[str, Path]] = None) -> Dict[str, A
     if config_path:
         target = Path(config_path)
     else:
-        target = get_project_root() / "config" / "settings.yaml"
+        target = get_settings_path()
 
     if target.exists():
         try:

@@ -7,6 +7,16 @@ from dumpanalyzer.cli import main
 from dumpanalyzer import __version__
 
 
+def test_cli_help(capsys):
+    """Kiểm tra gọi tham số --help in toàn bộ trợ giúp mà không bị lỗi formatting %."""
+    with pytest.raises(SystemExit) as exc_info:
+        main(["--help"])
+    assert exc_info.value.code == 0
+    captured = capsys.readouterr()
+    assert "DumpAnalyzer" in captured.out
+    assert "dump-rollback" in captured.out
+
+
 def test_cli_version(capsys):
     """Kiểm tra gọi tham số --version."""
     with pytest.raises(SystemExit) as exc_info:

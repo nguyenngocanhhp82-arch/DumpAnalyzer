@@ -98,24 +98,37 @@ dumpanalyzer asset import DanhSachThietBi.csv
 
 ## 3. ĐÓNG GÓI THÀNH FILE .EXE (PYINSTALLER)
 
-DumpAnalyzer được cấu hình đóng gói chuẩn dạng thư mục (`--onedir`), giao diện cửa sổ (`--windowed`) và tự yêu cầu quyền Administrator (`--uac-admin`):
+DumpAnalyzer cung cấp hai hình thức đóng gói linh hoạt đáp ứng mọi nhu cầu cứu hộ và triển khai IT:
 
-1. **Đóng gói thủ công cục bộ (trên máy Windows):**
+1. **Bản Portable 1 file duy nhất (`DumpAnalyzer-Portable.exe` - Khuyến nghị cho USB cứu hộ):**
+   - **Chạy ngay lập tức:** Độc lập 100%, không cần cài đặt hay giải nén, chạy trực tiếp từ USB hoặc bất kỳ thư mục nào trên máy tính.
+   - **Tích hợp sẵn dữ liệu:** Toàn bộ bảng mã Bug Check, cấu hình `settings.yaml`, 26 quy tắc BSOD, quy tắc Event Log và schema SQLite được nén sẵn bên trong file thực thi.
+   - **Tự động điều phối kép (GUI & CLI):**
+     - Nhấp đúp chuột từ File Explorer: Khởi chạy giao diện đồ hoạ PySide6 sắc nét, không hiện cửa sổ console đen thừa thãi.
+     - Chạy qua dòng lệnh (Command Prompt / PowerShell với các lệnh `scan`, `analyze`, `events`, `check-dump-config`...): Tự động gắn kết console (`AttachConsole`) và in kết quả trực tiếp ra màn hình dòng lệnh.
+   - **Cơ chế nạp cấu hình thông minh:**
+     - Mặc định: Nạp bộ quy tắc chuẩn tích hợp sẵn trong file portable.
+     - Tùy biến IT: Nếu đặt một thư mục `config/` bên cạnh file `DumpAnalyzer-Portable.exe`, phần mềm sẽ tự động ưu tiên nạp cấu hình bên ngoài để IT sửa đổi quy tắc mà không cần biên dịch lại.
+     - Dữ liệu bền vững: CSDL `data/dumpanalyzer.db` và nhật ký `logs/` luôn được ghi bên cạnh file thực thi, không bị mất khi thoát.
+
+2. **Bản Thư mục hoàn chỉnh (`dist/DumpAnalyzer/` hoặc `DumpAnalyzer-windows-x64.zip`):**
+   - Bao gồm các file thực thi riêng biệt: `DumpAnalyzer.exe` (GUI) và `DumpAnalyzer-cli.exe` (CLI).
+   - Thư mục cấu hình `config/` mở sẵn bên ngoài và các file batch `run_gui.bat`, `run_cli.bat` để click chạy nhanh.
+
+3. **Cách đóng gói thủ công cục bộ (trên máy Windows):**
    - Nhấp đúp vào file `build_exe.bat` hoặc chạy:
      ```cmd
      python build_exe.py
      ```
-   - Thư mục phân phối hoàn chỉnh sẽ được tạo tại `dist/DumpAnalyzer/` và file nén `dist/DumpAnalyzer-windows-x64.zip`.
-   - File thực thi: `dist/DumpAnalyzer/DumpAnalyzer.exe`
-   - Thư mục cấu hình quy tắc nằm ngay bên cạnh: `dist/DumpAnalyzer/config/` (kỹ thuật viên có thể sửa trực tiếp các file YAML mà không cần build lại).
+   - Quá trình build sẽ tự động tạo ra cả hai bản phân phối trong thư mục `dist/`:
+     - File portable: `dist/DumpAnalyzer-Portable.exe`
+     - Gói zip thư mục: `dist/DumpAnalyzer-windows-x64.zip`
 
-2. **Tự động đóng gói trên GitHub Actions (Khuyến nghị):**
-   - Dự án đã tích hợp sẵn GitHub Actions workflow tại `.github/workflows/build.yml`.
-   - **Tự động kích hoạt:** Khi push code lên nhánh `main` hoặc gắn tag phiên bản `v*` (ví dụ `git tag v1.0.0 && git push origin v1.0.0`).
+4. **Tự động đóng gói trên GitHub Actions:**
+   - Dự án tích hợp sẵn GitHub Actions workflow tại `.github/workflows/build.yml`.
+   - **Tự động kích hoạt:** Khi push code lên nhánh `main` hoặc gắn tag phiên bản `v*` (ví dụ `git tag v1.5.0 && git push origin v1.5.0`).
    - **Kích hoạt thủ công:** Vào tab **Actions** trên GitHub $\rightarrow$ chọn workflow **"Build & Release DumpAnalyzer"** $\rightarrow$ nhấn **Run workflow**.
-   - **Tải file chạy:**
-     + **Artifacts:** Tải file `DumpAnalyzer-windows-x64.zip` từ trang kết quả chạy của workflow.
-     + **Releases:** Nếu gắn tag `v*` hoặc bật tuỳ chọn tạo release, file zip sẽ tự động được đính kèm vào mục **Releases** của repo.
+   - Cả file `DumpAnalyzer-Portable.exe` và gói zip `DumpAnalyzer-windows-x64.zip` đều được tự động đính kèm vào mục **Artifacts** và **Releases**.
 
 ---
 

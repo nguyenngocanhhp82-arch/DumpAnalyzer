@@ -125,10 +125,22 @@ def build():
     )
     zip_file = root / "dist" / "DumpAnalyzer-windows-x64.zip"
 
+    # 6. Kiểm tra file chạy Portable 1 file duy nhất (DumpAnalyzer-Portable.exe / DumpAnalyzer-Portable)
+    portable_exe = root / "dist" / "DumpAnalyzer-Portable.exe"
+    portable_bin = root / "dist" / "DumpAnalyzer-Portable"
+    portable_target = portable_exe if portable_exe.exists() else (portable_bin if portable_bin.exists() else None)
+
     print("\n=================================================================")
     print(f"[+] DONG GOI THANH CONG TAI: {dist_dir}")
     if zip_file.exists():
         print(f"[+] FILE NEN PHAN PHOI (ZIP): {zip_file} ({zip_file.stat().st_size / (1024*1024):.2f} MB)")
+    if portable_target:
+        p_mb = portable_target.stat().st_size / (1024 * 1024)
+        print(f"[+] BAN PORTABLE 1 FILE DUY NHAT: {portable_target} ({p_mb:.2f} MB)")
+        print("    -> Tich hop san schema SQL va config/rules mac dinh.")
+        print("    -> Chay doc lap khong can thu muc ngoai tu USB/thu muc bat ky.")
+        print("    -> Ho tro kep: Nhap dup chuot mo GUI, goi tu Command Line mo CLI.")
+        print("    -> Cho phep ghi de cau hinh bang cach dat thu muc config/ ben canh.")
     print("=================================================================\n")
     return 0
 
