@@ -311,12 +311,32 @@ def run_analysis(
             rules=rules,
         )
 
-        # Xử lý trường hợp không tìm thấy dump nào (Mục 3.4.5)
+        # Xử lý trường hợp không tìm thấy dump nào (Mục 3.4.5 & Đợt 06)
         if not crashes:
-            finding.rationale = (
-                "Không tìm thấy file dump nào trên hệ thống hoặc trong thư mục đã chọn. "
-                "Máy có thể chưa được bật tính năng ghi dump (CrashDumpEnabled = 0 hoặc cấu hình bộ nhớ ảo chưa chuẩn)."
-            )
+            if eventlog_result and eventlog_result.verdict and eventlog_result.verdict.health_score < 100:
+                v = eventlog_result.verdict
+                finding.suspect = v.primary_suspect
+                finding.score = float(100 - v.health_score)
+                finding.confidence = v.confidence
+                finding.confidence_rationale = v.confidence_rationale
+                finding.rationale = (
+                    f"[CHẨN ĐOÁN TỪ EVENT LOG KHI KHÔNG CÓ MINIDUMP]\n"
+                    f"Tình trạng sức khỏe: {v.health_status} (Điểm ổn định: {v.health_score}/100).\n"
+                    f"Nghi vấn hàng đầu: {v.primary_suspect_name}.\n"
+                    f"{v.risk_summary}\n\n"
+                    f"CÁC PHÁT HIỆN TRỌNG YẾU:\n"
+                    + "\n".join(f"• {k}" for k in v.key_findings)
+                )
+                finding.next_steps = list(v.recommended_actions)
+                suspect_ranking = [
+                    {"suspect": label, "label": label, "percentage": pct, "score": pct}
+                    for label, pct in v.suspect_breakdown
+                ]
+            else:
+                finding.rationale = (
+                    "Không tìm thấy file dump nào trên hệ thống hoặc trong thư mục đã chọn. "
+                    "Máy có thể chưa được bật tính năng ghi dump (CrashDumpEnabled = 0 hoặc cấu hình bộ nhớ ảo chưa chuẩn)."
+                )
 
         setattr(finding, "suspect_ranking", suspect_ranking)
         db.insert_finding(finding)

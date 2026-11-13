@@ -52,6 +52,23 @@ LEVEL_LABEL_VI = {
     0: "Thông tin (Info)",
 }
 
+# Các kênh nhật ký Windows chuẩn phục vụ chẩn đoán sự cố phần cứng, crash và hệ thống
+DEFAULT_DIAGNOSTIC_CHANNELS = [
+    "System",
+    "Application",
+    "HardwareEvents",
+    "Microsoft-Windows-Kernel-WHEA/Errors",
+    "Microsoft-Windows-Kernel-WHEA/Operational",
+    "Microsoft-Windows-WHEA-Logger/Operational",
+    "Microsoft-Windows-Kernel-PnP/Configuration",
+    "Microsoft-Windows-Diagnostics-Performance/Operational",
+    "Microsoft-Windows-CodeIntegrity/Operational",
+    "Microsoft-Windows-Kernel-Power/Operational",
+    "Microsoft-Windows-Storage-Storport/Operational",
+    "Microsoft-Windows-DiskDiagnostic/Operational",
+    "Microsoft-Windows-WindowsUpdateClient/Operational",
+]
+
 # Các ID sự kiện quan trọng ở mức Information (Level 4/0) cần thu thập theo đúng kênh Windows
 CURATED_INFO_EVENT_IDS = {
     "System": {
@@ -124,6 +141,24 @@ class PreCrashContext:
 
 
 @dataclass
+class EventLogVerdict:
+    """Đánh giá & Kết luận chẩn đoán tổng thể tình trạng hệ thống từ Event Log."""
+    health_status: str
+    health_score: int
+    primary_suspect: str
+    primary_suspect_name: str
+    confidence: str
+    confidence_rationale: str
+    risk_summary: str
+    key_findings: List[str] = field(default_factory=list)
+    recommended_actions: List[str] = field(default_factory=list)
+    suspect_breakdown: List[Tuple[str, float]] = field(default_factory=list)
+
+    def to_dict(self) -> Dict[str, Any]:
+        return asdict(self)
+
+
+@dataclass
 class EventLogAnalysisResult:
     """Kết quả phân tích toàn diện Windows Event Log."""
     events: List[EventLogItem] = field(default_factory=list)
@@ -135,6 +170,7 @@ class EventLogAnalysisResult:
     pre_crash_contexts: List[PreCrashContext] = field(default_factory=list)
     warnings: List[str] = field(default_factory=list)
     source_description: str = "Log máy cục bộ"
+    verdict: Optional[EventLogVerdict] = None
 
 
 # ==============================================================================
@@ -299,7 +335,7 @@ def build_harvest_script(
     - Xuất NDJSON từng sự kiện qua ForEach-Object | ConvertTo-Json -Depth 4 -Compress để không vượt trần 2MB MaxJsonLength của PowerShell 5.1.
     """
     active_levels = levels or [1, 2, 3]
-    active_channels = channels or ["System", "Application"]
+    active_channels = channels if channels is not None else DEFAULT_DIAGNOSTIC_CHANNELS
     from_dt = parse_to_utc(from_date) if from_date else None
     to_dt = parse_to_utc(to_date) if to_date else None
 
@@ -485,15 +521,17 @@ foreach ($f in $filters) {{
             if ($seen.Add($k)) {{
                 $collected.Add($ev)
             }}
+            if ($collected.Count -ge {max_events}) {{ break }}
         }}
     }} catch {{
         $fid = "$($_.FullyQualifiedErrorId)"
         $msg = "$($_.Exception.Message)"
-        if ($fid -match 'NoMatchingEventsFound' -or $msg -match 'No events were found' -or $msg -match 'not an event provider') {{
+        if ($fid -match 'NoMatchingEventsFound' -or $msg -match 'No events were found' -or $msg -match 'not an event' -or $msg -match 'could not be found' -or $msg -match 'does not exist' -or $fid -match 'LogDoesNotExist') {{
             continue
         }}
         $fatalErrors.Add($msg)
     }}
+    if ($collected.Count -ge {max_events}) {{ break }}
 }}
 
 if ($collected.Count -eq 0) {{
@@ -627,7 +665,7 @@ def analyze_event_stream(
         window_minutes=window_minutes,
     )
 
-    return EventLogAnalysisResult(
+    res = EventLogAnalysisResult(
         events=items,
         total_events=len(items),
         level_counts=level_counts,
@@ -638,6 +676,8 @@ def analyze_event_stream(
         warnings=[],
         source_description=source_description,
     )
+    res.verdict = evaluate_eventlog_verdict(res)
+    return res
 
 
 # ==============================================================================
@@ -784,6 +824,252 @@ def analyze_pre_crash_contexts(
         ))
 
     return contexts
+
+
+# ==============================================================================
+# ĐÁNH GIÁ SỨC KHỎE VÀ KẾT LUẬN TỔNG THỂ TỪ EVENT LOG
+# ==============================================================================
+
+SUSPECT_LABEL_VI_MAP: Dict[str, str] = {
+    "storage": "Lưu trữ & Hệ thống tệp (Ổ cứng Disk/NVMe/NTFS)",
+    "display_gpu": "Card màn hình & Đồ họa (GPU/Display Driver)",
+    "hardware": "Phần cứng hệ thống (WHEA/CPU/RAM/Bo mạch)",
+    "power_thermal": "Nguồn điện & Nhiệt độ (Power/Thermal)",
+    "crash_reboot": "Sập nguồn & Khởi động bất thường (Kernel-Power/BSOD)",
+    "app_service": "Dịch vụ & Ứng dụng (Application/Service Crash)",
+    "usb_device": "Thiết bị ngoại vi & USB (PnP/Device)",
+    "updates_install": "Cập nhật & Cài đặt hệ thống (Windows Update)",
+    "other": "Hệ điều hành / Thành phần khác",
+    "clean": "Hệ thống bình thường (Không có lỗi ghi nhận)",
+}
+
+DEFAULT_RECOMMENDED_ACTIONS: Dict[str, List[str]] = {
+    "storage": [
+        "Chạy phần mềm CrystalDiskInfo hoặc Hard Disk Sentinel kiểm tra sức khỏe S.M.A.R.T ổ cứng (chú ý Reallocated Sectors, Uncorrectable Errors, Media/Data Integrity).",
+        "Mở Command Prompt (Admin) và chạy lệnh: 'chkdsk C: /f /r' để quét và sửa chữa lỗi cấu trúc tập tin NTFS cũng như cô lập sector lỗi.",
+        "Kiểm tra cáp kết nối SATA hoặc tháo lắp vệ sinh chân cắm khe cắm M.2 NVMe; sao lưu dữ liệu quan trọng ngay lập tức phòng ổ hỏng đột ngột.",
+    ],
+    "display_gpu": [
+        "Khởi động Windows vào chế độ Safe Mode, dùng công cụ Display Driver Uninstaller (DDU) để gỡ bỏ hoàn toàn driver card màn hình hiện tại.",
+        "Tải và cài đặt phiên bản driver card màn hình mới nhất bản WHQL ổn định trực tiếp từ trang chủ của NVIDIA, AMD hoặc Intel.",
+        "Dùng phần mềm FurMark hoặc 3DMark chạy test tải GPU trong 15-30 phút, đồng thời theo dõi nhiệt độ GPU Core và GPU Hotspot (không nên vượt quá 85-90°C).",
+    ],
+    "power_thermal": [
+        "Kiểm tra bộ nguồn máy tính (PSU) - sụt áp đường 12V/5V khi CPU/GPU tải nặng là nguyên nhân hàng đầu gây sập nguồn Kernel-Power 41 (BugCheck 0).",
+        "Theo dõi nhiệt độ CPU và GPU bằng HWMonitor hoặc AIDA64 khi chạy tải; vệ sinh quạt tản nhiệt và thay keo tản nhiệt nếu nhiệt độ vượt quá 85°C.",
+        "Vào Windows Control Panel > Power Options > Choose what the power buttons do > tắt mục 'Turn on fast startup' (Khởi động nhanh).",
+    ],
+    "hardware": [
+        "Tạo USB Boot MemTest86 và khởi động chạy kiểm tra toàn diện bộ nhớ RAM (chạy tối thiểu 4 passes để phát hiện triệt để lỗi bit nhớ hoặc timing không tương thích).",
+        "Truy cập BIOS/UEFI của bo mạch chủ, tạm thời tắt tính năng ép xung RAM (XMP / DOCP / EXPO) và ép xung CPU (PBO) để kiểm tra độ ổn định nguyên bản.",
+        "Kiểm tra và cập nhật BIOS của bo mạch chủ lên phiên bản mới nhất từ website chính thức của nhà sản xuất.",
+    ],
+    "crash_reboot": [
+        "Kiểm tra nguồn điện máy tính (PSU), dây cấp nguồn và ổ cắm điện; loại trừ khả năng chập điện hoặc sụt áp lưới điện.",
+        "Kiểm tra tab 'Sẵn sàng ghi dump' trong phần mềm để đảm bảo hệ thống đã bật đúng CrashDumpEnabled=1 và Paging File để có file minidump khi sập.",
+        "Rà soát các thiết bị ngoại vi mới cắm hoặc các phần mềm/driver mới cài đặt gần thời điểm máy bắt đầu sập.",
+    ],
+    "app_service": [
+        "Mở Command Prompt (Admin) chạy lệnh: 'sfc /scannow' và sau đó 'dism /online /cleanup-image /restorehealth' để phục hồi các file hệ thống Windows bị lỗi.",
+        "Rà soát các ứng dụng hoặc dịch vụ được báo lỗi trong danh sách chi tiết sự kiện; gỡ bỏ hoặc cài đặt lại phiên bản mới nhất của ứng dụng đó.",
+        "Kiểm tra xem phần mềm diệt virus bên thứ ba hoặc tường lửa có can thiệp chặn các tiến trình dịch vụ chuẩn của Windows hay không.",
+    ],
+    "usb_device": [
+        "Rút toàn bộ các thiết bị ngoại vi USB không thiết yếu (USB hub, máy in, webcam ngoài, tay cầm) và theo dõi xem hệ thống còn phát sinh lỗi hay không.",
+        "Vào Device Manager kiểm tra các thiết bị có dấu chấm than màu vàng và cập nhật driver chipset / USB controller từ trang chủ bo mạch chủ.",
+    ],
+    "updates_install": [
+        "Mở Windows Update Settings, kiểm tra lịch sử cập nhật xem có bản cập nhật chất lượng (KB) nào vừa cài đặt gần đây trùng với thời điểm phát sinh lỗi hay không.",
+        "Nếu lỗi bắt đầu xảy ra sau khi vừa cập nhật Windows, có thể vào Control Panel > Uninstall a program > View installed updates để tạm gỡ bản vá gây xung đột.",
+    ],
+    "other": [
+        "Mở Command Prompt (Admin) chạy 'sfc /scannow' để sửa các tệp hệ điều hành bị hỏng.",
+        "Theo dõi thêm nhật ký sự kiện trong vài ngày tiếp theo để xác định quy luật phát sinh sự cố.",
+    ],
+    "clean": [
+        "Hệ thống hiện tại hoạt động bình thường, không cần can thiệp kỹ thuật bổ sung.",
+        "Duy trì thói quen vệ sinh máy tính định kỳ và sao lưu dữ liệu thường xuyên.",
+    ],
+}
+
+
+def evaluate_eventlog_verdict(result: EventLogAnalysisResult) -> EventLogVerdict:
+    """
+    Tổng hợp và đánh giá toàn diện tình trạng sức khỏe máy tính từ Windows Event Log:
+    - Tính điểm ổn định hệ thống (Health Score 0-100)
+    - Xác định mức độ rủi ro (Ổn định, Cần chú ý, Nguy cơ cao, Nghiêm trọng)
+    - Nhận diện thủ phạm / nhóm linh kiện nghi vấn hàng đầu (Primary Suspect)
+    - Trích xuất gạch đầu dòng các phát hiện trọng yếu (Key Findings)
+    - Đưa ra danh sách hành động khắc phục cụ thể theo thứ tự ưu tiên (Recommended Actions)
+    """
+    crit_count = result.level_counts.get("Critical", 0)
+    err_count = result.level_counts.get("Error", 0)
+    warn_count = result.level_counts.get("Warning", 0)
+    spike_count = len(result.spikes)
+    pre_crash_count = len(result.pre_crash_contexts)
+
+    # Nếu không có sự kiện nào hoặc chỉ có info thông thường
+    non_info_events = [e for e in result.events if e.level in (1, 2, 3) or e.event_id in (41, 6008)]
+    if not non_info_events and spike_count == 0:
+        return EventLogVerdict(
+            health_status="Ổn định (Rủi ro thấp)",
+            health_score=100,
+            primary_suspect="clean",
+            primary_suspect_name=SUSPECT_LABEL_VI_MAP["clean"],
+            confidence="Thấp",
+            confidence_rationale="Không ghi nhận sự kiện cảnh báo hoặc lỗi nghiêm trọng nào trong phạm vi quét.",
+            risk_summary=(
+                f"Không phát hiện sự cố đáng kể nào từ {result.source_description}. "
+                "Hệ thống đang vận hành trong ngưỡng an toàn ổn định."
+            ),
+            key_findings=["Không ghi nhận sự kiện Critical, Error hoặc Warning trong nhật ký."],
+            recommended_actions=list(DEFAULT_RECOMMENDED_ACTIONS["clean"]),
+            suspect_breakdown=[(SUSPECT_LABEL_VI_MAP["clean"], 100.0)],
+        )
+
+    # 1. Tính điểm sức khỏe hệ thống (0 - 100)
+    crit_deduct = min(crit_count * 15, 50)
+    err_deduct = min(err_count * 2, 30)
+    warn_deduct = min(int(warn_count * 0.5), 15)
+    spike_deduct = min(spike_count * 10, 25)
+    pre_crash_deduct = min(pre_crash_count * 10, 20)
+
+    total_deduct = crit_deduct + err_deduct + warn_deduct + spike_deduct + pre_crash_deduct
+    health_score = max(5, min(100, 100 - total_deduct))
+
+    # 2. Xác định trạng thái sức khỏe
+    if health_score >= 85:
+        health_status = "Ổn định (Rủi ro thấp)"
+    elif health_score >= 65:
+        health_status = "Cần chú ý (Rủi ro trung bình)"
+    elif health_score >= 40:
+        health_status = "Nguy cơ cao (Cần kiểm tra)"
+    else:
+        health_status = "Nghiêm trọng (Bất ổn định nặng)"
+
+    # 3. Tính điểm phân bổ nghi vấn từng nhóm danh mục
+    cat_scores: Dict[str, float] = {}
+
+    for e in result.events:
+        c = e.category or "other"
+        if e.level == 1:
+            cat_scores[c] = cat_scores.get(c, 0.0) + 5.0
+        elif e.level == 2:
+            cat_scores[c] = cat_scores.get(c, 0.0) + 2.0
+        elif e.level == 3:
+            cat_scores[c] = cat_scores.get(c, 0.0) + 0.5
+
+    for sp in result.spikes:
+        c = sp.category or "other"
+        cat_scores[c] = cat_scores.get(c, 0.0) + min(sp.count * 1.5, 20.0)
+
+    for pc in result.pre_crash_contexts:
+        for pe in pc.preceding_events:
+            c = pe.category or "other"
+            cat_scores[c] = cat_scores.get(c, 0.0) + 3.0
+
+    if not cat_scores:
+        if crit_count > 0 or pre_crash_count > 0:
+            cat_scores["crash_reboot"] = 10.0
+        else:
+            cat_scores["other"] = 1.0
+
+    total_cat_score = sum(cat_scores.values()) or 1.0
+    sorted_cats = sorted(cat_scores.items(), key=lambda x: x[1], reverse=True)
+
+    primary_suspect = sorted_cats[0][0]
+    primary_suspect_name = SUSPECT_LABEL_VI_MAP.get(primary_suspect, "Khác")
+
+    suspect_breakdown = [
+        (SUSPECT_LABEL_VI_MAP.get(cat, cat), round((score / total_cat_score) * 100.0, 1))
+        for cat, score in sorted_cats[:5]
+    ]
+
+    # 4. Trích xuất các phát hiện trọng yếu (Key Findings)
+    key_findings: List[str] = []
+
+    crash_41_cnt = sum(1 for e in result.events if e.event_id == 41 and "Kernel-Power" in e.provider)
+    crash_6008_cnt = sum(1 for e in result.events if e.event_id == 6008 and "EventLog" in e.provider)
+    total_unexpected_crashes = crash_41_cnt + crash_6008_cnt
+    if total_unexpected_crashes > 0:
+        key_findings.append(
+            f"Ghi nhận {total_unexpected_crashes} lần sập nguồn bất thường hoặc mất nguồn đột ngột "
+            f"(Kernel-Power 41: {crash_41_cnt} lần, EventLog 6008: {crash_6008_cnt} lần)."
+        )
+
+    if pre_crash_count > 0:
+        dominant_summaries = [f"Lần {idx+1}: {pc.summary}" for idx, pc in enumerate(result.pre_crash_contexts[:2])]
+        key_findings.append(
+            f"Phát hiện cảnh báo/lỗi dồn dập ngay trước các lần tắt máy bất thường ({'; '.join(dominant_summaries)})."
+        )
+
+    if spike_count > 0:
+        sp_desc = [f"nhóm '{s.category_name}' ({s.count} lỗi/{s.duration_minutes} phút)" for s in result.spikes[:2]]
+        key_findings.append(f"Bùng phát {spike_count} đợt lỗi đột biến (Spikes): {', '.join(sp_desc)}.")
+
+    storage_cnt = sum(1 for e in result.events if e.category == "storage" and e.level in (1, 2, 3))
+    if storage_cnt > 0:
+        key_findings.append(f"Ghi nhận {storage_cnt} cảnh báo/lỗi đọc ghi hoặc hệ thống tệp ổ cứng (Disk, stornvme, Ntfs).")
+
+    hw_cnt = sum(1 for e in result.events if e.category == "hardware" and e.level in (1, 2, 3))
+    if hw_cnt > 0:
+        key_findings.append(f"Phát hiện {hw_cnt} sự kiện báo lỗi phần cứng từ bộ xử lý WHEA (WHEA-Logger).")
+
+    gpu_cnt = sum(1 for e in result.events if e.category == "display_gpu" and e.level in (1, 2, 3))
+    if gpu_cnt > 0:
+        key_findings.append(f"Ghi nhận {gpu_cnt} sự cố trình điều khiển đồ họa bị treo hoặc reset (Display, nvlddmkm).")
+
+    power_cnt = sum(1 for e in result.events if e.category == "power_thermal" and e.level in (1, 2, 3))
+    if power_cnt > 0:
+        key_findings.append(f"Ghi nhận {power_cnt} cảnh báo nguồn điện hoặc quá nhiệt CPU (Kernel-Processor-Power, ACPI).")
+
+    app_cnt = sum(1 for e in result.events if e.category == "app_service" and e.level in (1, 2, 3))
+    if app_cnt > 0:
+        key_findings.append(f"Ghi nhận {app_cnt} sự cố ứng dụng hoặc dịch vụ hệ thống bị dừng đột ngột.")
+
+    if not key_findings:
+        key_findings.append("Không có mẫu hình sự cố nghiêm trọng tập trung; hệ thống chỉ ghi nhận một số cảnh báo rải rác.")
+
+    # 5. Độ tin cậy (Confidence)
+    if crit_count >= 1 or spike_count >= 1 or err_count >= 5:
+        confidence = "Cao"
+        confidence_rationale = (
+            f"Độ tin cậy chẩn đoán cao nhờ phát hiện {crit_count} sự kiện nghiêm trọng (Critical), "
+            f"{err_count} lỗi (Error) và {spike_count} đợt bùng phát lỗi dồn dập."
+        )
+    elif err_count >= 1 or warn_count >= 3:
+        confidence = "Trung bình"
+        confidence_rationale = f"Độ tin cậy trung bình dựa trên {err_count} lỗi và {warn_count} cảnh báo rải rác."
+    else:
+        confidence = "Thấp"
+        confidence_rationale = "Số lượng sự cố ghi nhận ít, chưa đủ mẫu hình lỗi dày đặc để khẳng định chắc chắn."
+
+    # 6. Tóm tắt rủi ro (Risk Summary)
+    top_pct = suspect_breakdown[0][1] if suspect_breakdown else 100.0
+    risk_summary = (
+        f"Hệ thống đạt điểm ổn định {health_score}/100 ({health_status}). "
+        f"Tổng hợp từ {result.source_description} ghi nhận {result.total_events} sự kiện "
+        f"({crit_count} Critical, {err_count} Error, {warn_count} Warning). "
+        f"Nguy cơ cao nhất tập trung tại nhóm: {primary_suspect_name} (chiếm {top_pct}% trọng số lỗi)."
+    )
+
+    # 7. Khuyến nghị xử lý (Recommended Actions)
+    recs = list(DEFAULT_RECOMMENDED_ACTIONS.get(primary_suspect, DEFAULT_RECOMMENDED_ACTIONS["other"]))
+    if total_unexpected_crashes > 0 and primary_suspect not in ("crash_reboot", "power_thermal"):
+        recs.append("Kiểm tra bộ nguồn (PSU) và tab 'Sẵn sàng ghi dump' để đảm bảo máy tính không bị mất nguồn đột ngột.")
+
+    return EventLogVerdict(
+        health_status=health_status,
+        health_score=health_score,
+        primary_suspect=primary_suspect,
+        primary_suspect_name=primary_suspect_name,
+        confidence=confidence,
+        confidence_rationale=confidence_rationale,
+        risk_summary=risk_summary,
+        key_findings=key_findings,
+        recommended_actions=recs,
+        suspect_breakdown=suspect_breakdown,
+    )
 
 
 # ==============================================================================
@@ -1002,8 +1288,49 @@ def export_eventlog_to_excel(
 
     row_idx = 5
 
-    # 2. Bảng KPI tổng hợp
-    ws_summary.cell(row=row_idx, column=1, value="1. THỐNG KÊ TỔNG QUAN THEO CẤP ĐỘ").font = section_font
+    # 1. Khung Đánh giá tổng thể tình trạng hệ thống (Verdict)
+    v = result.verdict
+    if v:
+        ws_summary.cell(row=row_idx, column=1, value="1. ĐÁNH GIÁ TỔNG THỂ TÌNH TRẠNG HỆ THỐNG (SYSTEM VERDICT)").font = section_font
+        for col in range(1, 6):
+            ws_summary.cell(row=row_idx, column=col).fill = section_fill
+        row_idx += 1
+
+        cell_vh1 = ws_summary.cell(row=row_idx, column=1, value="Chỉ số đánh giá")
+        cell_vh1.fill = header_fill
+        cell_vh1.font = header_font
+        cell_vh1.border = thin_border
+        cell_vh2 = ws_summary.cell(row=row_idx, column=2, value="Kết quả / Nội dung phân tích")
+        cell_vh2.fill = header_fill
+        cell_vh2.font = header_font
+        cell_vh2.border = thin_border
+        for c in range(3, 6):
+            ws_summary.cell(row=row_idx, column=c).border = thin_border
+        row_idx += 1
+
+        verdict_rows = [
+            ("Tình trạng sức khỏe", v.health_status),
+            ("Điểm số ổn định", f"{v.health_score} / 100"),
+            ("Thủ phạm / Nhóm nghi vấn hàng đầu", v.primary_suspect_name),
+            ("Mức độ tin cậy", f"{v.confidence} — {v.confidence_rationale}"),
+            ("Tóm tắt rủi ro hệ thống", v.risk_summary),
+            ("Các phát hiện trọng yếu", "\n".join(f"• {k}" for k in v.key_findings)),
+            ("Khuyến nghị kỹ thuật ưu tiên", "\n".join(f"{idx}. {act}" for idx, act in enumerate(v.recommended_actions, 1))),
+        ]
+
+        for lbl, val_txt in verdict_rows:
+            ws_summary.cell(row=row_idx, column=1, value=lbl).font = bold_font
+            cell_v = ws_summary.cell(row=row_idx, column=2, value=val_txt)
+            cell_v.font = regular_font
+            cell_v.alignment = Alignment(wrap_text=True, vertical="top")
+            for c in range(1, 6):
+                ws_summary.cell(row=row_idx, column=c).border = thin_border
+            row_idx += 1
+
+        row_idx += 2
+
+    sec_kpi_title = "2. THỐNG KÊ TỔNG QUAN THEO CẤP ĐỘ" if v else "1. THỐNG KÊ TỔNG QUAN THEO CẤP ĐỘ"
+    ws_summary.cell(row=row_idx, column=1, value=sec_kpi_title).font = section_font
     for col in range(1, 5):
         ws_summary.cell(row=row_idx, column=col).fill = section_fill
     row_idx += 1
@@ -1036,7 +1363,8 @@ def export_eventlog_to_excel(
     row_idx += 2
 
     # 3. Phân bố theo Danh mục sự kiện
-    ws_summary.cell(row=row_idx, column=1, value="2. PHÂN BỐ SỰ KIỆN THEO DANH MỤC NGHIỆP VỤ").font = section_font
+    sec_cat_title = "3. PHÂN BỐ SỰ KIỆN THEO DANH MỤC NGHIỆP VỤ" if v else "2. PHÂN BỐ SỰ KIỆN THEO DANH MỤC NGHIỆP VỤ"
+    ws_summary.cell(row=row_idx, column=1, value=sec_cat_title).font = section_font
     for col in range(1, 4):
         ws_summary.cell(row=row_idx, column=col).fill = section_fill
     row_idx += 1
@@ -1060,7 +1388,8 @@ def export_eventlog_to_excel(
     row_idx += 2
 
     # 4. Bảng Đột biến lỗi (Spikes)
-    ws_summary.cell(row=row_idx, column=1, value="3. CÁC ĐỢT BÙNG PHÁT LỖI ĐỘT BIẾN (SPIKE ALERTS)").font = section_font
+    sec_spike_title = "4. CÁC ĐỢT BÙNG PHÁT LỖI ĐỘT BIẾN (SPIKE ALERTS)" if v else "3. CÁC ĐỢT BÙNG PHÁT LỖI ĐỘT BIẾN (SPIKE ALERTS)"
+    ws_summary.cell(row=row_idx, column=1, value=sec_spike_title).font = section_font
     for col in range(1, 6):
         ws_summary.cell(row=row_idx, column=col).fill = section_fill
     row_idx += 1
@@ -1092,7 +1421,8 @@ def export_eventlog_to_excel(
     row_idx += 2
 
     # 5. Bảng Ngữ cảnh trước các lần sập nguồn (Pre-Crash Contexts)
-    ws_summary.cell(row=row_idx, column=1, value="4. NGỮ CẢNH TRƯỚC CÁC LẦN TẮT MÁY BẤT THƯỜNG / SẬP NGUỒN").font = section_font
+    sec_pre_title = "5. NGỮ CẢNH TRƯỚC CÁC LẦN TẮT MÁY BẤT THƯỜNG / SẬP NGUỒN" if v else "4. NGỮ CẢNH TRƯỚC CÁC LẦN TẮT MÁY BẤT THƯỜNG / SẬP NGUỒN"
+    ws_summary.cell(row=row_idx, column=1, value=sec_pre_title).font = section_font
     for col in range(1, 5):
         ws_summary.cell(row=row_idx, column=col).fill = section_fill
     row_idx += 1

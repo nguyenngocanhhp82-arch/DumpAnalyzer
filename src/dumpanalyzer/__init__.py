@@ -4,7 +4,7 @@ Dành cho kỹ thuật viên IT chẩn đoán nguyên nhân sự cố máy tính
 Tác giả phát triển: Lilbow
 """
 
-__version__ = "1.5.1"
+__version__ = "1.5.2"
 __author__ = "Lilbow"
 
 

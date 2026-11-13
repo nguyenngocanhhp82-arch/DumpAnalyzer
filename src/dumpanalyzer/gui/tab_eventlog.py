@@ -68,12 +68,14 @@ class EventLogHarvestWorker(QThread):
     def __init__(
         self,
         mode: str = "live",
+        channels: Optional[List[str]] = None,
         evtx_path: Optional[str] = None,
-        max_events: int = 2000,
+        max_events: int = 2500,
         parent: Optional[QWidget] = None,
     ):
         super().__init__(parent)
         self.mode = mode
+        self.channels = channels
         self.evtx_path = evtx_path
         self.max_events = max_events
 
@@ -82,7 +84,7 @@ class EventLogHarvestWorker(QThread):
             if self.mode == "evtx" and self.evtx_path:
                 res = harvest_evtx_eventlog(self.evtx_path, max_events=self.max_events)
             else:
-                res = harvest_live_eventlog(max_events=self.max_events)
+                res = harvest_live_eventlog(channels=self.channels, max_events=self.max_events)
             self.finished.emit(res)
         except Exception as e:
             self.error.emit(str(e))
@@ -142,6 +144,14 @@ class EventLogTab(QWidget):
         self.btn_scan_live.clicked.connect(self._on_scan_live)
         toolbar.addWidget(self.btn_scan_live)
 
+        self.combo_channels = QComboBox()
+        self.combo_channels.addItem("🌐 Toàn bộ log chẩn đoán (System, App, WHEA, PnP, Storage...)", None)
+        self.combo_channels.addItem("📄 Cơ bản (Chỉ System & Application)", ["System", "Application"])
+        self.combo_channels.setStyleSheet(
+            f"QComboBox {{ background-color: {COLOR_BG_SURFACE}; color: {COLOR_TEXT_PRIMARY}; border: 1px solid {COLOR_BORDER_LIGHT}; font-weight: 500; padding: 6px 12px; border-radius: 6px; }}"
+        )
+        toolbar.addWidget(self.combo_channels)
+
         self.btn_import_evtx = QPushButton("📂 Nhập file .evtx")
         self.btn_import_evtx.setStyleSheet(
             f"QPushButton {{ background-color: {COLOR_BG_SURFACE}; color: {COLOR_TEXT_PRIMARY}; border: 1px solid {COLOR_BORDER_LIGHT}; font-weight: 600; padding: 7px 14px; border-radius: 6px; }}"
@@ -185,6 +195,59 @@ class EventLogTab(QWidget):
         self.progress_bar.setFixedHeight(6)
         self.progress_bar.setVisible(False)
         main_layout.addWidget(self.progress_bar)
+
+        # 1.5. Khung Đánh Giá Tổng Thể Tình Trạng Hệ Thống (Health Verdict Banner)
+        self.verdict_frame = QFrame()
+        self.verdict_frame.setObjectName("CardFrame")
+        self.verdict_frame.setFrameShape(QFrame.StyledPanel)
+        verdict_layout = QVBoxLayout(self.verdict_frame)
+        verdict_layout.setContentsMargins(16, 14, 16, 14)
+        verdict_layout.setSpacing(8)
+
+        v_top_row = QHBoxLayout()
+        v_top_row.setSpacing(10)
+
+        lbl_v_header = QLabel("📋 ĐÁNH GIÁ TỔNG THỂ TÌNH TRẠNG HỆ THỐNG TỪ EVENT LOG")
+        lbl_v_header.setStyleSheet(f"font-size: 13px; font-weight: 700; color: {COLOR_TEXT_PRIMARY}; text-transform: uppercase;")
+        v_top_row.addWidget(lbl_v_header)
+
+        self.lbl_verdict_status_badge = QLabel("Chưa quét sự kiện")
+        self.lbl_verdict_status_badge.setStyleSheet(
+            "background-color: #334155; color: #94a3b8; font-weight: bold; font-size: 12px; padding: 4px 10px; border-radius: 4px;"
+        )
+        v_top_row.addWidget(self.lbl_verdict_status_badge)
+
+        self.lbl_verdict_confidence_badge = QLabel("ĐỘ TIN CẬY: CHƯA RÕ")
+        self.lbl_verdict_confidence_badge.setStyleSheet(
+            "background-color: #1e293b; color: #64748b; font-size: 11px; font-weight: 600; padding: 3px 8px; border-radius: 4px; border: 1px solid #334155;"
+        )
+        v_top_row.addWidget(self.lbl_verdict_confidence_badge)
+
+        v_top_row.addStretch()
+        verdict_layout.addLayout(v_top_row)
+
+        self.lbl_verdict_primary_suspect = QLabel("Nghi vấn chính: Chưa xác định")
+        self.lbl_verdict_primary_suspect.setStyleSheet(f"font-size: 15px; font-weight: bold; color: {COLOR_ACCENT}; margin-top: 2px;")
+        verdict_layout.addWidget(self.lbl_verdict_primary_suspect)
+
+        self.lbl_verdict_risk_summary = QLabel("Vui lòng quét log máy trực tiếp hoặc nạp tệp .evtx để nhận chẩn đoán toàn diện.")
+        self.lbl_verdict_risk_summary.setStyleSheet(f"color: {COLOR_TEXT_PRIMARY}; font-size: 12px; line-height: 1.5;")
+        self.lbl_verdict_risk_summary.setWordWrap(True)
+        verdict_layout.addWidget(self.lbl_verdict_risk_summary)
+
+        self.lbl_verdict_findings = QLabel("")
+        self.lbl_verdict_findings.setStyleSheet(f"color: {COLOR_TEXT_MUTED}; font-size: 12px; line-height: 1.4;")
+        self.lbl_verdict_findings.setWordWrap(True)
+        self.lbl_verdict_findings.setVisible(False)
+        verdict_layout.addWidget(self.lbl_verdict_findings)
+
+        self.lbl_verdict_recommendations = QLabel("")
+        self.lbl_verdict_recommendations.setStyleSheet("color: #38bdf8; font-size: 12px; font-weight: 500; line-height: 1.4;")
+        self.lbl_verdict_recommendations.setWordWrap(True)
+        self.lbl_verdict_recommendations.setVisible(False)
+        verdict_layout.addWidget(self.lbl_verdict_recommendations)
+
+        main_layout.addWidget(self.verdict_frame)
 
         # 2. Hàng Thẻ KPI tóm tắt
         kpi_layout = QHBoxLayout()
@@ -296,6 +359,7 @@ class EventLogTab(QWidget):
     def _set_loading(self, loading: bool, message: str = "") -> None:
         self.progress_bar.setVisible(loading)
         self.btn_scan_live.setEnabled(not loading)
+        self.combo_channels.setEnabled(not loading)
         self.btn_import_evtx.setEnabled(not loading)
         self.btn_import_evtx_dir.setEnabled(not loading)
         self.btn_export_excel.setEnabled(not loading)
@@ -303,8 +367,10 @@ class EventLogTab(QWidget):
 
     def _on_scan_live(self) -> None:
         """Kích hoạt quét log trực tiếp của máy trong luồng ngầm."""
-        self._set_loading(True, "Đang quét Windows Event Log trực tiếp...")
-        self._worker = EventLogHarvestWorker(mode="live", parent=self)
+        scope_data = self.combo_channels.currentData()
+        scope_name = self.combo_channels.currentText()
+        self._set_loading(True, f"Đang quét {scope_name.lower()}...")
+        self._worker = EventLogHarvestWorker(mode="live", channels=scope_data, parent=self)
         self._worker.finished.connect(self._on_harvest_finished)
         self._worker.error.connect(self._on_harvest_error)
         self._worker.start()
@@ -362,6 +428,65 @@ class EventLogTab(QWidget):
 
         spike_cnt = len(result.spikes)
         self.card_spikes.set_value(f"{spike_cnt} đợt", COLOR_DANGER if spike_cnt > 0 else COLOR_SUCCESS)
+
+        # Cập nhật Khung Đánh Giá Tổng Thể Tình Trạng Hệ Thống (Verdict)
+        v = result.verdict
+        if v:
+            score = v.health_score
+            if score >= 85:
+                badge_bg = "#065f46"
+                badge_color = "#34d399"
+                status_icon = "🟢"
+            elif score >= 65:
+                badge_bg = "#78350f"
+                badge_color = "#fcd34d"
+                status_icon = "🟡"
+            elif score >= 40:
+                badge_bg = "#831843"
+                badge_color = "#f472b6"
+                status_icon = "🟠"
+            else:
+                badge_bg = "#7f1d1d"
+                badge_color = "#fca5a5"
+                status_icon = "🔴"
+
+            self.lbl_verdict_status_badge.setText(f"{status_icon} {v.health_status.upper()} ({score}/100)")
+            self.lbl_verdict_status_badge.setStyleSheet(
+                f"background-color: {badge_bg}; color: {badge_color}; font-weight: bold; font-size: 12px; padding: 4px 10px; border-radius: 4px; border: 1px solid {badge_color};"
+            )
+
+            conf_str = v.confidence.upper()
+            self.lbl_verdict_confidence_badge.setText(f"ĐỘ TIN CẬY: {conf_str}")
+            self.lbl_verdict_confidence_badge.setStyleSheet(
+                "background-color: #1e293b; color: #38bdf8; font-size: 11px; font-weight: 600; padding: 3px 8px; border-radius: 4px; border: 1px solid #38bdf8;"
+            )
+
+            top_pct_txt = ""
+            if v.suspect_breakdown:
+                top_pct_txt = f" ({v.suspect_breakdown[0][1]}%)"
+            self.lbl_verdict_primary_suspect.setText(f"Nghi vấn hàng đầu: {v.primary_suspect_name}{top_pct_txt}")
+            self.lbl_verdict_risk_summary.setText(v.risk_summary)
+
+            if v.key_findings:
+                findings_txt = "Các phát hiện trọng yếu:\n" + "\n".join(f"  • {f}" for f in v.key_findings)
+                self.lbl_verdict_findings.setText(findings_txt)
+                self.lbl_verdict_findings.setVisible(True)
+            else:
+                self.lbl_verdict_findings.setVisible(False)
+
+            if v.recommended_actions:
+                recs_txt = "Khuyến nghị xử lý ưu tiên cho Kỹ thuật viên:\n" + "\n".join(f"  {idx}. {r}" for idx, r in enumerate(v.recommended_actions, 1))
+                self.lbl_verdict_recommendations.setText(recs_txt)
+                self.lbl_verdict_recommendations.setVisible(True)
+            else:
+                self.lbl_verdict_recommendations.setVisible(False)
+        else:
+            self.lbl_verdict_status_badge.setText("Chưa có đánh giá")
+            self.lbl_verdict_confidence_badge.setText("ĐỘ TIN CẬY: CHƯA RÕ")
+            self.lbl_verdict_primary_suspect.setText("Nghi vấn chính: Chưa xác định")
+            self.lbl_verdict_risk_summary.setText("Không có dữ liệu đánh giá.")
+            self.lbl_verdict_findings.setVisible(False)
+            self.lbl_verdict_recommendations.setVisible(False)
 
         self._apply_filters()
 

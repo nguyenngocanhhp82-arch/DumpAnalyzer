@@ -334,7 +334,7 @@ class MainWindow(QMainWindow):
         )
         self.tab_hwtests.set_machine_info(self._machine_info)
 
-        # Tự động chuyển người dùng sang tab Kết luận nếu có sập máy
+        # Tự động chuyển người dùng sang tab Kết luận nếu có sập máy HOẶC có kết luận từ Event Log
         if self._crashes:
             self.tabs.setCurrentWidget(self.tab_verdict)
             QMessageBox.information(
@@ -342,6 +342,16 @@ class MainWindow(QMainWindow):
                 "Hoàn tất phân tích",
                 f"Đã phân tích thành công {len(self._crashes)} sự cố hệ thống!\n"
                 f"Kết luận đã được tính toán tại tab 'Kết luận'.",
+            )
+        elif ev_res and ev_res.verdict and ev_res.verdict.health_score < 100:
+            self.tabs.setCurrentWidget(self.tab_verdict)
+            QMessageBox.information(
+                self,
+                "Chẩn đoán từ Event Log",
+                "Không phát hiện file dump (.dmp), nhưng đã chẩn đoán tình trạng hệ thống từ toàn bộ Windows Event Log!\n\n"
+                f"• Tình trạng: {ev_res.verdict.health_status} (Điểm ổn định: {ev_res.verdict.health_score}/100)\n"
+                f"• Nghi vấn hàng đầu: {ev_res.verdict.primary_suspect_name}\n\n"
+                "Kết luận chi tiết đã được tự động hiển thị tại tab 'Kết luận' và tab 'Nhật ký Event Log'.",
             )
         else:
             QMessageBox.information(

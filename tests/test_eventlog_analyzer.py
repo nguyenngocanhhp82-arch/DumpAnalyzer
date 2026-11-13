@@ -20,6 +20,7 @@ from dumpanalyzer.analyzer.eventlog_analyzer import (
     analyze_event_stream,
     export_eventlog_to_excel,
     EventLogItem,
+    DEFAULT_DIAGNOSTIC_CHANNELS,
 )
 
 
@@ -297,3 +298,76 @@ def test_export_eventlog_to_excel(tmp_path):
 
     assert found_redacted_user is True
     assert found_redacted_ip is True
+
+    # Kiểm tra mục 1 Đánh giá tổng thể hệ thống xuất hiện trong sheet Tổng quan
+    ws_sum = wb["Tổng quan & Thống kê"]
+    found_verdict_title = False
+    for row in ws_sum.iter_rows(values_only=True):
+        txt = str(row[0]) if len(row) > 0 and row[0] is not None else ""
+        if "ĐÁNH GIÁ TỔNG THỂ TÌNH TRẠNG HỆ THỐNG" in txt:
+            found_verdict_title = True
+            break
+    assert found_verdict_title is True
+
+
+def test_evaluate_eventlog_verdict_clean():
+    """Kiểm tra đánh giá hệ thống sạch (không có lỗi/cảnh báo) đạt 100 điểm ổn định."""
+    res = analyze_event_stream([], source_description="Test Clean")
+    assert res.verdict is not None
+    assert res.verdict.health_score == 100
+    assert "Ổn định" in res.verdict.health_status
+    assert res.verdict.primary_suspect == "clean"
+    assert "bình thường" in res.verdict.primary_suspect_name.lower()
+    assert len(res.verdict.recommended_actions) > 0
+
+
+def test_evaluate_eventlog_verdict_storage_spike():
+    """Kiểm tra đánh giá hệ thống bùng phát lỗi Disk: điểm giảm, nghi vấn storage hàng đầu."""
+    disk_events = [
+        EventLogItem(event_id=7, provider="Disk", category="storage", category_name="Lưu trữ & Hệ thống tệp", level=2, time_created_utc=f"2026-11-10T08:0{i}:00Z", raw_message=f"Bad block {i}")
+        for i in range(6)
+    ]
+    res = analyze_event_stream([e.to_dict() for e in disk_events], source_description="Test Disk Spike")
+    assert res.verdict is not None
+    assert res.verdict.health_score <= 80
+    assert res.verdict.primary_suspect == "storage"
+    assert "Lưu trữ" in res.verdict.primary_suspect_name
+    assert res.verdict.confidence == "Cao"
+    # Kiểm tra khuyến nghị có chkdsk hoặc CrystalDiskInfo
+    recs_str = " ".join(res.verdict.recommended_actions)
+    assert "CrystalDiskInfo" in recs_str or "chkdsk" in recs_str
+
+
+def test_evaluate_eventlog_verdict_gpu_crash():
+    """Kiểm tra đánh giá lỗi GPU/Display driver reset (nvlddmkm): khuyến nghị DDU/FurMark."""
+    gpu_events = [
+        EventLogItem(event_id=13, provider="nvlddmkm", category="display_gpu", category_name="Màn hình & Card đồ họa (GPU)", level=2, time_created_utc=f"2026-11-10T12:0{i}:00Z", raw_message="Graphics driver stopped responding")
+        for i in range(4)
+    ]
+    res = analyze_event_stream([e.to_dict() for e in gpu_events], source_description="Test GPU Crash")
+    assert res.verdict is not None
+    assert res.verdict.primary_suspect == "display_gpu"
+    assert "GPU" in res.verdict.primary_suspect_name or "Card" in res.verdict.primary_suspect_name
+    recs_str = " ".join(res.verdict.recommended_actions)
+    assert "DDU" in recs_str or "Display Driver Uninstaller" in recs_str or "FurMark" in recs_str
+
+
+def test_evaluate_eventlog_verdict_whea_hardware():
+    """Kiểm tra đánh giá lỗi WHEA-Logger phần cứng: khuyến nghị MemTest86/BIOS."""
+    whea_events = [
+        EventLogItem(event_id=18, provider="Microsoft-Windows-WHEA-Logger", category="hardware", category_name="Phần cứng (WHEA)", level=1, time_created_utc="2026-11-10T14:00:00Z", raw_message="Fatal Machine Check Exception")
+    ]
+    res = analyze_event_stream([e.to_dict() for e in whea_events], source_description="Test WHEA")
+    assert res.verdict is not None
+    assert res.verdict.health_score <= 85
+    assert res.verdict.primary_suspect == "hardware"
+    recs_str = " ".join(res.verdict.recommended_actions)
+    assert "MemTest86" in recs_str or "BIOS" in recs_str
+
+
+def test_build_harvest_script_default_diagnostic_channels():
+    """Kiểm tra khi channels=None, build_harvest_script tự động bao gồm toàn bộ các kênh chẩn đoán mở rộng."""
+    ps_all = build_harvest_script(channels=None, levels=[1, 2, 3], max_events=2000)
+    for ch in DEFAULT_DIAGNOSTIC_CHANNELS:
+        assert f"LogName = '{ch}'" in ps_all
+

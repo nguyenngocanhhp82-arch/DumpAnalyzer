@@ -775,6 +775,7 @@ def cmd_events(args):
 
     print_banner()
     evtx_path = getattr(args, "evtx_path", None)
+    channels = ["System", "Application"] if getattr(args, "basic", False) else None
     if evtx_path:
         print(f"\n--- PHÂN TÍCH FILE / THƯ MỤC .EVTX: {evtx_path} ---")
         res = harvest_evtx_eventlog(
@@ -784,8 +785,10 @@ def cmd_events(args):
             debug_ps=getattr(args, "debug_ps", False),
         )
     else:
-        print("\n--- THU THẬP & PHÂN TÍCH SỰ KIỆN EVENT LOG THEO CẤP ĐỘ ---")
+        scope_str = "KÊNH CƠ BẢN (System & Application)" if getattr(args, "basic", False) else "TOÀN BỘ KÊNH CHẨN ĐOÁN (System, App, WHEA, PnP, Storage...)"
+        print(f"\n--- THU THẬP & PHÂN TÍCH EVENT LOG: {scope_str} ---")
         res = harvest_live_eventlog(
+            channels=channels,
             from_date=getattr(args, "from_date", None),
             to_date=getattr(args, "to_date", None),
             debug_ps=getattr(args, "debug_ps", False),
@@ -803,6 +806,30 @@ def cmd_events(args):
     print(f"     • Critical: {res.level_counts.get('Critical', 0)} | Error: {res.level_counts.get('Error', 0)} | Warning: {res.level_counts.get('Warning', 0)} | Info: {res.level_counts.get('Information', 0)}")
     if is_redact:
         print("     • Đã bật chế độ che thông tin nhạy cảm (Tên người dùng, IP, Domain User).")
+
+    # In Khung Đánh giá tổng thể tình trạng hệ thống từ Event Log (Verdict)
+    if res.verdict and not getattr(args, "spikes", False) and not getattr(args, "pre_crash", False):
+        v = res.verdict
+        print("\n======================================================================")
+        print("  ĐÁNH GIÁ TỔNG THỂ TÌNH TRẠNG HỆ THỐNG TỪ EVENT LOG")
+        print("======================================================================")
+        print(f"Tình trạng sức khỏe: [{v.health_status.upper()}] (Điểm ổn định: {v.health_score}/100)")
+        top_pct_txt = f" ({v.suspect_breakdown[0][1]}%)" if v.suspect_breakdown else ""
+        print(f"Nghi vấn hàng đầu:   {v.primary_suspect_name}{top_pct_txt}")
+        print(f"Mức độ tin cậy:       [{v.confidence.upper()}]")
+        print(f"Căn cứ:               {v.confidence_rationale}")
+        print(f"\n[TÓM TẮT ĐÁNH GIÁ RỦI RO]:\n  {v.risk_summary}")
+
+        if v.key_findings:
+            print("\n[CÁC PHÁT HIỆN TRỌNG YẾU]:")
+            for f in v.key_findings:
+                print(f"  • {f}")
+
+        if v.recommended_actions:
+            print("\n[KHUYẾN NGHỊ XỬ LÝ ƯU TIÊN CHO KỸ THUẬT VIÊN]:")
+            for idx, r in enumerate(v.recommended_actions, 1):
+                print(f"  {idx}. {r}")
+        print("======================================================================\n")
 
     # 1. Nếu người dùng chọn --spikes
     if getattr(args, "spikes", False):
@@ -1725,6 +1752,12 @@ def build_parser() -> argparse.ArgumentParser:
         dest="debug_ps",
         action="store_true",
         help="In ra chi tiết script PowerShell và output thô để kiểm tra lỗi",
+    )
+    parser_events.add_argument(
+        "--basic",
+        dest="basic",
+        action="store_true",
+        help="Chỉ quét 2 kênh cơ bản (System & Application) thay vì toàn bộ các kênh chẩn đoán",
     )
     parser_events.set_defaults(func=cmd_events)
 
